@@ -1,0 +1,21 @@
+# E1: honest baseline. The v1 paper's CNN-BiLSTM on 40 MFCCs, ported to PyTorch,
+# trained on ASVspoof 2019 LA train, early-stopped on dev EER.
+name: e1_cnn_bilstm_mfcc
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: mfcc
+    n_mfcc: 40
+    n_fft: 2048
+    hop_length: 512
+    n_mels: 128
+  kwargs:
+    n_mfcc: 40
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3        # Keras Adam default, as in v1
+  max_epochs: 50
+  early_stop_patience: 8

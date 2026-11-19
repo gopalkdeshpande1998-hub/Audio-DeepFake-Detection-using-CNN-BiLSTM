@@ -89,7 +89,8 @@ app/                    # Streamlit UI (moved from app.py)
 api/                    # FastAPI service
 tests/                  # pytest
 docs/                   # this plan, model card, dataset notes
-results/                # per-run JSON/CSV scores, aggregated tables, figures (small; tracked in git)
+experiments/            # per-run metrics and summaries, aggregated tables, figures (small; tracked in git)
+                        # (not "results/": on Windows that is the same folder as the v1 Results/)
 legacy/                 # original notebooks + TF model, kept for reference
 ```
 
@@ -108,7 +109,7 @@ legacy/                 # original notebooks + TF model, kept for reference
 
 ### 0.D Reproducibility
 - [ ] One seed controls Python, NumPy and torch. Save each run's config, git commit, package versions and the manifest hash next to its results.
-- [ ] Log metrics to TensorBoard. Write `results/<run_id>/scores_<testset>.csv` (one score per utterance) so tables can be rebuilt without retraining.
+- [ ] Log metrics to TensorBoard. Write per-utterance scores to `runs/<run_id>/scores_<testset>.csv` and metrics to `experiments/<run_id>/` so tables can be rebuilt without retraining.
 
 **Done when:** `python scripts/build_manifests.py` produces 3 validated manifests, and `pytest` passes the manifest checks.
 
@@ -118,18 +119,28 @@ legacy/                 # original notebooks + TF model, kept for reference
 
 **Goal:** a trustworthy reference number for the existing architecture.
 
-- [ ] **P1.1 Port CNN-BiLSTM to PyTorch** (`models/cnn_bilstm.py`) with the same layers as the paper: 3×(Conv2D+BN+MaxPool) → 2×BiLSTM(128) → Dense(128) → output.
-- [ ] **P1.2 Fixed-length inputs:** random 4 s crops for training and a fixed centre crop for testing, instead of zero-padding everything to 16 s. Repeat short clips rather than padding them with zeros, which removes the length/padding shortcut.
-- [ ] **P1.3 Class imbalance:** weighted cross-entropy or a class-balanced sampler (ASVspoof is about 1 real to 9 fake).
-- [ ] **P1.4 Training loop:** AdamW, cosine learning-rate schedule, mixed precision, early stopping on **dev EER** (not accuracy, and never on a test set).
-- [ ] **P1.5 Evaluation script** (`evaluate.py`), one command for all test sets:
+- [x] **P1.1 Port CNN-BiLSTM to PyTorch** (`models/cnn_bilstm.py`) with the same layers as the paper: 3×(Conv2D+BN+MaxPool) → 2×BiLSTM(128) → Dense(128) → output.
+- [x] **P1.2 Fixed-length inputs:** random 4 s crops for training and a fixed centre crop for testing, instead of zero-padding everything to 16 s. Repeat short clips rather than padding them with zeros, which removes the length/padding shortcut.
+- [x] **P1.3 Class imbalance:** weighted cross-entropy or a class-balanced sampler (ASVspoof is about 1 real to 9 fake).
+- [x] **P1.4 Training loop:** AdamW, cosine learning-rate schedule, mixed precision, early stopping on **dev EER** (not accuracy, and never on a test set).
+- [x] **P1.5 Evaluation script** (`evaluate.py`), one command for all test sets:
   - ASVspoof eval: overall EER, **min t-DCF** (using the official ASV scores), and **EER per attack (A07–A19)**.
   - In-the-Wild: EER, AUC, plus per-speaker EER for analysis.
   - DEEP-VOICE: EER per window and per recording (average the window scores), plus a confusion table by source/target speaker.
   - Accuracy, precision and recall at the threshold chosen on dev, to stay comparable with the paper.
-- [ ] **P1.6 Reproduce the old setup once** (LJSpeech vs MelGAN, fixed split grouped by sentence) to show how much the old 98.3% was inflated. Report it as a "legacy" row.
+- [ ] **P1.6 Reproduce the old setup once** *(blocked: needs LJSpeech and WaveFake on disk; they are not in the current dataset folders)* (LJSpeech vs MelGAN, fixed split grouped by sentence) to show how much the old 98.3% was inflated. Report it as a "legacy" row.
 
-**Done when:** one command trains the baseline, and `results/baseline/` holds EER and min t-DCF for ASVspoof eval, In-the-Wild and DEEP-VOICE. Expect cross-dataset EER to be **much worse** than in-domain; that gap motivates the rest of the plan.
+**Done when:** one command trains the baseline, and `experiments/<baseline run>/` holds EER and min t-DCF for ASVspoof eval, In-the-Wild and DEEP-VOICE. Expect cross-dataset EER to be **much worse** than in-domain; that gap motivates the rest of the plan.
+
+**Status (2026-11-19): done** except P1.6. E1, 3 seeds (`experiments/e1_cnn_bilstm_mfcc/summary.md`):
+
+| Test set | EER % | min t-DCF |
+|---|---|---|
+| ASVspoof 2019 LA eval | 7.97 ± 0.04 | 0.210 ± 0.014 |
+| In-the-Wild | 47.32 ± 4.61 | n/a |
+| DEEP-VOICE (per window) | 48.84 ± 1.32 | n/a |
+
+In-domain is close to the official ASVspoof 2019 LFCC-GMM baseline. A17 (about 26%) and A18 (about 16%) are the hardest attacks. Both cross-dataset sets are near chance.
 
 ---
 
@@ -164,7 +175,7 @@ Every experiment below uses the P1 training and evaluation code. Change one fact
 - [ ] Run each headline model with **3 seeds** and report mean ± std.
 - [ ] Bootstrap 95% confidence intervals on EER for the cross-dataset sets.
 
-**Done when:** `results/tables/` holds the feature ablation, the shortcut-check table, the augmentation ablation and the robustness curves, each produced by `scripts/make_tables.py`.
+**Done when:** `experiments/tables/` holds the feature ablation, the shortcut-check table, the augmentation ablation and the robustness curves, each produced by `scripts/make_tables.py`.
 
 ---
 
@@ -211,7 +222,7 @@ Every experiment below uses the P1 training and evaluation code. Change one fact
 - [ ] **P4.5 Grad-CAM / Integrated Gradients:** heatmaps over the time-frequency input for spectrogram models, and attention-weight plots for the pretrained-feature models. Analyse which frequency bands matter for each dataset and attack.
 - [ ] **P4.6 Error analysis:** listen to and summarise the worst false accepts (fakes called real) and false rejects (real called fake) per test set. This feeds directly into the paper's discussion section.
 
-**Done when:** `explain.py` produces a timeline, a heatmap and a calibrated verdict for any audio file, and the calibration and out-of-distribution results are in `results/tables/`.
+**Done when:** `explain.py` produces a timeline, a heatmap and a calibrated verdict for any audio file, and the calibration and out-of-distribution results are in `experiments/tables/`.
 
 ---
 

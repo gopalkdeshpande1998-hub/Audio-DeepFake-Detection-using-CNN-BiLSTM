@@ -1,0 +1,7 @@
+{
+  "run": "e1_cnn_bilstm_mfcc_s43",
+  "best_epoch": 13,
+  "best_dev_eer": 0.018064183113006733,
+  "epochs_run": 21,
+  "minutes": 6.4
+}
