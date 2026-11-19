@@ -1,5 +1,9 @@
 # Tested with Python 3.11
 streamlit==1.60.0
+# Starlette >=1.8 breaks Streamlit 1.60's gzip middleware (ASGI "Expected
+# http.response.start" errors). Newer Streamlit fixes it but needs protobuf>=5,
+# which tensorflow 2.15 does not allow.
+starlette==1.7.0
 librosa==0.11.0
 soundfile==0.14.0
 tensorflow==2.15.0

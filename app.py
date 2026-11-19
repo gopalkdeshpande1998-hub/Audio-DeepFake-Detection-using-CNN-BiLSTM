@@ -1,10 +1,18 @@
 import io
+import logging
+import os
 from pathlib import Path
 
-import librosa
-import numpy as np
-import streamlit as st
-import tensorflow as tf
+# Quiet TensorFlow before it is imported: hide C++ INFO notices (oneDNN, CPU
+# instruction set) and the tf.compat.v1 deprecation warnings that Keras 2.15
+# raises from its own internals. Real errors are still shown.
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+
+import librosa  # noqa: E402
+import numpy as np  # noqa: E402
+import streamlit as st  # noqa: E402
+import tensorflow as tf  # noqa: E402
 
 # Feature settings: must match the training notebook (Model_Training.ipynb).
 SAMPLE_RATE = 16000
@@ -61,7 +69,9 @@ def validate_audio(audio, sr=SAMPLE_RATE):
 @st.cache_resource
 def load_model(path=MODEL_PATH):
     try:
-        return tf.keras.models.load_model(path)
+        # compile=False: inference only, so skip restoring optimizer state
+        # (avoids the "Skipping variable loading for optimizer" warning).
+        return tf.keras.models.load_model(path, compile=False)
     except Exception as e:
         st.error(f"Error loading model from {path}: {e}")
         return None
