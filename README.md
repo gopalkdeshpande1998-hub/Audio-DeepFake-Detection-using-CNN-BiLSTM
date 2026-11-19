@@ -75,6 +75,24 @@ The model leverages the strengths of:
 
 ---
 
+## Research Pipeline (v2, in progress)
+A leak-free, cross-dataset PyTorch pipeline is being built in `src/adfd` following [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The original notebooks are in `legacy/`; their reported numbers are superseded (see `legacy/README.md`).
+
+- **Datasets:** ASVspoof 2019 LA (train / dev / eval), In-the-Wild and DEEP-VOICE (cross-dataset tests only). Set their locations in `configs/paths.yaml`.
+- **Setup (Windows, NVIDIA GPU):**
+  ```bash
+  python -m venv .venv-torch
+  .venv-torch\Scripts\pip install -r requirements-train.txt
+  .venv-torch\Scripts\pip install -e .
+  ```
+- **Build the dataset manifests** (label files used by every experiment), then run the tests:
+  ```bash
+  .venv-torch\Scripts\python scripts/build_manifests.py
+  .venv-torch\Scripts\python -m pytest
+  ```
+
+---
+
 ## Results
 - **Performance Metrics**:
   - Accuracy: **98.3%**

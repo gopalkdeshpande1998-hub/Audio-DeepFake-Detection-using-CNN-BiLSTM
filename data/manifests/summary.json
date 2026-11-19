@@ -1,0 +1,81 @@
+{
+  "asvspoof2019_la": {
+    "dataset_root": "G:\\ASVspoof2019-dataset",
+    "manifest": "asvspoof2019_la.csv",
+    "sha256": "cd97cbe9989bb73fc1328383a41b2a5ff76e5b6fb93a8f0596c6b1f58ab1c725",
+    "valid": true,
+    "splits": {
+      "dev": {
+        "rows": 24844,
+        "bonafide": 2548,
+        "spoof": 22296,
+        "recordings": 24844,
+        "hours": 24.0,
+        "sample_rates": [
+          16000
+        ]
+      },
+      "eval": {
+        "rows": 71237,
+        "bonafide": 7355,
+        "spoof": 63882,
+        "recordings": 71237,
+        "hours": 61.5,
+        "sample_rates": [
+          16000
+        ]
+      },
+      "train": {
+        "rows": 25380,
+        "bonafide": 2580,
+        "spoof": 22800,
+        "recordings": 25380,
+        "hours": 24.15,
+        "sample_rates": [
+          16000
+        ]
+      }
+    },
+    "updated_utc": "2026-11-19T09:17:30+00:00"
+  },
+  "in_the_wild": {
+    "dataset_root": "G:\\release_in_the_wild-dataset",
+    "manifest": "in_the_wild.csv",
+    "sha256": "9c3c06b3e3cffefd653790a91cddba37e8ce5ac80f1e02373ec2157d701efec9",
+    "valid": true,
+    "splits": {
+      "test": {
+        "rows": 31779,
+        "bonafide": 19963,
+        "spoof": 11816,
+        "recordings": 31779,
+        "hours": 37.85,
+        "sample_rates": [
+          16000
+        ]
+      }
+    },
+    "updated_utc": "2026-11-19T09:20:52+00:00"
+  },
+  "deep_voice": {
+    "dataset_root": "G:\\DEEPVOICE-dataset\\KAGGLE\\AUDIO",
+    "manifest": "deep_voice.csv",
+    "sha256": "4a7ae531e1b4ea023f1f8615ca575cadca1439bc6d66f97d1a457aa6aee7030e",
+    "valid": true,
+    "splits": {
+      "test": {
+        "rows": 14896,
+        "bonafide": 1862,
+        "spoof": 13034,
+        "recordings": 64,
+        "hours": 16.55,
+        "sample_rates": [
+          40000,
+          44100,
+          48000
+        ]
+      }
+    },
+    "updated_utc": "2026-11-19T09:20:53+00:00"
+  }
+}

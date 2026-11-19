@@ -1,0 +1,33 @@
+# Shared defaults for every experiment. Experiment configs override these keys.
+# Sized for the project machine: RTX 3050 laptop GPU (4 GB VRAM), 16 GB RAM.
+
+seed: 42
+deterministic: false        # true = reproducible cuDNN kernels, but slower
+
+audio:
+  sample_rate: 16000
+  crop_seconds: 4.0         # random crop for training, centre crop for testing
+  pad_mode: repeat          # repeat short clips instead of zero-padding (avoids a length shortcut)
+
+data:
+  train_split: train        # ASVspoof 2019 LA train
+  val_split: dev            # ASVspoof 2019 LA dev: early stopping, thresholds, calibration
+  test_sets:                # scored only, never used for training or tuning
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+    - deep_voice:test
+  num_workers: 4            # Windows DataLoader workers (spawned processes)
+  balance: class_weights    # ASVspoof is about 1 real : 9 fake
+
+train:
+  device: cuda
+  amp: true                 # mixed precision: needed to fit 4 GB VRAM
+  batch_size: 32            # spectrogram models; pretrained (SSL) models use 8 with grad_accum 4
+  grad_accum: 1
+  max_epochs: 50
+  early_stop_metric: val_eer
+  early_stop_patience: 8
+  optimizer: adamw
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  scheduler: cosine
