@@ -1,0 +1,219 @@
+{
+  "features": [
+    "rms_db",
+    "peak_db",
+    "crest_db"
+  ],
+  "single_feature_eer_pct": {
+    "rms_db": {
+      "direction": "higher = more likely real",
+      "asvspoof2019_la:dev": 46.43,
+      "asvspoof2019_la:eval": 54.93,
+      "in_the_wild:test": 40.32
+    },
+    "peak_db": {
+      "direction": "higher = more likely real",
+      "asvspoof2019_la:dev": 66.25,
+      "asvspoof2019_la:eval": 66.46,
+      "in_the_wild:test": 47.0
+    },
+    "crest_db": {
+      "direction": "higher = more likely fake",
+      "asvspoof2019_la:dev": 46.43,
+      "asvspoof2019_la:eval": 54.92,
+      "in_the_wild:test": 39.27
+    }
+  },
+  "models": {
+    "logistic_regression": {
+      "asvspoof2019_la:dev": 46.46,
+      "asvspoof2019_la:eval": 54.93,
+      "in_the_wild:test": 52.87
+    },
+    "gradient_boosting": {
+      "asvspoof2019_la:dev": 46.55,
+      "asvspoof2019_la:eval": 49.49,
+      "in_the_wild:test": 60.51
+    }
+  },
+  "medians_db": {
+    "asvspoof2019_la:train": {
+      "rms_db_real": -17.0,
+      "rms_db_fake": -17.2,
+      "peak_db_real": -0.0,
+      "peak_db_fake": -0.0,
+      "crest_db_real": 17.0,
+      "crest_db_fake": 17.2
+    },
+    "asvspoof2019_la:dev": {
+      "rms_db_real": -16.6,
+      "rms_db_fake": -17.0,
+      "peak_db_real": -0.0,
+      "peak_db_fake": -0.0,
+      "crest_db_real": 16.6,
+      "crest_db_fake": 17.0
+    },
+    "asvspoof2019_la:eval": {
+      "rms_db_real": -17.4,
+      "rms_db_fake": -16.8,
+      "peak_db_real": -0.0,
+      "peak_db_fake": -0.0,
+      "crest_db_real": 17.3,
+      "crest_db_fake": 16.8
+    },
+    "in_the_wild:test": {
+      "rms_db_real": -25.7,
+      "rms_db_fake": -28.2,
+      "peak_db_real": -9.3,
+      "peak_db_fake": -10.1,
+      "crest_db_real": 16.4,
+      "crest_db_fake": 17.8
+    }
+  },
+  "model_sensitivity": {
+    "e1_cnn_bilstm_mfcc|asvspoof2019_la:dev": {
+      "normal": [
+        0.865,
+        1.806,
+        1.417
+      ],
+      "rmsnorm": [
+        0.865,
+        1.924,
+        1.53
+      ]
+    },
+    "e1_cnn_bilstm_mfcc|asvspoof2019_la:eval": {
+      "normal": [
+        8.008,
+        7.938,
+        7.968
+      ],
+      "rmsnorm": [
+        7.94,
+        7.995,
+        7.815
+      ]
+    },
+    "e1_cnn_bilstm_mfcc|in_the_wild:test": {
+      "normal": [
+        42.461,
+        51.618,
+        47.893
+      ],
+      "rmsnorm": [
+        41.351,
+        51.059,
+        47.352
+      ]
+    },
+    "e2a_lfcc|asvspoof2019_la:dev": {
+      "normal": [
+        0.04,
+        0.004,
+        0.071
+      ],
+      "rmsnorm": [
+        0.15,
+        0.073,
+        0.237
+      ]
+    },
+    "e2a_lfcc|asvspoof2019_la:eval": {
+      "normal": [
+        5.954,
+        5.588,
+        8.389
+      ],
+      "rmsnorm": [
+        7.452,
+        6.186,
+        8.646
+      ]
+    },
+    "e2a_lfcc|in_the_wild:test": {
+      "normal": [
+        38.337,
+        39.032,
+        50.146
+      ],
+      "rmsnorm": [
+        37.972,
+        41.411,
+        49.212
+      ]
+    },
+    "e4c_rawboost_codec|asvspoof2019_la:dev": {
+      "normal": [
+        1.216,
+        1.963,
+        2.512
+      ],
+      "rmsnorm": [
+        1.915,
+        3.179,
+        3.257
+      ]
+    },
+    "e4c_rawboost_codec|asvspoof2019_la:eval": {
+      "normal": [
+        12.303,
+        13.406,
+        12.712
+      ],
+      "rmsnorm": [
+        12.957,
+        13.703,
+        13.567
+      ]
+    },
+    "e4c_rawboost_codec|in_the_wild:test": {
+      "normal": [
+        52.192,
+        44.702,
+        63.464
+      ],
+      "rmsnorm": [
+        51.04,
+        42.289,
+        62.982
+      ]
+    },
+    "e4d_full_aug|asvspoof2019_la:dev": {
+      "normal": [
+        12.324,
+        8.904,
+        11.614
+      ],
+      "rmsnorm": [
+        14.246,
+        9.85,
+        12.01
+      ]
+    },
+    "e4d_full_aug|asvspoof2019_la:eval": {
+      "normal": [
+        18.234,
+        17.661,
+        17.972
+      ],
+      "rmsnorm": [
+        18.746,
+        17.987,
+        18.437
+      ]
+    },
+    "e4d_full_aug|in_the_wild:test": {
+      "normal": [
+        39.098,
+        32.093,
+        38.034
+      ],
+      "rmsnorm": [
+        38.541,
+        31.744,
+        38.422
+      ]
+    }
+  }
+}

@@ -25,6 +25,16 @@ def build_frontend(cfg: dict, sample_rate: int) -> nn.Module:
     kwargs = {k: v for k, v in cfg.items() if k != "name"}
     if name == "mfcc":
         return MFCCFrontend(sample_rate=sample_rate, **kwargs)
+    from adfd.features import spectral
+
+    frontends = {
+        "lfcc": spectral.LFCCFrontend,
+        "logmel": spectral.LogMelFrontend,
+        "cqcc": spectral.CQCCFrontend,
+        "sinc": spectral.SincFrontend,
+    }
+    if name in frontends:
+        return frontends[name](sample_rate=sample_rate, **kwargs)
     raise ValueError(f"Unknown front end {name!r}")
 
 

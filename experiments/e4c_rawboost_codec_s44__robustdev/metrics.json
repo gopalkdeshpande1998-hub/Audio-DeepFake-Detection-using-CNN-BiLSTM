@@ -1,0 +1,336 @@
+{
+  "run": "e4c_rawboost_codec_s44",
+  "tag": "robustdev",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 19,
+  "dev_threshold": -1.2724609375,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": null,
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la_robustdev_clean:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 2.204,
+      "eer_threshold": -1.4287109375,
+      "auc": 0.9978038961038961,
+      "at_dev_threshold": {
+        "accuracy": 0.9787009063444109,
+        "balanced_accuracy": 0.9777932900432901,
+        "precision": 0.9892942975748307,
+        "recall": 0.9800865800865801,
+        "f1": 0.9846689137762314,
+        "confusion": {
+          "tn": 1951,
+          "fp": 49,
+          "fn": 92,
+          "tp": 4528
+        }
+      },
+      "min_tdcf": 0.0608,
+      "per_attack_eer_pct": {
+        "A01": 0.14,
+        "A02": 0.535,
+        "A03": 0.28,
+        "A04": 3.758,
+        "A05": 2.599,
+        "A06": 1.554
+      }
+    },
+    "asvspoof2019_la_robustdev_mp3_51k:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 17.645,
+      "eer_threshold": 0.1181640625,
+      "auc": 0.9149491341991342,
+      "at_dev_threshold": {
+        "accuracy": 0.7939577039274924,
+        "balanced_accuracy": 0.8329577922077922,
+        "precision": 0.9611898016997167,
+        "recall": 0.7344155844155844,
+        "f1": 0.8326380368098159,
+        "confusion": {
+          "tn": 1863,
+          "fp": 137,
+          "fn": 1227,
+          "tp": 3393
+        }
+      },
+      "min_tdcf": 0.3651,
+      "per_attack_eer_pct": {
+        "A01": 1.184,
+        "A02": 1.274,
+        "A03": 0.79,
+        "A04": 31.044,
+        "A05": 3.248,
+        "A06": 31.439
+      }
+    },
+    "asvspoof2019_la_robustdev_mp3_19k:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 21.102,
+      "eer_threshold": -1.8154296875,
+      "auc": 0.8780571428571429,
+      "at_dev_threshold": {
+        "accuracy": 0.7924471299093656,
+        "balanced_accuracy": 0.7733225108225108,
+        "precision": 0.873446847676024,
+        "recall": 0.8216450216450216,
+        "f1": 0.84675440553201,
+        "confusion": {
+          "tn": 1450,
+          "fp": 550,
+          "fn": 824,
+          "tp": 3796
+        }
+      },
+      "min_tdcf": 0.4782,
+      "per_attack_eer_pct": {
+        "A01": 6.102,
+        "A02": 6.102,
+        "A03": 4.013,
+        "A04": 35.197,
+        "A05": 10.395,
+        "A06": 40.42
+      }
+    },
+    "asvspoof2019_la_robustdev_opus_84k:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 2.344,
+      "eer_threshold": -1.13671875,
+      "auc": 0.9976324134199134,
+      "at_dev_threshold": {
+        "accuracy": 0.9759818731117825,
+        "balanced_accuracy": 0.9768376623376623,
+        "precision": 0.9907590759075907,
+        "recall": 0.9746753246753247,
+        "f1": 0.9826513911620295,
+        "confusion": {
+          "tn": 1958,
+          "fp": 42,
+          "fn": 117,
+          "tp": 4503
+        }
+      },
+      "min_tdcf": 0.0631,
+      "per_attack_eer_pct": {
+        "A01": 0.255,
+        "A02": 0.535,
+        "A03": 0.395,
+        "A04": 4.038,
+        "A05": 2.739,
+        "A06": 1.554
+      }
+    },
+    "asvspoof2019_la_robustdev_opus_10k:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 22.552,
+      "eer_threshold": -4.35546875,
+      "auc": 0.8621561688311689,
+      "at_dev_threshold": {
+        "accuracy": 0.7808157099697886,
+        "balanced_accuracy": 0.6925422077922078,
+        "precision": 0.7994707994707995,
+        "recall": 0.9155844155844156,
+        "f1": 0.853597013419433,
+        "confusion": {
+          "tn": 939,
+          "fp": 1061,
+          "fn": 390,
+          "tp": 4230
+        }
+      },
+      "min_tdcf": 0.5253,
+      "per_attack_eer_pct": {
+        "A01": 9.095,
+        "A02": 9.235,
+        "A03": 5.057,
+        "A04": 39.21,
+        "A05": 12.319,
+        "A06": 40.51
+      }
+    },
+    "asvspoof2019_la_robustdev_telephone:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 19.559,
+      "eer_threshold": -1.34765625,
+      "auc": 0.898882196969697,
+      "at_dev_threshold": {
+        "accuracy": 0.8064954682779456,
+        "balanced_accuracy": 0.8045119047619047,
+        "precision": 0.9031634870804154,
+        "recall": 0.8095238095238095,
+        "f1": 0.8537838146330328,
+        "confusion": {
+          "tn": 1599,
+          "fp": 401,
+          "fn": 880,
+          "tp": 3740
+        }
+      },
+      "min_tdcf": 0.4183,
+      "per_attack_eer_pct": {
+        "A01": 3.783,
+        "A02": 3.528,
+        "A03": 1.694,
+        "A04": 31.019,
+        "A05": 6.102,
+        "A06": 38.191
+      }
+    },
+    "asvspoof2019_la_robustdev_white_20db:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 22.1,
+      "eer_threshold": 3.005859375,
+      "auc": 0.8551739177489177,
+      "at_dev_threshold": {
+        "accuracy": 0.5519637462235649,
+        "balanced_accuracy": 0.6760270562770563,
+        "precision": 0.9876179245283019,
+        "recall": 0.3625541125541126,
+        "f1": 0.5303989867004434,
+        "confusion": {
+          "tn": 1979,
+          "fp": 21,
+          "fn": 2945,
+          "tp": 1675
+        }
+      },
+      "min_tdcf": 0.5346,
+      "per_attack_eer_pct": {
+        "A01": 27.911,
+        "A02": 14.038,
+        "A03": 25.707,
+        "A04": 28.956,
+        "A05": 14.268,
+        "A06": 20.65
+      }
+    },
+    "asvspoof2019_la_robustdev_white_10db:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 35.639,
+      "eer_threshold": 0.6796875,
+      "auc": 0.6881574675324675,
+      "at_dev_threshold": {
+        "accuracy": 0.5722054380664653,
+        "balanced_accuracy": 0.648280303030303,
+        "precision": 0.8685078318219291,
+        "recall": 0.45606060606060606,
+        "f1": 0.5980698268521146,
+        "confusion": {
+          "tn": 1681,
+          "fp": 319,
+          "fn": 2513,
+          "tp": 2107
+        }
+      },
+      "min_tdcf": 0.8599,
+      "per_attack_eer_pct": {
+        "A01": 46.892,
+        "A02": 33.388,
+        "A03": 44.293,
+        "A04": 42.739,
+        "A05": 19.605,
+        "A06": 27.401
+      }
+    },
+    "asvspoof2019_la_robustdev_white_5db:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 49.594,
+      "eer_threshold": 0.223876953125,
+      "auc": 0.5079930735930736,
+      "at_dev_threshold": {
+        "accuracy": 0.48413897280966767,
+        "balanced_accuracy": 0.5443538961038961,
+        "precision": 0.7490698635799917,
+        "recall": 0.3922077922077922,
+        "f1": 0.5148458587867595,
+        "confusion": {
+          "tn": 1393,
+          "fp": 607,
+          "fn": 2808,
+          "tp": 1812
+        }
+      },
+      "min_tdcf": 0.9586,
+      "per_attack_eer_pct": {
+        "A01": 73.273,
+        "A02": 41.159,
+        "A03": 57.516,
+        "A04": 59.21,
+        "A05": 26.612,
+        "A06": 44.178
+      }
+    },
+    "asvspoof2019_la_robustdev_pink_10db:test": {
+      "n": 6620,
+      "n_bonafide": 2000,
+      "n_spoof": 4620,
+      "eer_pct": 29.2,
+      "eer_threshold": -3.28125,
+      "auc": 0.7908441017316017,
+      "at_dev_threshold": {
+        "accuracy": 0.7518126888217522,
+        "balanced_accuracy": 0.6645324675324675,
+        "precision": 0.7861949625072101,
+        "recall": 0.8850649350649351,
+        "f1": 0.8327054271459119,
+        "confusion": {
+          "tn": 888,
+          "fp": 1112,
+          "fn": 531,
+          "tp": 4089
+        }
+      },
+      "min_tdcf": 0.7392,
+      "per_attack_eer_pct": {
+        "A01": 20.65,
+        "A02": 36.357,
+        "A03": 39.21,
+        "A04": 27.656,
+        "A05": 26.127,
+        "A06": 18.191
+      }
+    }
+  }
+}

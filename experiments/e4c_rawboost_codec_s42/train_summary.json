@@ -1,0 +1,9 @@
+{
+  "run": "e4c_rawboost_codec_s42",
+  "best_epoch": 22,
+  "best_dev_eer": 0.012160525798462135,
+  "epochs_run": 22,
+  "minutes": 72.7,
+  "stopped_early_by_user": true,
+  "note": "Stopped manually after 22 epochs (max 50, early stopping not reached) to save time; dev EER was still improving, so this run is likely under-trained."
+}

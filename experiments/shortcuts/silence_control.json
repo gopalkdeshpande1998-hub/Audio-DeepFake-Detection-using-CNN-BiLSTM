@@ -1,0 +1,46 @@
+{
+  "features": [
+    "lead_s",
+    "trail_s",
+    "total_s",
+    "speech_s"
+  ],
+  "single_feature_eer_pct": {
+    "lead_s": {
+      "direction": "longer = more likely real",
+      "asvspoof2019_la:dev": 32.57,
+      "asvspoof2019_la:eval": 15.93,
+      "in_the_wild:test": 68.04
+    },
+    "trail_s": {
+      "direction": "longer = more likely fake",
+      "asvspoof2019_la:dev": 51.22,
+      "asvspoof2019_la:eval": 61.65,
+      "in_the_wild:test": 32.57
+    },
+    "total_s": {
+      "direction": "longer = more likely real",
+      "asvspoof2019_la:dev": 48.16,
+      "asvspoof2019_la:eval": 41.96,
+      "in_the_wild:test": 58.41
+    },
+    "speech_s": {
+      "direction": "longer = more likely fake",
+      "asvspoof2019_la:dev": 44.95,
+      "asvspoof2019_la:eval": 43.86,
+      "in_the_wild:test": 42.61
+    }
+  },
+  "models": {
+    "logistic_regression": {
+      "asvspoof2019_la:dev": 30.77,
+      "asvspoof2019_la:eval": 20.05,
+      "in_the_wild:test": 45.44
+    },
+    "gradient_boosting": {
+      "asvspoof2019_la:dev": 23.16,
+      "asvspoof2019_la:eval": 23.94,
+      "in_the_wild:test": 44.37
+    }
+  }
+}

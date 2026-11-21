@@ -131,6 +131,35 @@ def threshold_metrics(scores, labels, threshold: float) -> dict:
     }
 
 
+def bootstrap_eer(scores, labels, groups=None, n_boot: int = 500, seed: int = 0, alpha: float = 0.05) -> dict:
+    """Percentile bootstrap confidence interval for the EER.
+
+    groups: optional cluster ids (e.g. DEEP-VOICE recordings). Whole clusters are
+    resampled, because windows of one recording are not independent.
+    """
+    scores, labels = np.asarray(scores, dtype=np.float64), np.asarray(labels)
+    rng = np.random.default_rng(seed)
+    if groups is None:
+        n = len(scores)
+    else:
+        groups = np.asarray(groups)
+        uniq, inv = np.unique(groups, return_inverse=True)
+        members = [np.flatnonzero(inv == g) for g in range(len(uniq))]
+    eers = []
+    for _ in range(n_boot):
+        if groups is None:
+            idx = rng.integers(0, n, n)
+        else:
+            pick = rng.integers(0, len(members), len(members))
+            idx = np.concatenate([members[g] for g in pick])
+        e, _ = eer_from_labels(scores[idx], labels[idx])
+        if e == e:
+            eers.append(e)
+    lo, hi = np.percentile(eers, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return {"lo_pct": round(100 * float(lo), 3), "hi_pct": round(100 * float(hi), 3), "n_boot": len(eers),
+            "resampled": "utterances" if groups is None else "groups"}
+
+
 def auc(scores, labels) -> float:
     """ROC AUC for detecting bona fide (higher score = bona fide)."""
     labels = np.asarray(labels)

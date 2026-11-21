@@ -1,0 +1,15 @@
+# P2.1 feature ablation: same CNN-BiLSTM and training as E1, input = raw waveform through a learnable sinc filterbank (70 filters, 251 taps).
+name: e2d_sinc
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: sinc
+    kernel_size: 251
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stop_patience: 8

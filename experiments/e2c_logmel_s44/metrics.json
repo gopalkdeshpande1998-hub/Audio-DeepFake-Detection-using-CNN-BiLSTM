@@ -1,0 +1,256 @@
+{
+  "run": "e2c_logmel_s44",
+  "tag": null,
+  "model": "cnn_bilstm",
+  "frontend": "logmel",
+  "parameters": 786625,
+  "best_epoch": 2,
+  "dev_threshold": 0.86328125,
+  "crop_seconds": 4.0,
+  "trim_silence": false,
+  "normalize": null,
+  "augment": null,
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 0.157,
+      "eer_threshold": 0.86279296875,
+      "auc": 0.9999564866933773,
+      "at_dev_threshold": {
+        "accuracy": 0.9984302044759298,
+        "balanced_accuracy": 0.9984301764922248,
+        "precision": 0.999820345834269,
+        "recall": 0.9984302116971654,
+        "f1": 0.9991247952245237,
+        "confusion": {
+          "tn": 2544,
+          "fp": 4,
+          "fn": 35,
+          "tp": 22261
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 0.04,
+        "hi_pct": 0.311,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.0041,
+      "per_attack_eer_pct": {
+        "A01": 0.159,
+        "A02": 0.159,
+        "A03": 0.159,
+        "A04": 0.159,
+        "A05": 0.192,
+        "A06": 0.159
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 5.803,
+      "eer_threshold": 7.546875,
+      "auc": 0.9762177996816913,
+      "at_dev_threshold": {
+        "accuracy": 0.8215534062355236,
+        "balanced_accuracy": 0.8997220519026721,
+        "precision": 0.9997460739120244,
+        "recall": 0.8012116089039166,
+        "f1": 0.8895357931142356,
+        "confusion": {
+          "tn": 7342,
+          "fp": 13,
+          "fn": 12699,
+          "tp": 51183
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 5.615,
+        "hi_pct": 5.971,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.1171,
+      "per_attack_eer_pct": {
+        "A07": 0.058,
+        "A08": 2.2,
+        "A09": 0.105,
+        "A10": 0.839,
+        "A11": 0.954,
+        "A12": 0.407,
+        "A13": 0.489,
+        "A14": 1.222,
+        "A15": 2.193,
+        "A16": 0.139,
+        "A17": 34.592,
+        "A18": 2.893,
+        "A19": 0.489
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 59.555,
+      "eer_threshold": -13.3671875,
+      "auc": 0.35760746921411923,
+      "at_dev_threshold": {
+        "accuracy": 0.3322319770917902,
+        "balanced_accuracy": 0.4435377609206687,
+        "precision": 0.3440143297840581,
+        "recall": 0.877708192281652,
+        "f1": 0.4942925910921526,
+        "confusion": {
+          "tn": 187,
+          "fp": 19776,
+          "fn": 1445,
+          "tp": 10371
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 58.987,
+        "hi_pct": 60.191,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 53.5905,
+        "mean": 51.80227777777778,
+        "worst5": {
+          "Arnold Schwarzenegger": 100.0,
+          "Richard Nixon": 100.0,
+          "Winston Churchill": 98.067,
+          "Martin Luther King": 97.23,
+          "Bill Clinton": 95.741
+        }
+      }
+    },
+    "deep_voice:test": {
+      "n": 14896,
+      "n_bonafide": 1862,
+      "n_spoof": 13034,
+      "eer_pct": 50.913,
+      "eer_threshold": -14.5,
+      "auc": 0.51203388246587,
+      "at_dev_threshold": {
+        "accuracy": 0.8820488721804511,
+        "balanced_accuracy": 0.5293463249961639,
+        "precision": 0.8814694540288208,
+        "recall": 0.9996163879085469,
+        "f1": 0.9368326442566961,
+        "confusion": {
+          "tn": 110,
+          "fp": 1752,
+          "fn": 5,
+          "tp": 13029
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 34.137,
+        "hi_pct": 66.894,
+        "n_boot": 500,
+        "resampled": "groups"
+      },
+      "per_recording": {
+        "n": 64,
+        "n_bonafide": 8,
+        "n_spoof": 56,
+        "eer_pct": 50.0,
+        "auc": 0.421875,
+        "at_dev_threshold": {
+          "accuracy": 0.875,
+          "balanced_accuracy": 0.5,
+          "precision": 0.875,
+          "recall": 1.0,
+          "f1": 0.9333333333333333,
+          "confusion": {
+            "tn": 0,
+            "fp": 8,
+            "fn": 0,
+            "tp": 56
+          }
+        },
+        "real_recordings_flagged_fake": [
+          "biden-original",
+          "linus-original",
+          "margot-original",
+          "musk-original",
+          "obama-original",
+          "ryan-original",
+          "taylor-original",
+          "trump-original"
+        ]
+      },
+      "mean_score_by_recording": {
+        "biden-original": -14.444,
+        "biden-to-linus": -14.212,
+        "biden-to-margot": -13.56,
+        "biden-to-musk": -14.458,
+        "biden-to-obama": -12.396,
+        "biden-to-ryan": -14.986,
+        "biden-to-taylor": -11.311,
+        "biden-to-trump": -13.511,
+        "linus-original": -12.292,
+        "linus-to-biden": -10.328,
+        "linus-to-margot": -15.006,
+        "linus-to-musk": -13.114,
+        "linus-to-obama": -11.492,
+        "linus-to-ryan": -12.124,
+        "linus-to-taylor": -9.984,
+        "linus-to-trump": -9.173,
+        "margot-original": -14.515,
+        "margot-to-biden": -12.479,
+        "margot-to-linus": -15.14,
+        "margot-to-musk": -14.183,
+        "margot-to-obama": -11.646,
+        "margot-to-ryan": -12.05,
+        "margot-to-taylor": -9.63,
+        "margot-to-trump": -9.69,
+        "musk-original": -0.043,
+        "musk-to-biden": -13.859,
+        "musk-to-linus": -16.391,
+        "musk-to-margot": -14.963,
+        "musk-to-obama": -14.24,
+        "musk-to-ryan": -12.65,
+        "musk-to-taylor": -16.438,
+        "musk-to-trump": -12.34,
+        "obama-original": -18.457,
+        "obama-to-biden": -17.912,
+        "obama-to-linus": -16.356,
+        "obama-to-margot": -15.873,
+        "obama-to-musk": -17.367,
+        "obama-to-ryan": -15.582,
+        "obama-to-taylor": -15.4,
+        "obama-to-trump": -15.862,
+        "ryan-original": -18.535,
+        "ryan-to-biden": -15.885,
+        "ryan-to-linus": -18.104,
+        "ryan-to-margot": -17.882,
+        "ryan-to-musk": -17.518,
+        "ryan-to-obama": -15.337,
+        "ryan-to-taylor": -14.424,
+        "ryan-to-trump": -12.739,
+        "taylor-original": -16.948,
+        "taylor-to-biden": -14.561,
+        "taylor-to-linus": -18.405,
+        "taylor-to-margot": -20.757,
+        "taylor-to-musk": -19.048,
+        "taylor-to-obama": -14.293,
+        "taylor-to-ryan": -16.028,
+        "taylor-to-trump": -11.881,
+        "trump-original": -15.847,
+        "trump-to-biden": -14.725,
+        "trump-to-linus": -17.61,
+        "trump-to-margot": -16.834,
+        "trump-to-musk": -16.301,
+        "trump-to-obama": -12.502,
+        "trump-to-ryan": -13.848,
+        "trump-to-taylor": -14.845
+      }
+    }
+  }
+}

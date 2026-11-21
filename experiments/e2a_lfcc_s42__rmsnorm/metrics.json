@@ -1,0 +1,115 @@
+{
+  "run": "e2a_lfcc_s42",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 28,
+  "dev_threshold": 2.140625,
+  "crop_seconds": 4.0,
+  "trim_silence": false,
+  "normalize": "rms",
+  "augment": null,
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 0.15,
+      "eer_threshold": 2.541015625,
+      "auc": 0.9999920348821818,
+      "at_dev_threshold": {
+        "accuracy": 0.9984302044759298,
+        "balanced_accuracy": 0.9986039832841309,
+        "precision": 0.9998652472712573,
+        "recall": 0.9983853606027987,
+        "f1": 0.9991247559415606,
+        "confusion": {
+          "tn": 2545,
+          "fp": 3,
+          "fn": 36,
+          "tp": 22260
+        }
+      },
+      "min_tdcf": 0.0022,
+      "per_attack_eer_pct": {
+        "A01": 0.0,
+        "A02": 0.0,
+        "A03": 0.0,
+        "A04": 0.352,
+        "A05": 0.033,
+        "A06": 0.047
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 7.452,
+      "eer_threshold": 12.0625,
+      "auc": 0.9700253415909954,
+      "at_dev_threshold": {
+        "accuracy": 0.7493718152083889,
+        "balanced_accuracy": 0.8558667311295037,
+        "precision": 0.9984190236929874,
+        "recall": 0.7216586831971448,
+        "f1": 0.8377734971287345,
+        "confusion": {
+          "tn": 7282,
+          "fp": 73,
+          "fn": 17781,
+          "tp": 46101
+        }
+      },
+      "min_tdcf": 0.2027,
+      "per_attack_eer_pct": {
+        "A07": 0.35,
+        "A08": 0.139,
+        "A09": 0.081,
+        "A10": 3.823,
+        "A11": 2.2,
+        "A12": 2.845,
+        "A13": 3.236,
+        "A14": 0.774,
+        "A15": 2.485,
+        "A16": 0.978,
+        "A17": 31.461,
+        "A18": 15.282,
+        "A19": 1.117
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 37.972,
+      "eer_threshold": -21.296875,
+      "auc": 0.6282073172539137,
+      "at_dev_threshold": {
+        "accuracy": 0.372982158028887,
+        "balanced_accuracy": 0.49405358528714816,
+        "precision": 0.36896529438376524,
+        "recall": 0.9663168584969533,
+        "f1": 0.5340255366914549,
+        "confusion": {
+          "tn": 435,
+          "fp": 19528,
+          "fn": 398,
+          "tp": 11418
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 34.6385,
+        "mean": 35.05788888888889,
+        "worst5": {
+          "Winston Churchill": 85.247,
+          "Bob Ross": 81.458,
+          "William F. Buckley": 76.136,
+          "Martin Luther King": 74.118,
+          "Nelson Mandela": 65.912
+        }
+      }
+    }
+  }
+}

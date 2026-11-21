@@ -1,0 +1,21 @@
+# P2.3 E4b: E3 + codec round trips (MP3, Opus, 8 kHz mu-law telephone).
+name: e4b_codec
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: lfcc
+
+audio:
+  trim_silence: true
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stop_patience: 8
+
+augment:
+  codec: {p: 0.5, types: [mp3, opus, telephone]}
+  gain: {p: 0.5, min_db: -6, max_db: 6}

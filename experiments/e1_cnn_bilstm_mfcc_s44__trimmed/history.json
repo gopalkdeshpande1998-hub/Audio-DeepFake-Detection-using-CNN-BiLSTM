@@ -1,0 +1,194 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 0.04862375810247944,
+    "dev_eer": 0.10283465253286875,
+    "dev_threshold": -3.21484375,
+    "train_s": 35.1,
+    "eval_s": 25.3
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.023875101400019007,
+    "dev_eer": 0.06947029660584943,
+    "dev_threshold": -1.248046875,
+    "train_s": 11.7,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 3,
+    "train_loss": 0.01722207309866546,
+    "dev_eer": 0.05171447356784893,
+    "dev_threshold": -1.6533203125,
+    "train_s": 11.7,
+    "eval_s": 5.2
+  },
+  {
+    "epoch": 4,
+    "train_loss": 0.013154472991610404,
+    "dev_eer": 0.08123276014057193,
+    "dev_threshold": 3.421875,
+    "train_s": 11.7,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 5,
+    "train_loss": 0.012217320203664419,
+    "dev_eer": 0.048619677646665194,
+    "dev_threshold": -4.21484375,
+    "train_s": 11.7,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 6,
+    "train_loss": 0.009114255139083498,
+    "dev_eer": 0.06599986396810939,
+    "dev_threshold": -5.9609375,
+    "train_s": 11.6,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 7,
+    "train_loss": 0.010135557812791513,
+    "dev_eer": 0.05299836254780127,
+    "dev_threshold": -2.416015625,
+    "train_s": 11.6,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 8,
+    "train_loss": 0.007878090497670224,
+    "dev_eer": 0.060359715634204336,
+    "dev_threshold": -10.125,
+    "train_s": 11.5,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 9,
+    "train_loss": 0.007342402366721378,
+    "dev_eer": 0.046741494063883726,
+    "dev_threshold": 0.0147705078125,
+    "train_s": 11.5,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 10,
+    "train_loss": 0.007355858806077922,
+    "dev_eer": 0.03062277117520851,
+    "dev_threshold": -5.1796875,
+    "train_s": 11.3,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 11,
+    "train_loss": 0.007502053187374699,
+    "dev_eer": 0.032966293663279675,
+    "dev_threshold": 0.853515625,
+    "train_s": 11.1,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 12,
+    "train_loss": 0.006861270666682171,
+    "dev_eer": 0.027505549706841416,
+    "dev_threshold": -2.26171875,
+    "train_s": 11.1,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 13,
+    "train_loss": 0.005451900587932383,
+    "dev_eer": 0.0227736536363324,
+    "dev_threshold": -6.515625,
+    "train_s": 11.0,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 14,
+    "train_loss": 0.00619660627237847,
+    "dev_eer": 0.04041734893841614,
+    "dev_threshold": -6.71875,
+    "train_s": 11.3,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 15,
+    "train_loss": 0.0037823390625321375,
+    "dev_eer": 0.019213518809858963,
+    "dev_threshold": -1.05078125,
+    "train_s": 11.3,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 16,
+    "train_loss": 0.005872807561965347,
+    "dev_eer": 0.035707878415090474,
+    "dev_threshold": -7.1328125,
+    "train_s": 11.2,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 17,
+    "train_loss": 0.006589312903659442,
+    "dev_eer": 0.014173262664343704,
+    "dev_threshold": -3.87109375,
+    "train_s": 11.3,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 18,
+    "train_loss": 0.0025768162549169504,
+    "dev_eer": 0.018064183113006733,
+    "dev_threshold": -7.0546875,
+    "train_s": 11.4,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 19,
+    "train_loss": 0.004396451457405236,
+    "dev_eer": 0.028677310950877,
+    "dev_threshold": 4.94140625,
+    "train_s": 11.5,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 20,
+    "train_loss": 0.004212177622873986,
+    "dev_eer": 0.023945414880367978,
+    "dev_threshold": -4.0078125,
+    "train_s": 11.6,
+    "eval_s": 5.0
+  },
+  {
+    "epoch": 21,
+    "train_loss": 0.00289040267400757,
+    "dev_eer": 0.031396470155504445,
+    "dev_threshold": -9.9609375,
+    "train_s": 11.6,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 22,
+    "train_loss": 0.0049190609656234235,
+    "dev_eer": 0.017666120849267088,
+    "dev_threshold": 3.427734375,
+    "train_s": 11.3,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 23,
+    "train_loss": 0.0026904689158929605,
+    "dev_eer": 0.02040770560107789,
+    "dev_threshold": -0.9853515625,
+    "train_s": 11.3,
+    "eval_s": 5.1
+  },
+  {
+    "epoch": 24,
+    "train_loss": 0.001804605281299021,
+    "dev_eer": 0.01923594435704231,
+    "dev_threshold": 2.84765625,
+    "train_s": 11.5,
+    "eval_s": 5.1
+  }
+]

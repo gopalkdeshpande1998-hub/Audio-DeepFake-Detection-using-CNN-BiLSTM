@@ -1,0 +1,136 @@
+{
+  "run": "e4c_rawboost_codec_s42",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 22,
+  "dev_threshold": -1.2294921875,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": "rms",
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 1.915,
+      "eer_threshold": -1.9443359375,
+      "auc": 0.9977974380942242,
+      "at_dev_threshold": {
+        "accuracy": 0.9868378682981807,
+        "balanced_accuracy": 0.9770242347994924,
+        "precision": 0.9959366111336855,
+        "recall": 0.9893702906350915,
+        "f1": 0.9926425919676004,
+        "confusion": {
+          "tn": 2458,
+          "fp": 90,
+          "fn": 237,
+          "tp": 22059
+        }
+      },
+      "min_tdcf": 0.0614,
+      "per_attack_eer_pct": {
+        "A01": 0.272,
+        "A02": 0.305,
+        "A03": 0.272,
+        "A04": 3.768,
+        "A05": 2.633,
+        "A06": 1.022
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 12.957,
+      "eer_threshold": 0.6005859375,
+      "auc": 0.9475474133765197,
+      "at_dev_threshold": {
+        "accuracy": 0.7524039473868916,
+        "balanced_accuracy": 0.851481790727725,
+        "precision": 0.9962654532967034,
+        "recall": 0.7266209573901882,
+        "f1": 0.8403425240328042,
+        "confusion": {
+          "tn": 7181,
+          "fp": 174,
+          "fn": 17464,
+          "tp": 46418
+        }
+      },
+      "min_tdcf": 0.3223,
+      "per_attack_eer_pct": {
+        "A07": 4.214,
+        "A08": 0.017,
+        "A09": 0.139,
+        "A10": 28.127,
+        "A11": 10.872,
+        "A12": 29.285,
+        "A13": 9.887,
+        "A14": 0.628,
+        "A15": 6.39,
+        "A16": 3.195,
+        "A17": 20.206,
+        "A18": 11.354,
+        "A19": 1.467
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 51.04,
+      "eer_threshold": -7.71875,
+      "auc": 0.49061996921793477,
+      "at_dev_threshold": {
+        "accuracy": 0.37439818748229964,
+        "balanced_accuracy": 0.48889469299517585,
+        "precision": 0.36635402512179766,
+        "recall": 0.9355111712931619,
+        "f1": 0.5265188501750458,
+        "confusion": {
+          "tn": 844,
+          "fp": 19119,
+          "fn": 762,
+          "tp": 11054
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 43.811499999999995,
+        "mean": 41.918037037037045,
+        "worst5": {
+          "JFK": 94.475,
+          "Martin Luther King": 89.0,
+          "Winston Churchill": 80.947,
+          "Adam Driver": 75.091,
+          "Bob Ross": 71.25
+        }
+      }
+    }
+  }
+}

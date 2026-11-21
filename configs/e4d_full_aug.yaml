@@ -1,0 +1,25 @@
+# P2.3 E4d: E4c (RawBoost + codec) plus resampling and speed perturbation.
+# Trained like E4c: 50-epoch cosine schedule, stopped after 22 epochs (queue: stop_after 22).
+name: e4d_full_aug
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: lfcc
+
+audio:
+  trim_silence: true
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stop_patience: 8
+
+augment:
+  rawboost: {p: 0.7, algos: [lnl, isd]}
+  codec: {p: 0.5, types: [mp3, opus, telephone]}
+  resample: {p: 0.3, rates: [8000, 11025, 12000]}
+  speed: {p: 0.3, min: 0.9, max: 1.1}
+  gain: {p: 0.5, min_db: -6, max_db: 6}

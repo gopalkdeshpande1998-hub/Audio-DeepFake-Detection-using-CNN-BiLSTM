@@ -1,0 +1,7 @@
+{
+  "run": "e2d_sinc_s44",
+  "best_epoch": 3,
+  "best_dev_eer": 0.0007961245274792869,
+  "epochs_run": 11,
+  "minutes": 28.8
+}

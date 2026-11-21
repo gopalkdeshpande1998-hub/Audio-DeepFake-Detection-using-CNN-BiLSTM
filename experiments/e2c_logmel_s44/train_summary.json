@@ -1,0 +1,7 @@
+{
+  "run": "e2c_logmel_s44",
+  "best_epoch": 2,
+  "best_dev_eer": 0.0015698235077752224,
+  "epochs_run": 10,
+  "minutes": 10.7
+}

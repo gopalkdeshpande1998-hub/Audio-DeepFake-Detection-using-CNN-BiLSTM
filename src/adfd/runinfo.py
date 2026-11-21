@@ -30,16 +30,21 @@ def describe_device() -> dict:
         info["torch"] = None
         return info
     info["torch"] = torch.__version__
-    info["cuda_available"] = torch.cuda.is_available()
-    if torch.cuda.is_available():
-        props = torch.cuda.get_device_properties(0)
-        info.update(
-            gpu=props.name,
-            vram_gb=round(props.total_memory / 1024**3, 2),
-            compute_capability=f"{props.major}.{props.minor}",
-            cuda_runtime=torch.version.cuda,
-            cudnn=torch.backends.cudnn.version(),
-        )
+    try:
+        available = torch.cuda.is_available() and torch.cuda.device_count() > 0
+        info["cuda_available"] = available
+        if available:
+            props = torch.cuda.get_device_properties(0)
+            info.update(
+                gpu=props.name,
+                vram_gb=round(props.total_memory / 1024**3, 2),
+                compute_capability=f"{props.major}.{props.minor}",
+                cuda_runtime=torch.version.cuda,
+                cudnn=torch.backends.cudnn.version(),
+            )
+    except (RuntimeError, AssertionError) as e:  # e.g. GPU hidden with CUDA_VISIBLE_DEVICES=""
+        info["cuda_available"] = False
+        info["cuda_error"] = str(e)
     return info
 
 

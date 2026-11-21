@@ -1,0 +1,132 @@
+{
+  "run": "e1_cnn_bilstm_mfcc_s42",
+  "tag": "trimmed",
+  "model": "cnn_bilstm",
+  "frontend": "mfcc",
+  "parameters": 786625,
+  "best_epoch": 27,
+  "dev_threshold": -3.251953125,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "augment": null,
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 15.344,
+      "eer_threshold": -9.5859375,
+      "auc": 0.9282563883589372,
+      "at_dev_threshold": {
+        "accuracy": 0.9301642247625181,
+        "balanced_accuracy": 0.8041441425456496,
+        "precision": 0.9596280234273706,
+        "recall": 0.9626838894869035,
+        "f1": 0.9611535275283792,
+        "confusion": {
+          "tn": 1645,
+          "fp": 903,
+          "fn": 832,
+          "tp": 21464
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 14.379,
+        "hi_pct": 16.157,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.4597,
+      "per_attack_eer_pct": {
+        "A01": 10.042,
+        "A02": 16.364,
+        "A03": 18.725,
+        "A04": 17.657,
+        "A05": 17.896,
+        "A06": 9.1
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 28.415,
+      "eer_threshold": -3.068359375,
+      "auc": 0.8032782357835959,
+      "at_dev_threshold": {
+        "accuracy": 0.7091960638432275,
+        "balanced_accuracy": 0.7153836853047228,
+        "precision": 0.9568991066514247,
+        "recall": 0.7075858614320153,
+        "f1": 0.8135709143268539,
+        "confusion": {
+          "tn": 5319,
+          "fp": 2036,
+          "fn": 18680,
+          "tp": 45202
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 27.812,
+        "hi_pct": 29.004,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.7863,
+      "per_attack_eer_pct": {
+        "A07": 15.364,
+        "A08": 17.785,
+        "A09": 15.103,
+        "A10": 31.56,
+        "A11": 21.061,
+        "A12": 38.666,
+        "A13": 32.806,
+        "A14": 38.561,
+        "A15": 29.733,
+        "A16": 15.462,
+        "A17": 37.264,
+        "A18": 40.215,
+        "A19": 16.912
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 45.813,
+      "eer_threshold": -10.0859375,
+      "auc": 0.5536751220122833,
+      "at_dev_threshold": {
+        "accuracy": 0.49211743604266966,
+        "balanced_accuracy": 0.5584161987761312,
+        "precision": 0.4085138794854435,
+        "recall": 0.817027758970887,
+        "f1": 0.544685172647258,
+        "confusion": {
+          "tn": 5985,
+          "fp": 13978,
+          "fn": 2162,
+          "tp": 9654
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 45.294,
+        "hi_pct": 46.334,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 52.97,
+        "mean": 51.65514814814816,
+        "worst5": {
+          "Kamala Harris": 96.0,
+          "George W. Bush": 92.649,
+          "George Carlin": 87.95,
+          "Bob Ross": 83.333,
+          "Bill Burr": 82.548
+        }
+      }
+    }
+  }
+}

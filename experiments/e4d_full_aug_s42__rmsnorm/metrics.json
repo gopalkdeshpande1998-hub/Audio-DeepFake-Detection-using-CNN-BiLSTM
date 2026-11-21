@@ -1,0 +1,149 @@
+{
+  "run": "e4d_full_aug_s42",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 22,
+  "dev_threshold": -0.640625,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": "rms",
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "resample": {
+      "p": 0.3,
+      "rates": [
+        8000,
+        11025,
+        12000
+      ]
+    },
+    "speed": {
+      "p": 0.3,
+      "min": 0.9,
+      "max": 1.1
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 14.246,
+      "eer_threshold": -1.1162109375,
+      "auc": 0.9411407981466993,
+      "at_dev_threshold": {
+        "accuracy": 0.8905973273224923,
+        "balanced_accuracy": 0.8490154445482756,
+        "precision": 0.9748714465896964,
+        "recall": 0.9013275923932544,
+        "f1": 0.9366581216499651,
+        "confusion": {
+          "tn": 2030,
+          "fp": 518,
+          "fn": 2200,
+          "tp": 20096
+        }
+      },
+      "min_tdcf": 0.3675,
+      "per_attack_eer_pct": {
+        "A01": 2.938,
+        "A02": 0.829,
+        "A03": 0.862,
+        "A04": 27.202,
+        "A05": 5.539,
+        "A06": 19.939
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 18.746,
+      "eer_threshold": -0.61083984375,
+      "auc": 0.9009323870015185,
+      "at_dev_threshold": {
+        "accuracy": 0.809944270533571,
+        "balanced_accuracy": 0.8133044682932253,
+        "precision": 0.9746921379674506,
+        "recall": 0.809069847531386,
+        "f1": 0.8841919783763441,
+        "confusion": {
+          "tn": 6013,
+          "fp": 1342,
+          "fn": 12197,
+          "tp": 51685
+        }
+      },
+      "min_tdcf": 0.4852,
+      "per_attack_eer_pct": {
+        "A07": 31.706,
+        "A08": 0.424,
+        "A09": 0.587,
+        "A10": 35.227,
+        "A11": 9.038,
+        "A12": 28.633,
+        "A13": 13.921,
+        "A14": 2.788,
+        "A15": 7.344,
+        "A16": 25.316,
+        "A17": 17.931,
+        "A18": 8.468,
+        "A19": 20.695
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 38.541,
+      "eer_threshold": -2.314453125,
+      "auc": 0.6554401221983079,
+      "at_dev_threshold": {
+        "accuracy": 0.5171024890651059,
+        "balanced_accuracy": 0.576265227434464,
+        "precision": 0.4219095655251748,
+        "recall": 0.8070412999322952,
+        "f1": 0.5541286536114824,
+        "confusion": {
+          "tn": 6897,
+          "fp": 13066,
+          "fn": 2280,
+          "tp": 9536
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 35.0415,
+        "mean": 35.04309259259259,
+        "worst5": {
+          "Kamala Harris": 73.5,
+          "Adam Driver": 62.637,
+          "JFK": 61.142,
+          "Calvin Coolidge": 60.172,
+          "Robert Kardashian": 57.391
+        }
+      }
+    }
+  }
+}

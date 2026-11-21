@@ -1,0 +1,7 @@
+{
+  "run": "e2a_lfcc_s43",
+  "best_epoch": 29,
+  "best_dev_eer": 4.485109436670255e-05,
+  "epochs_run": 37,
+  "minutes": 29.9
+}

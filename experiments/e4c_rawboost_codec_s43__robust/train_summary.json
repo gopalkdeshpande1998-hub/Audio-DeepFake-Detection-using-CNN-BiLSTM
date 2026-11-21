@@ -1,0 +1,7 @@
+{
+  "run": "e4c_rawboost_codec_s43",
+  "best_epoch": 21,
+  "best_dev_eer": 0.019634006620781956,
+  "epochs_run": 22,
+  "minutes": 72.0
+}

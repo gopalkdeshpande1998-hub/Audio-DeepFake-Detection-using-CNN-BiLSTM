@@ -22,7 +22,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from adfd.config import load_config
 from adfd.data.audio_cache import AudioCache
+from adfd.data.augment import build_augmentation
 from adfd.data.datasets import CropDataset, make_loader
+from adfd.data.silence import load_silence
 from adfd.engine import score_loader, train_one_epoch
 from adfd.metrics import eer_from_labels
 from adfd.models import build_model, count_parameters
@@ -44,6 +46,8 @@ def main() -> None:
     ap.add_argument("--config", required=True)
     ap.add_argument("--seed", type=int)
     ap.add_argument("--max-epochs", type=int)
+    ap.add_argument("--stop-after", type=int,
+                    help="end training after this many epochs but keep the max_epochs LR schedule")
     ap.add_argument("--limit", type=int, help="use only this many train and dev rows (smoke test)")
     ap.add_argument("--workers", type=int)
     ap.add_argument("--run-name", help="run folder name (default: <name>_s<seed>_<timestamp>)")
@@ -56,6 +60,8 @@ def main() -> None:
         cfg["train"]["max_epochs"] = args.max_epochs
     if args.workers is not None:
         cfg["data"]["num_workers"] = args.workers
+    if args.stop_after is not None:
+        cfg["train"]["stop_after_epochs"] = args.stop_after
     if args.limit:
         cfg["data"]["limit"] = args.limit
 
@@ -84,8 +90,20 @@ def main() -> None:
     pad = cfg["audio"]["pad_mode"]
     tcfg = cfg["train"]
     workers = cfg["data"]["num_workers"]
-    train_loader = make_loader(CropDataset(train_df, cache, crop, True, pad, sr), tcfg["batch_size"], True, workers, seed)
-    dev_loader = make_loader(CropDataset(dev_df, cache, crop, False, pad, sr), tcfg.get("eval_batch_size", 64), False, workers, seed)
+    bounds = None
+    if cfg["audio"].get("trim_silence"):
+        bounds = load_silence(paths.cache_dir, "asvspoof2019_la")
+        if bounds is None:
+            raise FileNotFoundError("trim_silence is on but silence bounds are missing: run scripts/compute_silence.py")
+        print("Trimming leading/trailing silence (train and dev)")
+    augment = build_augmentation(cfg.get("augment"), sr, seed)
+    if augment is not None:
+        print(f"Augmentation: {augment}")
+    norm = cfg["audio"].get("normalize")
+    train_ds = CropDataset(train_df, cache, crop, True, pad, sr, speech_bounds=bounds, transform=augment, normalize=norm)
+    dev_ds = CropDataset(dev_df, cache, crop, False, pad, sr, speech_bounds=bounds, normalize=norm)
+    train_loader = make_loader(train_ds, tcfg["batch_size"], True, workers, seed)
+    dev_loader = make_loader(dev_ds, tcfg.get("eval_batch_size", 64), False, workers, seed)
     n_real, n_fake = int((train_df["label"] == 0).sum()), int((train_df["label"] == 1).sum())
     print(f"Train: {len(train_df):,} ({n_real:,} real / {n_fake:,} fake)   Dev: {len(dev_df):,}")
 
@@ -110,7 +128,8 @@ def main() -> None:
     best_eer, best_epoch, bad_epochs, step = float("inf"), -1, 0, 0
     history = []
     t_start = time.time()
-    for epoch in range(1, tcfg["max_epochs"] + 1):
+    last_epoch = min(tcfg["max_epochs"], tcfg.get("stop_after_epochs") or tcfg["max_epochs"])
+    for epoch in range(1, last_epoch + 1):
         loss, step, t_train = train_one_epoch(model, train_loader, opt, sched, scaler, loss_fn, device, amp,
                                               tcfg["grad_accum"], tcfg.get("grad_clip", 5.0), writer, step)
         t0 = time.time()

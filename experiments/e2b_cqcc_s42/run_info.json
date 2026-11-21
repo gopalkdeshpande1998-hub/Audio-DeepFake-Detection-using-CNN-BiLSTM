@@ -1,0 +1,81 @@
+{
+  "created_utc": "2026-11-19T10:50:19+00:00",
+  "git_commit": "a4b489f56c4841464e1b657baee8896420d55cdf",
+  "git_dirty": true,
+  "command": [
+    "G:\\Audio-DeepFake-Detection-using-CNN-BiLSTM-main\\src\\adfd\\train.py",
+    "--config",
+    "configs/e2b_cqcc.yaml",
+    "--seed",
+    "42",
+    "--run-name",
+    "e2b_cqcc_s42"
+  ],
+  "config": {
+    "seed": 42,
+    "deterministic": false,
+    "audio": {
+      "sample_rate": 16000,
+      "crop_seconds": 4.0,
+      "pad_mode": "repeat"
+    },
+    "data": {
+      "train_split": "train",
+      "val_split": "dev",
+      "test_sets": [
+        "asvspoof2019_la:eval",
+        "in_the_wild:test",
+        "deep_voice:test"
+      ],
+      "num_workers": 3,
+      "balance": "class_weights"
+    },
+    "train": {
+      "device": "cuda",
+      "amp": true,
+      "batch_size": 32,
+      "grad_accum": 1,
+      "max_epochs": 50,
+      "early_stop_metric": "val_eer",
+      "early_stop_patience": 8,
+      "optimizer": "adamw",
+      "lr": 0.001,
+      "weight_decay": 0.0001,
+      "scheduler": "cosine",
+      "eval_batch_size": 64
+    },
+    "name": "e2b_cqcc",
+    "model": {
+      "name": "cnn_bilstm",
+      "frontend": {
+        "name": "cqcc"
+      }
+    }
+  },
+  "device": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26300-SP0",
+    "torch": "2.11.0+cu130",
+    "cuda_available": true,
+    "gpu": "NVIDIA GeForce RTX 3050 A Laptop GPU",
+    "vram_gb": 4.0,
+    "compute_capability": "8.9",
+    "cuda_runtime": "13.0",
+    "cudnn": 91900
+  },
+  "packages": {
+    "torch": "2.11.0+cu130",
+    "torchaudio": "2.11.0+cu130",
+    "transformers": "5.23.0",
+    "numpy": "2.4.6",
+    "librosa": "0.11.0",
+    "soundfile": "0.14.0",
+    "scikit-learn": "1.9.1",
+    "pandas": "3.1.1"
+  },
+  "manifests_sha256": {
+    "asvspoof2019_la": "cd97cbe9989bb73fc1328383a41b2a5ff76e5b6fb93a8f0596c6b1f58ab1c725",
+    "in_the_wild": "9c3c06b3e3cffefd653790a91cddba37e8ce5ac80f1e02373ec2157d701efec9",
+    "deep_voice": "4a7ae531e1b4ea023f1f8615ca575cadca1439bc6d66f97d1a457aa6aee7030e"
+  }
+}

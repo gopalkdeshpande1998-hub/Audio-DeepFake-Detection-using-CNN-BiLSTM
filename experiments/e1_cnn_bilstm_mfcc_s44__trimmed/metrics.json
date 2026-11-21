@@ -1,0 +1,132 @@
+{
+  "run": "e1_cnn_bilstm_mfcc_s44",
+  "tag": "trimmed",
+  "model": "cnn_bilstm",
+  "frontend": "mfcc",
+  "parameters": 786625,
+  "best_epoch": 17,
+  "dev_threshold": -3.87109375,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "augment": null,
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 17.151,
+      "eer_threshold": -6.10546875,
+      "auc": 0.9188518901391807,
+      "at_dev_threshold": {
+        "accuracy": 0.9021896635002415,
+        "balanced_accuracy": 0.8154984399986707,
+        "precision": 0.964984552008239,
+        "recall": 0.9245604592752064,
+        "f1": 0.9443400980347245,
+        "confusion": {
+          "tn": 1800,
+          "fp": 748,
+          "fn": 1682,
+          "tp": 20614
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 16.391,
+        "hi_pct": 17.755,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.4907,
+      "per_attack_eer_pct": {
+        "A01": 11.495,
+        "A02": 19.156,
+        "A03": 22.798,
+        "A04": 19.587,
+        "A05": 18.566,
+        "A06": 7.217
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 27.179,
+      "eer_threshold": -3.349609375,
+      "auc": 0.8112065092141441,
+      "at_dev_threshold": {
+        "accuracy": 0.6990749189325772,
+        "balanced_accuracy": 0.7252602090049143,
+        "precision": 0.9613486663333406,
+        "recall": 0.6922607307222692,
+        "f1": 0.8049106777208486,
+        "confusion": {
+          "tn": 5577,
+          "fp": 1778,
+          "fn": 19659,
+          "tp": 44223
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 26.626,
+        "hi_pct": 27.695,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "min_tdcf": 0.7907,
+      "per_attack_eer_pct": {
+        "A07": 18.257,
+        "A08": 19.513,
+        "A09": 15.323,
+        "A10": 30.548,
+        "A11": 21.411,
+        "A12": 35.855,
+        "A13": 28.552,
+        "A14": 31.461,
+        "A15": 30.117,
+        "A16": 17.32,
+        "A17": 34.15,
+        "A18": 43.654,
+        "A19": 19.985
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 50.559,
+      "eer_threshold": -5.671875,
+      "auc": 0.5186028033887065,
+      "at_dev_threshold": {
+        "accuracy": 0.48500582145441956,
+        "balanced_accuracy": 0.5185800420859836,
+        "precision": 0.38567839195979897,
+        "recall": 0.6495429925524713,
+        "f1": 0.48398284777399425,
+        "confusion": {
+          "tn": 7738,
+          "fp": 12225,
+          "fn": 4141,
+          "tp": 7675
+        }
+      },
+      "eer_ci95": {
+        "lo_pct": 49.959,
+        "hi_pct": 51.102,
+        "n_boot": 500,
+        "resampled": "utterances"
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 55.9685,
+        "mean": 53.96135185185185,
+        "worst5": {
+          "Orson Welles": 95.236,
+          "George W. Bush": 92.935,
+          "Bob Ross": 91.667,
+          "John Cleese": 89.915,
+          "Norm MacDonald": 89.068
+        }
+      }
+    }
+  }
+}

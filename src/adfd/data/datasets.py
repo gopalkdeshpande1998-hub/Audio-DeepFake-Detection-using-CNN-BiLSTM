@@ -24,24 +24,68 @@ def fit_length(x: np.ndarray, n: int, mode: str = "repeat") -> np.ndarray:
     raise ValueError(f"unknown pad mode {mode!r}")
 
 
+TARGET_RMS_DBFS = -26.0   # level for normalize="rms"
+TARGET_PEAK = 0.9         # level for normalize="peak"
+MAX_GAIN_DB = 20.0        # never amplify (or attenuate) by more than this
+
+
+def normalize_level(x: np.ndarray, mode: str | None) -> np.ndarray:
+    """Loudness normalisation of one float32 crop (P2.2 loudness check).
+
+    rms:  scale to TARGET_RMS_DBFS; peak: scale the peak to TARGET_PEAK.
+    The gain is limited to +-MAX_GAIN_DB so near-silent crops are not blown up into noise.
+    """
+    if not mode or mode == "none":
+        return x
+    if mode == "rms":
+        level = np.sqrt(np.mean(x.astype(np.float64) ** 2))
+        target = 10 ** (TARGET_RMS_DBFS / 20)
+    elif mode == "peak":
+        level, target = float(np.max(np.abs(x))), TARGET_PEAK
+    else:
+        raise ValueError(f"unknown normalize mode {mode!r}")
+    if level <= 0:
+        return x
+    gain = np.clip(target / level, 10 ** (-MAX_GAIN_DB / 20), 10 ** (MAX_GAIN_DB / 20))
+    return np.clip(x * gain, -1.0, 1.0).astype(np.float32)
+
+
 class CropDataset(Dataset):
     """One crop of `crop_samples` per manifest row.
 
     train=True: random crop position (a new one every epoch).
     train=False: centre crop, so scores are deterministic.
     Segments (start_s/end_s, used for DEEP-VOICE windows) are respected.
+
+    speech_bounds: optional recording_id -> (start, end) samples of the speech
+        region (adfd.data.silence). Whole-file rows are then trimmed to that
+        region, removing leading/trailing silence. Window rows are left alone.
+    transform: optional function applied to each float32 crop (augmentation).
+    normalize: None/"none", "rms" or "peak": loudness normalisation of every crop
+        (train and test alike), applied before augmentation.
     """
 
     def __init__(self, manifest: pd.DataFrame, cache: AudioCache, crop_samples: int,
-                 train: bool, pad_mode: str = "repeat", sample_rate: int = 16000):
+                 train: bool, pad_mode: str = "repeat", sample_rate: int = 16000,
+                 speech_bounds: dict[str, tuple[int, int]] | None = None, transform=None,
+                 normalize: str | None = None):
         self.cache = cache
+        self.normalize = normalize
         self.crop = int(crop_samples)
         self.train = train
         self.pad_mode = pad_mode
+        self.transform = transform
         self.rec_ids = manifest["recording_id"].astype(str).to_numpy()
         self.starts = np.round(manifest["start_s"].to_numpy(float) * sample_rate).astype(np.int64)
         self.ends = np.round(manifest["end_s"].to_numpy(float) * sample_rate).astype(np.int64)
         self.labels = manifest["label"].to_numpy(np.float32)
+        if speech_bounds is not None:
+            whole = np.isclose(manifest["start_s"].to_numpy(float), 0.0) & np.isclose(
+                manifest["end_s"].to_numpy(float), manifest["duration_s"].to_numpy(float), atol=1e-3)
+            for i in np.flatnonzero(whole):
+                bounds = speech_bounds.get(self.rec_ids[i])
+                if bounds is not None and bounds[1] > bounds[0]:
+                    self.starts[i], self.ends[i] = bounds
 
     def __len__(self) -> int:
         return len(self.labels)
@@ -59,8 +103,13 @@ class CropDataset(Dataset):
             x = self.cache.read(rec, start + offset, start + offset + self.crop)
         else:
             x = self.cache.read(rec, start, start + seg_len)
-        x = fit_length(x, self.crop, self.pad_mode)
-        wav = torch.from_numpy(x.astype(np.float32) / 32768.0)
+        x = fit_length(x, self.crop, self.pad_mode).astype(np.float32) / 32768.0
+        x = normalize_level(x, self.normalize)
+        if self.transform is not None and self.train:
+            x = np.ascontiguousarray(self.transform(x), dtype=np.float32)
+            if len(x) != self.crop:
+                x = fit_length(x, self.crop, self.pad_mode)
+        wav = torch.from_numpy(x)
         return wav, torch.tensor(self.labels[i]), i
 
 

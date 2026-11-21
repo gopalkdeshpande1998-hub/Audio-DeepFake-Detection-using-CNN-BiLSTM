@@ -1,0 +1,151 @@
+# Phase 2 last step: loudness sensitivity (test crops RMS-normalised), then rebuild all shortcut checks and tables.
+# E4d seed 42 is retrained first: its first attempt crashed when datasets.py changed mid-run.
+- train:
+    config: configs/e4d_full_aug.yaml
+    seed: 42
+    stop_after: 22
+- evaluate:
+    run: e4d_full_aug_s42
+- evaluate:
+    run: e4d_full_aug_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e4d_full_aug_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s42
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s43
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s44
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e2a_lfcc_s42
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e2a_lfcc_s43
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e2a_lfcc_s44
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4c_rawboost_codec_s42
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4c_rawboost_codec_s43
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4c_rawboost_codec_s44
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4d_full_aug_s42
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4d_full_aug_s43
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- evaluate:
+    run: e4d_full_aug_s44
+    tag: rmsnorm
+    normalize: rms
+    n_boot: 0
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild:test
+- script:
+  - scripts/length_check.py
+- script:
+  - scripts/loudness_check.py
+- script:
+  - scripts/make_tables.py

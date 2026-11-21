@@ -158,24 +158,50 @@ Every experiment below uses the P1 training and evaluation code. Change one fact
 | F5 | Raw waveform (sinc layer, as in RawNet2) | Lets the model learn its own filters |
 
 ### P2.2 Shortcut checks
-- [ ] **Silence shortcut:** train and test with leading and trailing silence trimmed by a voice-activity detector, and compare with untrimmed audio. Also run a "silence-only" classifier as a control. If trimming changes cross-dataset EER a lot, the model was using silence.
-- [ ] **Length shortcut:** use the same fixed-length crops for every dataset (already enforced in P1.2) and report the score distribution by clip duration.
-- [ ] **Loudness/normalisation:** apply the same peak or RMS normalisation everywhere.
+- [x] **Silence shortcut:** train and test with leading and trailing silence trimmed by a voice-activity detector, and compare with untrimmed audio. Also run a "silence-only" classifier as a control. If trimming changes cross-dataset EER a lot, the model was using silence.
+- [x] **Length shortcut:** use the same fixed-length crops for every dataset (already enforced in P1.2) and report EER per duration bin and the score–duration correlation (`scripts/length_check.py`).
+- [x] **Loudness/normalisation:** a loudness-only control classifier, plus every headline model re-scored with RMS-normalised test crops (`scripts/loudness_check.py`, `evaluate.py --normalize rms`). Normalisation is available for training too (`audio.normalize`).
 
 ### P2.3 Data augmentation (training only)
-- [ ] **RawBoost** (needs no extra data): linear/non-linear convolutive noise plus impulsive and stationary noise.
-- [ ] **Codec simulation** with ffmpeg: MP3 (32–128 kbps), Opus, AAC, and 8 kHz telephone band (G.711-like).
-- [ ] **Gain, resampling and speed changes** (small amounts).
-- [ ] Ablation: no augmentation / RawBoost / codec / both.
+- [x] **RawBoost** (needs no extra data): linear/non-linear convolutive noise plus impulsive and stationary noise.
+- [x] **Codec simulation** via libsndfile (no ffmpeg needed): MP3, Opus and 8 kHz μ-law telephone band. AAC is not supported by libsndfile and was left out.
+- [x] **Gain, resampling and speed changes** (small amounts): gain ±6 dB; resampling to 8/11.025/12 kHz and back; speed 0.9–1.1× (E4d).
+- [x] Ablation: no augmentation / RawBoost / codec / both / all. Chosen on a **degraded dev subset** (A01–A06, the same 10 degradations), because clean dev EER cannot reward robustness and the test sets must not be used for selection.
 
 ### P2.4 Robustness test (evaluation only)
-- [ ] Degrade the ASVspoof eval set with each codec, with white or pink noise at signal-to-noise ratios of 20/10/5 dB, and with telephone band-limiting. Plot EER against degradation level for the main models.
+- [x] Degrade the ASVspoof eval set with each codec, with white or pink noise at signal-to-noise ratios of 20/10/5 dB, and with telephone band-limiting. Plot EER against degradation level for the main models (`experiments/tables/robustness_eval.png`, `robustness_dev.png`).
 
 ### P2.5 Statistical rigour
-- [ ] Run each headline model with **3 seeds** and report mean ± std.
-- [ ] Bootstrap 95% confidence intervals on EER for the cross-dataset sets.
+- [x] Run each headline model with **3 seeds** and report mean ± std.
+- [x] Bootstrap 95% confidence intervals on EER for the cross-dataset sets.
 
 **Done when:** `experiments/tables/` holds the feature ablation, the shortcut-check table, the augmentation ablation and the robustness curves, each produced by `scripts/make_tables.py`.
+
+**Status (2026-11-21): done.** Every row in every table has 3 seeds (42, 43, 44). Full tables: `experiments/tables/phase2.md` (`python scripts/make_tables.py`); robustness figures: `experiments/tables/robustness_eval.png` and `robustness_dev.png`. All EER in %.
+
+| Model (CNN-BiLSTM) | dev | eval | eval min t-DCF | In-the-Wild | DEEP-VOICE (recording) | degraded eval, mean of 10 |
+|---|---|---|---|---|---|---|
+| E1 MFCC, untrimmed | 1.36 ± 0.47 | 7.97 ± 0.04 | 0.210 | 47.3 ± 4.6 | 52.4 ± 6.6 | 33.62 ± 3.91 |
+| E2a LFCC, untrimmed (best feature on dev) | 0.04 ± 0.03 | 6.64 ± 1.52 | 0.155 | 42.5 ± 6.6 | 45.5 ± 7.1 | 32.41 ± 0.90 |
+| E2b CQCC, untrimmed | 2.29 ± 0.22 | 11.00 ± 0.32 | 0.234 | 26.9 ± 2.8 | 30.1 ± 6.6 | – |
+| E2c log-mel, untrimmed | 0.10 ± 0.05 | 6.48 ± 0.61 | 0.112 | 64.8 ± 8.1 | 50.0 ± 0.0 | – |
+| E2d sinc (raw waveform), untrimmed | 0.08 ± 0.00 | 6.94 ± 0.20 | 0.129 | 55.4 ± 4.8 | 38.1 ± 1.0 | – |
+| E3 LFCC, silence-trimmed | 0.13 ± 0.06 | 21.47 ± 0.95 | 0.355 | 57.2 ± 3.9 | 41.7 ± 7.2 | 34.11 ± 5.11 |
+| **E4a + RawBoost** (chosen on degraded dev) | 0.34 ± 0.20 | 14.38 ± 1.09 | 0.344 | 47.4 ± 11.4 | 50.3 ± 13.0 | 24.51 ± 2.26 |
+| E4b + codec | 0.64 ± 0.43 | 14.34 ± 2.10 | 0.353 | 59.0 ± 10.1 | 28.3 ± 7.3 | 33.76 ± 3.16 |
+| E4c + RawBoost + codec | 1.90 ± 0.65 | 12.81 ± 0.56 | 0.310 | 53.5 ± 9.4 | 29.2 ± 7.2 | 24.33 ± 3.11 |
+| E4d + RawBoost + codec + resample + speed | 10.95 ± 1.80 | 17.96 ± 0.29 | 0.459 | 36.4 ± 3.8 | 45.8 ± 7.2 | 24.82 ± 2.30 |
+
+Selection (dev data only): **feature = LFCC** (lowest clean dev EER among the 5 features); **augmentation = E4a, RawBoost only** (lowest mean degraded-dev EER: E4a 18.43 ± 2.09, E4c 19.86 ± 2.27, E4d 20.35 ± 0.33, E4b 26.97, E3 29.64). With one seed E4c had won; with 3 seeds E4a leads, but the gap to E4c is smaller than one standard deviation, so the two are effectively tied.
+
+Findings:
+- **LFCC beats MFCC** on dev and eval (6.6 vs 8.0% eval EER). Log-mel and sinc are as good on clean ASVspoof but much worse on In-the-Wild. CQCC is the weakest on ASVspoof yet the best cross-dataset feature (In-the-Wild 26.9%, DEEP-VOICE 30.1%); it would not be chosen by dev EER, which shows clean dev EER is a poor guide to generalisation.
+- **The silence shortcut is large.** Leading silence alone gives 15.9% eval EER. Scoring the untrimmed models on trimmed audio raises eval EER from 8.0 to 27.7% (MFCC) and from 6.6 to 22.1% (LFCC). The untrimmed eval numbers mostly measure silence.
+- **Length is not a shortcut.** With fixed 4 s crops, EER changes little across duration bins on ASVspoof eval and |ρ| ≤ 0.17 between score and duration. On In-the-Wild the augmented models show a mild negative correlation (ρ ≈ −0.25 to −0.33).
+- **Loudness is not a shortcut.** ASVspoof is peak-normalised (median peak 0 dBFS for both classes); a loudness-only classifier is near chance (46–55% EER). RMS-normalising the test audio changes model EER by at most 1.4 points.
+- **On trimmed audio, augmentation helps a lot:** eval EER drops from 21.5 (E3) to 12.8–14.4% (E4a–E4c), and the degraded-eval mean from 34.1 to about 24.5% (E4a, E4c, E4d). Codec augmentation alone fixes codecs but not noise; RawBoost fixes noise. Adding resampling and speed (E4d) costs a lot of clean accuracy (dev 11%) but gives the best In-the-Wild EER of the trimmed models (36.4%).
+- **Cross-dataset generalisation is still unsolved.** In-the-Wild stays at 27–65% and DEEP-VOICE varies widely between seeds. Phase 3 (pretrained SSL front ends) targets this.
+- Training notes: E4c and E4d were stopped at epoch 22 of a 50-epoch cosine schedule (`--stop-after 22`, all seeds alike) to save time, so they may be slightly under-trained. E4d seed 42 was retrained after a crash caused by editing the code mid-run.
 
 ---
 

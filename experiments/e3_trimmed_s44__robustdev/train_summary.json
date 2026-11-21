@@ -1,0 +1,7 @@
+{
+  "run": "e3_trimmed_s44",
+  "best_epoch": 29,
+  "best_dev_eer": 0.0008185500746626382,
+  "epochs_run": 37,
+  "minutes": 28.0
+}

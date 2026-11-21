@@ -16,7 +16,7 @@ data:
     - asvspoof2019_la:eval
     - in_the_wild:test
     - deep_voice:test
-  num_workers: 4            # Windows DataLoader workers (spawned processes)
+  num_workers: 3            # Windows DataLoader workers; each commits ~2 GB (torch), keep <= 3 on 16 GB RAM
   balance: class_weights    # ASVspoof is about 1 real : 9 fake
 
 train:

@@ -1,0 +1,149 @@
+{
+  "run": "e4d_full_aug_s44",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 22,
+  "dev_threshold": 0.002948760986328125,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": "rms",
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "resample": {
+      "p": 0.3,
+      "rates": [
+        8000,
+        11025,
+        12000
+      ]
+    },
+    "speed": {
+      "p": 0.3,
+      "min": 0.9,
+      "max": 1.1
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 12.01,
+      "eer_threshold": -0.1790771484375,
+      "auc": 0.9538665216645572,
+      "at_dev_threshold": {
+        "accuracy": 0.89663500241507,
+        "balanced_accuracy": 0.8753217731573875,
+        "precision": 0.9811707317073171,
+        "recall": 0.902134912091855,
+        "f1": 0.9399943919992522,
+        "confusion": {
+          "tn": 2162,
+          "fp": 386,
+          "fn": 2182,
+          "tp": 20114
+        }
+      },
+      "min_tdcf": 0.3088,
+      "per_attack_eer_pct": {
+        "A01": 1.758,
+        "A02": 0.398,
+        "A03": 0.272,
+        "A04": 21.359,
+        "A05": 6.129,
+        "A06": 20.403
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 18.437,
+      "eer_threshold": 0.302001953125,
+      "auc": 0.9092960155058152,
+      "at_dev_threshold": {
+        "accuracy": 0.7725620113143451,
+        "balanced_accuracy": 0.8180268159272499,
+        "precision": 0.9814799854586581,
+        "recall": 0.7607307222691838,
+        "f1": 0.8571201806060178,
+        "confusion": {
+          "tn": 6438,
+          "fp": 917,
+          "fn": 15285,
+          "tp": 48597
+        }
+      },
+      "min_tdcf": 0.4613,
+      "per_attack_eer_pct": {
+        "A07": 28.487,
+        "A08": 0.18,
+        "A09": 0.268,
+        "A10": 30.524,
+        "A11": 13.123,
+        "A12": 26.718,
+        "A13": 8.468,
+        "A14": 0.832,
+        "A15": 7.042,
+        "A16": 20.124,
+        "A17": 21.126,
+        "A18": 17.5,
+        "A19": 22.83
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 38.422,
+      "eer_threshold": -1.7978515625,
+      "auc": 0.665698067745573,
+      "at_dev_threshold": {
+        "accuracy": 0.49123635104943514,
+        "balanced_accuracy": 0.5615659259915203,
+        "precision": 0.4097320169252468,
+        "recall": 0.8359004739336493,
+        "f1": 0.5499137019096932,
+        "confusion": {
+          "tn": 5734,
+          "fp": 14229,
+          "fn": 1939,
+          "tp": 9877
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 34.5345,
+        "mean": 34.37107407407407,
+        "worst5": {
+          "Frank Sinatra": 81.966,
+          "Kamala Harris": 75.5,
+          "Adam Driver": 66.337,
+          "JFK": 65.922,
+          "Richard Nixon": 57.112
+        }
+      }
+    }
+  }
+}

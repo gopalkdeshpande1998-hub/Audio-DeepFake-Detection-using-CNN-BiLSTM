@@ -26,7 +26,8 @@ import torch
 from adfd.data.audio_cache import AudioCache
 from adfd.data.datasets import CropDataset, make_loader
 from adfd.engine import score_loader
-from adfd.metrics import auc, eer_from_labels, load_asv_scores, min_tdcf, threshold_metrics
+from adfd.data.silence import load_silence
+from adfd.metrics import auc, bootstrap_eer, eer_from_labels, load_asv_scores, min_tdcf, threshold_metrics
 from adfd.models import build_model, count_parameters
 from adfd.paths import REPO_ROOT, configure_caches, load_paths
 
@@ -101,16 +102,18 @@ def summary_markdown(run: str, results: dict) -> str:
     lines = [f"# Results: {run}", "",
              f"Model: {results['model']} ({results['parameters']:,} parameters), best dev epoch {results['best_epoch']}.",
              "Score threshold for accuracy/precision/recall: dev EER threshold (spoof = positive class).", "",
-             "| Test set | n | EER % | min t-DCF | AUC | Accuracy | Precision | Recall |",
-             "|---|---|---|---|---|---|---|---|"]
+             "| Test set | n | EER % | EER 95% CI | min t-DCF | AUC | Accuracy | Precision | Recall |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for name, m in results["sets"].items():
         t = m["at_dev_threshold"]
         tdcf = m.get("min_tdcf", "")
-        lines.append(f"| {name} | {m['n']:,} | {m['eer_pct']:.2f} | {tdcf} | {m['auc']:.4f} | "
+        ci = m.get("eer_ci95")
+        ci_txt = f"{ci['lo_pct']:.2f}–{ci['hi_pct']:.2f}" if ci else ""
+        lines.append(f"| {name} | {m['n']:,} | {m['eer_pct']:.2f} | {ci_txt} | {tdcf} | {m['auc']:.4f} | "
                      f"{t['accuracy'] * 100:.2f} | {t['precision'] * 100:.2f} | {t['recall'] * 100:.2f} |")
         if "per_recording" in m:
             pr = m["per_recording"]
-            lines.append(f"| {name} (per recording) | {pr['n']} | {pr['eer_pct']:.2f} |  | {pr['auc']:.4f} | "
+            lines.append(f"| {name} (per recording) | {pr['n']} | {pr['eer_pct']:.2f} |  |  | {pr['auc']:.4f} | "
                          f"{pr['at_dev_threshold']['accuracy'] * 100:.2f} | {pr['at_dev_threshold']['precision'] * 100:.2f} | "
                          f"{pr['at_dev_threshold']['recall'] * 100:.2f} |")
     for name, m in results["sets"].items():
@@ -128,6 +131,12 @@ def main() -> None:
     ap.add_argument("--sets", nargs="*", help="dataset:split entries (default: dev + config test_sets)")
     ap.add_argument("--workers", type=int)
     ap.add_argument("--batch-size", type=int, default=64)
+    ap.add_argument("--trim-silence", choices=["auto", "on", "off"], default="auto",
+                    help="trim leading/trailing silence of whole-file test items (auto = as in training)")
+    ap.add_argument("--normalize", choices=["auto", "none", "rms", "peak"], default="auto",
+                    help="loudness normalisation of every test crop (auto = as in training)")
+    ap.add_argument("--tag", help="suffix for output names, e.g. 'trimmed' -> experiments/<run>__trimmed")
+    ap.add_argument("--n-boot", type=int, default=500, help="bootstrap resamples for EER CIs (0 = off)")
     args = ap.parse_args()
 
     paths = load_paths()
@@ -145,9 +154,15 @@ def main() -> None:
     crop = int(cfg["audio"]["crop_seconds"] * sr)
 
     sets = args.sets or ["asvspoof2019_la:dev", *cfg["data"]["test_sets"]]
-    results = {"run": run_dir.name, "model": cfg["model"]["name"], "parameters": count_parameters(model),
-               "best_epoch": ckpt["epoch"], "dev_threshold": dev_thr, "crop_seconds": cfg["audio"]["crop_seconds"],
-               "sets": {}}
+    trim = {"on": True, "off": False}.get(args.trim_silence, bool(cfg["audio"].get("trim_silence")))
+    norm = cfg["audio"].get("normalize") if args.normalize == "auto" else args.normalize
+    norm = None if norm in (None, "none") else norm
+    suffix = f"__{args.tag}" if args.tag else ""
+    results = {"run": run_dir.name, "tag": args.tag, "model": cfg["model"]["name"],
+               "frontend": cfg["model"].get("frontend", {}).get("name", "mfcc"),
+               "parameters": count_parameters(model), "best_epoch": ckpt["epoch"], "dev_threshold": dev_thr,
+               "crop_seconds": cfg["audio"]["crop_seconds"], "trim_silence": trim,
+               "normalize": norm, "augment": cfg.get("augment"), "sets": {}}
     manifests = {}
     for entry in sets:
         name, split = entry.split(":")
@@ -155,17 +170,30 @@ def main() -> None:
             manifests[name] = pd.read_csv(paths.manifest(name), keep_default_na=False)
         df = manifests[name][manifests[name]["split"] == split].reset_index(drop=True)
         cache = AudioCache(paths.cache_dir, name)
-        loader = make_loader(CropDataset(df, cache, crop, False, cfg["audio"]["pad_mode"], sr),
+        bounds = load_silence(paths.cache_dir, name) if trim else None
+        if trim and bounds is None and name != "deep_voice":
+            raise FileNotFoundError(f"silence bounds for {name} missing: run scripts/compute_silence.py")
+        loader = make_loader(CropDataset(df, cache, crop, False, cfg["audio"]["pad_mode"], sr, speech_bounds=bounds,
+                                         normalize=norm),
                              args.batch_size, False, workers)
-        print(f"Scoring {entry}: {len(df):,} items ...", flush=True)
+        print(f"Scoring {entry}{' (silence trimmed)' if bounds else ''}: {len(df):,} items ...", flush=True)
         scores, labels = score_loader(model, loader, device, amp)
         keep = [c for c in ("utt_id", "recording_id", "speaker", "attack", "start_s", "end_s") if c in df]
         scored = df[keep].assign(label=labels, score=scores)
-        scored.to_csv(run_dir / f"scores_{name}_{split}.csv", index=False)
+        scored.to_csv(run_dir / f"scores_{name}_{split}{suffix}.csv", index=False)
 
         m = common_metrics(scores, labels, dev_thr)
+        if args.n_boot:
+            groups = df["recording_id"].to_numpy() if name == "deep_voice" else None
+            m["eer_ci95"] = bootstrap_eer(scores, labels, groups, n_boot=args.n_boot)
         if name == "asvspoof2019_la":
             m.update(asvspoof_metrics(scored, split, paths.dataset(name)))
+        elif name.startswith("asvspoof2019_la_robust_"):
+            # Degraded eval subsets (P2.4): eval clips, so use the eval ASV scores.
+            m.update(asvspoof_metrics(scored, "eval", paths.dataset("asvspoof2019_la")))
+        elif name.startswith("asvspoof2019_la_robustdev_"):
+            # Degraded dev subsets: used to choose augmentation, so dev ASV scores.
+            m.update(asvspoof_metrics(scored, "dev", paths.dataset("asvspoof2019_la")))
         elif name == "in_the_wild":
             m.update(in_the_wild_metrics(scored))
         elif name == "deep_voice":
@@ -184,17 +212,17 @@ def main() -> None:
         return o
 
     text = json.dumps(clean(results), indent=2)
-    (run_dir / "metrics.json").write_text(text, encoding="utf-8")
-    out = REPO_ROOT / "experiments" / run_dir.name  # not "results": same folder as v1 Results/ on Windows
+    (run_dir / f"metrics{suffix}.json").write_text(text, encoding="utf-8")
+    out = REPO_ROOT / "experiments" / f"{run_dir.name}{suffix}"  # not "results": same folder as v1 Results/ on Windows
     out.mkdir(parents=True, exist_ok=True)
     (out / "metrics.json").write_text(text, encoding="utf-8")
     for f in ("history.json", "train_summary.json", "run_info.json"):
         if (run_dir / f).exists():
             (out / f).write_text((run_dir / f).read_text(encoding="utf-8"), encoding="utf-8")
-    md = summary_markdown(run_dir.name, results)
+    md = summary_markdown(f"{run_dir.name}{suffix}", results)
     (out / "summary.md").write_text(md, encoding="utf-8")
     print("\n" + md)
-    print(f"Saved: {run_dir / 'metrics.json'} and {out}")
+    print(f"Saved: {run_dir / f'metrics{suffix}.json'} and {out}")
 
 
 if __name__ == "__main__":

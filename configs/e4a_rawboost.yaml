@@ -1,0 +1,21 @@
+# P2.3 E4a: E3 + RawBoost (LnL + ISD) on the training waveform.
+name: e4a_rawboost
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: lfcc
+
+audio:
+  trim_silence: true
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stop_patience: 8
+
+augment:
+  rawboost: {p: 0.7, algos: [lnl, isd]}
+  gain: {p: 0.5, min_db: -6, max_db: 6}

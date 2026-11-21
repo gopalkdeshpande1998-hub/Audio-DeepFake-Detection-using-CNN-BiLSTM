@@ -1,0 +1,7 @@
+{
+  "run": "e4a_rawboost_s44",
+  "best_epoch": 40,
+  "best_dev_eer": 0.0015698235077752224,
+  "epochs_run": 48,
+  "minutes": 106.0
+}

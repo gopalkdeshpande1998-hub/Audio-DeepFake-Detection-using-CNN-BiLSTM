@@ -1,0 +1,306 @@
+# Phase 2 completion: E4d (resample + speed), and 3 seeds plus degraded-set scores for every table row.
+# Finished steps are skipped by run_queue.py.
+- train:
+    config: configs/e4d_full_aug.yaml
+    seed: 42
+    stop_after: 22
+- evaluate:
+    run: e4d_full_aug_s42
+- evaluate:
+    run: e4d_full_aug_s42
+    tag: robustdev
+    n_boot: 0
+    sets: &id001
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e4d_full_aug_s42
+    tag: robust
+    sets: &id002
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e4d_full_aug.yaml
+    seed: 43
+    stop_after: 22
+- evaluate:
+    run: e4d_full_aug_s43
+- evaluate:
+    run: e4d_full_aug_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4d_full_aug_s43
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4d_full_aug.yaml
+    seed: 44
+    stop_after: 22
+- evaluate:
+    run: e4d_full_aug_s44
+- evaluate:
+    run: e4d_full_aug_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4d_full_aug_s44
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s42
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s42
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s42
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4c_rawboost_codec_s42
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s43
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s43
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4c_rawboost_codec_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e1_cnn_bilstm_mfcc_s44
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s44
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e2a_lfcc_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4c_rawboost_codec_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- train:
+    config: configs/e4a_rawboost.yaml
+    seed: 42
+- evaluate:
+    run: e4a_rawboost_s42
+- evaluate:
+    run: e4a_rawboost_s42
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4a_rawboost_s42
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4a_rawboost.yaml
+    seed: 43
+- evaluate:
+    run: e4a_rawboost_s43
+- evaluate:
+    run: e4a_rawboost_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4a_rawboost_s43
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4a_rawboost.yaml
+    seed: 44
+- evaluate:
+    run: e4a_rawboost_s44
+- evaluate:
+    run: e4a_rawboost_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4a_rawboost_s44
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4b_codec.yaml
+    seed: 42
+- evaluate:
+    run: e4b_codec_s42
+- evaluate:
+    run: e4b_codec_s42
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4b_codec_s42
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4b_codec.yaml
+    seed: 43
+- evaluate:
+    run: e4b_codec_s43
+- evaluate:
+    run: e4b_codec_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4b_codec_s43
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e4b_codec.yaml
+    seed: 44
+- evaluate:
+    run: e4b_codec_s44
+- evaluate:
+    run: e4b_codec_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e4b_codec_s44
+    tag: robust
+    sets: *id002
+- train:
+    config: configs/e3_trimmed.yaml
+    seed: 42
+- evaluate:
+    run: e3_trimmed_s42
+- evaluate:
+    run: e3_trimmed_s42
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e3_trimmed_s42
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e3_trimmed_s42
+    tag: untrimmed
+    trim_silence: false
+- train:
+    config: configs/e3_trimmed.yaml
+    seed: 43
+- evaluate:
+    run: e3_trimmed_s43
+- evaluate:
+    run: e3_trimmed_s43
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e3_trimmed_s43
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e3_trimmed_s43
+    tag: untrimmed
+    trim_silence: false
+- train:
+    config: configs/e3_trimmed.yaml
+    seed: 44
+- evaluate:
+    run: e3_trimmed_s44
+- evaluate:
+    run: e3_trimmed_s44
+    tag: robustdev
+    n_boot: 0
+    sets: *id001
+- evaluate:
+    run: e3_trimmed_s44
+    tag: robust
+    sets: *id002
+- evaluate:
+    run: e3_trimmed_s44
+    tag: untrimmed
+    trim_silence: false
+- train:
+    config: configs/e2b_cqcc.yaml
+    seed: 42
+- evaluate:
+    run: e2b_cqcc_s42
+- train:
+    config: configs/e2b_cqcc.yaml
+    seed: 43
+- evaluate:
+    run: e2b_cqcc_s43
+- train:
+    config: configs/e2b_cqcc.yaml
+    seed: 44
+- evaluate:
+    run: e2b_cqcc_s44
+- train:
+    config: configs/e2c_logmel.yaml
+    seed: 42
+- evaluate:
+    run: e2c_logmel_s42
+- train:
+    config: configs/e2c_logmel.yaml
+    seed: 43
+- evaluate:
+    run: e2c_logmel_s43
+- train:
+    config: configs/e2c_logmel.yaml
+    seed: 44
+- evaluate:
+    run: e2c_logmel_s44
+- train:
+    config: configs/e2d_sinc.yaml
+    seed: 42
+- evaluate:
+    run: e2d_sinc_s42
+- train:
+    config: configs/e2d_sinc.yaml
+    seed: 43
+- evaluate:
+    run: e2d_sinc_s43
+- train:
+    config: configs/e2d_sinc.yaml
+    seed: 44
+- evaluate:
+    run: e2d_sinc_s44
+- script:
+  - scripts/make_tables.py

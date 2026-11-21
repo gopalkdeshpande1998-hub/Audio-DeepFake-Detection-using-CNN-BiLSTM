@@ -1,0 +1,14 @@
+# P2.1 feature ablation: same CNN-BiLSTM and training as E1, input = 80-band log-mel spectrogram, 25 ms / 10 ms.
+name: e2c_logmel
+
+model:
+  name: cnn_bilstm
+  frontend:
+    name: logmel
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 1.0e-3
+  max_epochs: 50
+  early_stop_patience: 8

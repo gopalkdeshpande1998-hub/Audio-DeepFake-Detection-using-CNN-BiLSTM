@@ -1,0 +1,149 @@
+{
+  "run": "e4d_full_aug_s43",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 22,
+  "dev_threshold": -0.701171875,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": "rms",
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "resample": {
+      "p": 0.3,
+      "rates": [
+        8000,
+        11025,
+        12000
+      ]
+    },
+    "speed": {
+      "p": 0.3,
+      "min": 0.9,
+      "max": 1.1
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 9.85,
+      "eer_threshold": -0.9208984375,
+      "auc": 0.9694088692651855,
+      "at_dev_threshold": {
+        "accuracy": 0.9102398969570118,
+        "balanced_accuracy": 0.8997608669202549,
+        "precision": 0.9860007750435962,
+        "recall": 0.9129440258342304,
+        "f1": 0.948067070330694,
+        "confusion": {
+          "tn": 2259,
+          "fp": 289,
+          "fn": 1941,
+          "tp": 20355
+        }
+      },
+      "min_tdcf": 0.2477,
+      "per_attack_eer_pct": {
+        "A01": 0.895,
+        "A02": 0.67,
+        "A03": 0.159,
+        "A04": 21.266,
+        "A05": 5.684,
+        "A06": 10.6
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 17.987,
+      "eer_threshold": -0.1490478515625,
+      "auc": 0.9082603800587382,
+      "at_dev_threshold": {
+        "accuracy": 0.7714811123433047,
+        "balanced_accuracy": 0.8182061446951893,
+        "precision": 0.9817044787597903,
+        "recall": 0.75932187470649,
+        "f1": 0.8563106281941514,
+        "confusion": {
+          "tn": 6451,
+          "fp": 904,
+          "fn": 15375,
+          "tp": 48507
+        }
+      },
+      "min_tdcf": 0.486,
+      "per_attack_eer_pct": {
+        "A07": 28.226,
+        "A08": 0.081,
+        "A09": 0.098,
+        "A10": 33.166,
+        "A11": 14.002,
+        "A12": 27.044,
+        "A13": 13.082,
+        "A14": 1.525,
+        "A15": 6.635,
+        "A16": 19.554,
+        "A17": 14.695,
+        "A18": 22.674,
+        "A19": 13.962
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 31.744,
+      "eer_threshold": -0.6376953125,
+      "auc": 0.7592918196056069,
+      "at_dev_threshold": {
+        "accuracy": 0.6863652097296957,
+        "balanced_accuracy": 0.6832033748724917,
+        "precision": 0.5660121385219564,
+        "recall": 0.6708700067704807,
+        "f1": 0.6139963595523024,
+        "confusion": {
+          "tn": 13885,
+          "fp": 6078,
+          "fn": 3889,
+          "tp": 7927
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 28.450499999999998,
+        "mean": 28.219851851851846,
+        "worst5": {
+          "William F. Buckley": 69.318,
+          "JFK": 62.632,
+          "George W. Bush": 57.948,
+          "Adam Driver": 57.582,
+          "Malcolm X": 54.482
+        }
+      }
+    }
+  }
+}

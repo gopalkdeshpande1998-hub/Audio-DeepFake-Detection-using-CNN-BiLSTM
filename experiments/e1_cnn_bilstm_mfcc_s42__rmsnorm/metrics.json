@@ -1,0 +1,115 @@
+{
+  "run": "e1_cnn_bilstm_mfcc_s42",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "mfcc",
+  "parameters": 786625,
+  "best_epoch": 27,
+  "dev_threshold": -3.251953125,
+  "crop_seconds": 4.0,
+  "trim_silence": false,
+  "normalize": "rms",
+  "augment": null,
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 0.865,
+      "eer_threshold": -2.2109375,
+      "auc": 0.999548373419087,
+      "at_dev_threshold": {
+        "accuracy": 0.9878843986475607,
+        "balanced_accuracy": 0.9904690016273132,
+        "precision": 0.9992736187406365,
+        "recall": 0.9872174381054898,
+        "f1": 0.9932089434379442,
+        "confusion": {
+          "tn": 2532,
+          "fp": 16,
+          "fn": 285,
+          "tp": 22011
+        }
+      },
+      "min_tdcf": 0.0268,
+      "per_attack_eer_pct": {
+        "A01": 0.431,
+        "A02": 0.398,
+        "A03": 0.623,
+        "A04": 1.293,
+        "A05": 0.398,
+        "A06": 1.373
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 7.94,
+      "eer_threshold": 8.921875,
+      "auc": 0.974017749968176,
+      "at_dev_threshold": {
+        "accuracy": 0.6433594901525892,
+        "balanced_accuracy": 0.7996451425960394,
+        "precision": 0.9993510875772206,
+        "recall": 0.6026893334585642,
+        "f1": 0.7519139129755488,
+        "confusion": {
+          "tn": 7330,
+          "fp": 25,
+          "fn": 25381,
+          "tp": 38501
+        }
+      },
+      "min_tdcf": 0.1889,
+      "per_attack_eer_pct": {
+        "A07": 1.165,
+        "A08": 3.945,
+        "A09": 1.117,
+        "A10": 2.397,
+        "A11": 1.745,
+        "A12": 2.363,
+        "A13": 2.421,
+        "A14": 3.032,
+        "A15": 2.054,
+        "A16": 1.239,
+        "A17": 27.003,
+        "A18": 17.581,
+        "A19": 4.108
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 41.351,
+      "eer_threshold": -9.7734375,
+      "auc": 0.6234867019219137,
+      "at_dev_threshold": {
+        "accuracy": 0.527203499166116,
+        "balanced_accuracy": 0.5856002888519116,
+        "precision": 0.4284695287771388,
+        "recall": 0.8133886255924171,
+        "f1": 0.5612754401845417,
+        "confusion": {
+          "tn": 7143,
+          "fp": 12820,
+          "fn": 2205,
+          "tp": 9611
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 45.2375,
+        "mean": 45.20905555555556,
+        "worst5": {
+          "George W. Bush": 90.883,
+          "Bill Burr": 79.057,
+          "Bob Ross": 78.75,
+          "Kamala Harris": 75.5,
+          "Norm MacDonald": 75.134
+        }
+      }
+    }
+  }
+}

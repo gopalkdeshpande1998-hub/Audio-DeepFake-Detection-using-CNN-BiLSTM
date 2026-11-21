@@ -1,0 +1,136 @@
+{
+  "run": "e4c_rawboost_codec_s44",
+  "tag": "rmsnorm",
+  "model": "cnn_bilstm",
+  "frontend": "lfcc",
+  "parameters": 786625,
+  "best_epoch": 19,
+  "dev_threshold": -1.2724609375,
+  "crop_seconds": 4.0,
+  "trim_silence": true,
+  "normalize": "rms",
+  "augment": {
+    "rawboost": {
+      "p": 0.7,
+      "algos": [
+        "lnl",
+        "isd"
+      ]
+    },
+    "codec": {
+      "p": 0.5,
+      "types": [
+        "mp3",
+        "opus",
+        "telephone"
+      ]
+    },
+    "gain": {
+      "p": 0.5,
+      "min_db": -6,
+      "max_db": 6
+    }
+  },
+  "sets": {
+    "asvspoof2019_la:dev": {
+      "n": 24844,
+      "n_bonafide": 2548,
+      "n_spoof": 22296,
+      "eer_pct": 3.257,
+      "eer_threshold": -0.978515625,
+      "auc": 0.9957525767200148,
+      "at_dev_threshold": {
+        "accuracy": 0.9611173724037997,
+        "balanced_accuracy": 0.9658228324036413,
+        "precision": 0.9966471081307627,
+        "recall": 0.959903121636168,
+        "f1": 0.9779300891021248,
+        "confusion": {
+          "tn": 2476,
+          "fp": 72,
+          "fn": 894,
+          "tp": 21402
+        }
+      },
+      "min_tdcf": 0.0975,
+      "per_attack_eer_pct": {
+        "A01": 0.192,
+        "A02": 0.988,
+        "A03": 0.478,
+        "A04": 6.116,
+        "A05": 3.336,
+        "A06": 2.587
+      }
+    },
+    "asvspoof2019_la:eval": {
+      "n": 71237,
+      "n_bonafide": 7355,
+      "n_spoof": 63882,
+      "eer_pct": 13.567,
+      "eer_threshold": 1.033203125,
+      "auc": 0.9400038035372449,
+      "at_dev_threshold": {
+        "accuracy": 0.758440136445948,
+        "balanced_accuracy": 0.8527419798114773,
+        "precision": 0.9955618788753928,
+        "recall": 0.7339000031307724,
+        "f1": 0.8449366518283563,
+        "confusion": {
+          "tn": 7146,
+          "fp": 209,
+          "fn": 16999,
+          "tp": 46883
+        }
+      },
+      "min_tdcf": 0.3309,
+      "per_attack_eer_pct": {
+        "A07": 3.847,
+        "A08": 0.105,
+        "A09": 0.35,
+        "A10": 28.976,
+        "A11": 5.453,
+        "A12": 36.116,
+        "A13": 18.494,
+        "A14": 1.321,
+        "A15": 6.757,
+        "A16": 5.045,
+        "A17": 17.459,
+        "A18": 4.621,
+        "A19": 3.015
+      }
+    },
+    "in_the_wild:test": {
+      "n": 31779,
+      "n_bonafide": 19963,
+      "n_spoof": 11816,
+      "eer_pct": 62.982,
+      "eer_threshold": -6.15234375,
+      "auc": 0.3424052760979512,
+      "at_dev_threshold": {
+        "accuracy": 0.34274206236823057,
+        "balanced_accuracy": 0.4369654061435456,
+        "precision": 0.3384965993661646,
+        "recall": 0.8045023696682464,
+        "f1": 0.4765031705055265,
+        "confusion": {
+          "tn": 1386,
+          "fp": 18577,
+          "fn": 2310,
+          "tp": 9506
+        }
+      },
+      "speakers_with_both_classes": 54,
+      "per_speaker_eer_pct": {
+        "median": 57.3885,
+        "mean": 55.6642037037037,
+        "worst5": {
+          "JFK": 98.2,
+          "Martin Luther King": 97.504,
+          "Mitch Hedberg": 96.429,
+          "Bob Ross": 95.417,
+          "Orson Welles": 92.745
+        }
+      }
+    }
+  }
+}
