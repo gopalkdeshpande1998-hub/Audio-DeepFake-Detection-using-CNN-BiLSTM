@@ -1,0 +1,77 @@
+{
+  "train": {
+    "speakers": [
+      "Alexandria Ocasio-Cortez",
+      "Ayn Rand",
+      "Barack Obama",
+      "Bernie Sanders",
+      "Bill Burr",
+      "Bob Ross",
+      "Boris Johnson",
+      "Christopher Hitchens",
+      "Dave Chappelle",
+      "Gilbert Gottfried",
+      "Jeff Goldblum",
+      "Kamala Harris",
+      "Kanye West",
+      "Louis Farrakhan",
+      "Mark Zuckerberg",
+      "Mitch Hedberg",
+      "Norm MacDonald",
+      "Richard Nixon",
+      "Tucker Carlson",
+      "Winston Churchill"
+    ],
+    "clips": 14305,
+    "real": 9618,
+    "fake": 4687
+  },
+  "dev": {
+    "speakers": [
+      "Arnold Schwarzenegger",
+      "Billie Eilish",
+      "Calvin Coolidge",
+      "FDR",
+      "Frank Sinatra",
+      "George Carlin",
+      "George W. Bush",
+      "JFK",
+      "Jimmy Carter",
+      "Louis C.K.",
+      "Lyndon Johnson",
+      "Malcolm X",
+      "Nelson Mandela",
+      "Nick Offerman",
+      "Robert Kardashian"
+    ],
+    "clips": 3180,
+    "real": 1858,
+    "fake": 1322
+  },
+  "test": {
+    "speakers": [
+      "2Pac",
+      "Adam Driver",
+      "Alan Watts",
+      "Alec Guinness",
+      "Bill Clinton",
+      "Donald Trump",
+      "Dwight Eisenhower",
+      "Harry Truman",
+      "Jerry Seinfeld",
+      "John Cleese",
+      "Martin Luther King",
+      "Milton Friedman",
+      "Mr. Rogers",
+      "Orson Welles",
+      "Queen Elizabeth II",
+      "Ronald Reagan",
+      "Scarlett Johansson",
+      "The Notorious B.I.G.",
+      "William F. Buckley"
+    ],
+    "clips": 14294,
+    "real": 8487,
+    "fake": 5807
+  }
+}

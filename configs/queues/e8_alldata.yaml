@@ -1,0 +1,39 @@
+# E8 all-data retrain (2026-11-22) and a like-for-like comparison with E7b.
+#   python scripts/run_queue.py configs/queues/e8_alldata.yaml
+# 1. train E8 (configs/e8_wavlm_crnn_alldata.yaml): ~3.7 h
+# 2. score E8 on every held-out test part, plus the degraded dev subsets (calibration)
+# 3. score E7b on the new DEEP-VOICE / Speech_Dataset test parts, so both are compared on the same clips
+# 4. calibration + OOD for E8
+- train:
+    config: configs/e8_wavlm_crnn_alldata.yaml
+    seed: 42
+- evaluate:
+    run: e8_wavlm_crnn_alldata_s42
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild_xd:test
+    - deep_voice_xd:test
+    - speech_dataset_xd:test
+- evaluate:
+    run: e7b_wavlm_crnn_itw_s42
+    tag: xd
+    sets:
+    - deep_voice_xd:test
+    - speech_dataset_xd:test
+- evaluate:
+    run: e8_wavlm_crnn_alldata_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- script: [scripts/fit_reliability.py, --run, runs/e8_wavlm_crnn_alldata_s42]

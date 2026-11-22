@@ -41,12 +41,16 @@ CONDS = ["clean", "mp3_51k", "mp3_19k", "opus_84k", "opus_10k", "telephone", "wh
          "white_5db", "pink_10db"]
 TESTS = [("ASVspoof eval", "asvspoof2019_la_eval"), ("In-the-Wild", "in_the_wild_test"),
          ("DEEP-VOICE (windows)", "deep_voice_test")]
+# --tests xd: In-the-Wild restricted to the held-out TEST speakers (scripts/build_extra_data.py),
+# plus the extra Speech_Dataset test set. Needed once a member has trained on In-the-Wild (E7b).
+TESTS_XD = [("ASVspoof eval", "asvspoof2019_la_eval"), ("In-the-Wild (test speakers)", "in_the_wild_xd_test"),
+            ("DEEP-VOICE (windows)", "deep_voice_test"), ("Speech_Dataset", "speech_dataset_test")]
 OUT = REPO_ROOT / "experiments" / "ensemble"
 
 
 def read(run, stem):
     d = load_paths().runs_dir / run
-    for f in (d / f"scores_{stem}.csv", d / f"scores_{stem}__robustdev.csv"):
+    for f in (d / f"scores_{stem}.csv", d / f"scores_{stem}__robustdev.csv", *sorted(d.glob(f"scores_{stem}__*.csv"))):
         if f.exists():
             return pd.read_csv(f, keep_default_na=False).set_index("utt_id")
     raise FileNotFoundError(f"{run}: no scores for {stem}")
@@ -99,12 +103,23 @@ def main() -> None:
     ap.add_argument("--target", type=float, default=2.0, help="max %% of each tuning class on the wrong side")
     ap.add_argument("--min-agree", type=int, default=2)
     ap.add_argument("--veto-p", type=float, default=0.95)
+    ap.add_argument("--main", default="e7a_wavlm_crnn_s42", help="the project model in the ensemble")
+    ap.add_argument("--main-label", default="WavLM + CNN-BiLSTM-Att (E7a)")
+    ap.add_argument("--tests", choices=["orig", "xd"], default="orig")
+    ap.add_argument("--tag", help="write experiments/ensemble_<tag>/ instead of experiments/ensemble/")
+    ap.add_argument("--no-write-config", action="store_true",
+                    help="report only; leave runs/ensemble/ensemble.json (the app's ensemble) unchanged")
     args = ap.parse_args()
+    global OUT
+    MEMBERS[0] = (args.main, args.main_label)
+    if args.tag:
+        OUT = REPO_ROOT / "experiments" / f"ensemble_{args.tag}"
+    tests_spec = TESTS_XD if args.tests == "xd" else TESTS
 
     tune = [table("asvspoof2019_la_dev")] + [table(f"asvspoof2019_la_robustdev_{c}_test") for c in CONDS]
     zt = np.concatenate([t[0] for t in tune], axis=1)
     yt = np.concatenate([t[1] for t in tune])
-    tests = {name: table(stem) for name, stem in TESTS}
+    tests = {name: table(stem) for name, stem in tests_spec}
     k = len(MEMBERS)
 
     fusions = {"e7a": (np.eye(k)[0], 0.0), "equal": (np.full(k, 1.0 / k), 0.0)}
@@ -164,8 +179,9 @@ def main() -> None:
         report["members_at_0_5"][run] = d
 
     ens_dir = load_paths().runs_dir / "ensemble"
-    ens_dir.mkdir(parents=True, exist_ok=True)
-    (ens_dir / "ensemble.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    if not args.no_write_config:
+        ens_dir.mkdir(parents=True, exist_ok=True)
+        (ens_dir / "ensemble.json").write_text(json.dumps(cfg, indent=2), encoding="utf-8")
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "ensemble.json").write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
     md = markdown(report, cfg)
@@ -174,9 +190,8 @@ def main() -> None:
 
 
 def markdown(r, cfg):
-    sets = ["tuning (dev + degraded dev)", "ASVspoof eval", "In-the-Wild", "DEEP-VOICE (windows)",
-            "DEEP-VOICE (recording)"]
-    L = ["# Merged detector: E7a + VoiceGuard improved + VoiceGuard v2", "",
+    sets = list(next(iter(r["single_members_eer_pct"].values()))) + ["DEEP-VOICE (recording)"]
+    L = [f"# Merged detector: {r['members'][0]} + VoiceGuard improved + VoiceGuard v2", "",
          "All numbers below are produced by `scripts/fit_ensemble.py`. Tuning data: ASVspoof 2019 LA dev "
          "(clean + 10 degraded conditions). Test sets never set any weight or threshold.", "",
          "**Contamination warning:** VoiceGuard v2 was trained on about 79% of In-the-Wild (speaker split; the "

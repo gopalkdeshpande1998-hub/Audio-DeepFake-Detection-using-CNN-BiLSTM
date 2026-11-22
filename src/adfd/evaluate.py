@@ -169,9 +169,10 @@ def main() -> None:
         if name not in manifests:
             manifests[name] = pd.read_csv(paths.manifest(name), keep_default_na=False)
         df = manifests[name][manifests[name]["split"] == split].reset_index(drop=True)
-        cache = AudioCache(paths.cache_dir, name)
-        bounds = load_silence(paths.cache_dir, name) if trim else None
-        if trim and bounds is None and name != "deep_voice":
+        cache_name = str(df["dataset"].iloc[0]) if len(df) else name   # e.g. in_the_wild_xd -> in_the_wild cache
+        cache = AudioCache(paths.cache_dir, cache_name)
+        bounds = load_silence(paths.cache_dir, cache_name) if trim else None
+        if trim and bounds is None and not name.startswith("deep_voice"):
             raise FileNotFoundError(f"silence bounds for {name} missing: run scripts/compute_silence.py")
         loader = make_loader(CropDataset(df, cache, crop, False, cfg["audio"]["pad_mode"], sr, speech_bounds=bounds,
                                          normalize=norm),
@@ -184,7 +185,7 @@ def main() -> None:
 
         m = common_metrics(scores, labels, dev_thr)
         if args.n_boot:
-            groups = df["recording_id"].to_numpy() if name == "deep_voice" else None
+            groups = df["recording_id"].to_numpy() if name.startswith("deep_voice") else None
             m["eer_ci95"] = bootstrap_eer(scores, labels, groups, n_boot=args.n_boot)
         if name == "asvspoof2019_la":
             m.update(asvspoof_metrics(scored, split, paths.dataset(name)))
@@ -194,9 +195,9 @@ def main() -> None:
         elif name.startswith("asvspoof2019_la_robustdev_"):
             # Degraded dev subsets: used to choose augmentation, so dev ASV scores.
             m.update(asvspoof_metrics(scored, "dev", paths.dataset("asvspoof2019_la")))
-        elif name == "in_the_wild":
+        elif name.startswith("in_the_wild"):
             m.update(in_the_wild_metrics(scored))
-        elif name == "deep_voice":
+        elif name.startswith("deep_voice"):
             m.update(deep_voice_metrics(scored, dev_thr))
         results["sets"][entry] = m
         extra = f"  min t-DCF {m['min_tdcf']}" if "min_tdcf" in m else ""

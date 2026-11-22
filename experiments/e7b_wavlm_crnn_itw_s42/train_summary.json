@@ -1,0 +1,7 @@
+{
+  "run": "e7b_wavlm_crnn_itw_s42",
+  "best_epoch": 2,
+  "best_dev_eer": 0.020694027092987132,
+  "epochs_run": 6,
+  "minutes": 175.7
+}

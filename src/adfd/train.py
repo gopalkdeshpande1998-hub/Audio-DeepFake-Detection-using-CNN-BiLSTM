@@ -5,6 +5,14 @@ Usage:
     python -m adfd.train --config ... --limit 2000 --max-epochs 1   # quick smoke test
 
 Test sets are never touched here; score them afterwards with adfd.evaluate.
+
+Optional config keys (used by E7b):
+  data.extra:      [{manifest, cache, train_split, val_split, repeat}] more training data (e.g. the
+                   In-the-Wild speaker split from scripts/build_extra_data.py); its train rows
+                   join the training set and its val rows form a second dev set
+  data.val_limit:  score only this many (stratified) ASVspoof dev rows each epoch (speed)
+  train.init_from: checkpoint to start from (warm start, e.g. the E7a best.pt)
+Model selection: ASVspoof dev EER, or with extra dev sets the mean of all dev EERs.
 """
 
 from __future__ import annotations
@@ -23,6 +31,8 @@ from torch.utils.tensorboard import SummaryWriter
 from adfd.config import load_config
 from adfd.data.audio_cache import AudioCache
 from adfd.data.augment import build_augmentation
+from torch.utils.data import ConcatDataset
+
 from adfd.data.datasets import CropDataset, make_loader
 from adfd.data.silence import load_silence
 from adfd.engine import score_loader, train_one_epoch
@@ -84,6 +94,8 @@ def main() -> None:
     if cfg["data"].get("limit"):
         train_df = stratified_limit(train_df, cfg["data"]["limit"], seed)
         dev_df = stratified_limit(dev_df, cfg["data"]["limit"], seed)
+    if cfg["data"].get("val_limit"):
+        dev_df = stratified_limit(dev_df, cfg["data"]["val_limit"], seed)
     cache = AudioCache(paths.cache_dir, "asvspoof2019_la")
     sr = cfg["audio"]["sample_rate"]
     crop = int(cfg["audio"]["crop_seconds"] * sr)
@@ -102,13 +114,38 @@ def main() -> None:
     norm = cfg["audio"].get("normalize")
     train_ds = CropDataset(train_df, cache, crop, True, pad, sr, speech_bounds=bounds, transform=augment, normalize=norm)
     dev_ds = CropDataset(dev_df, cache, crop, False, pad, sr, speech_bounds=bounds, normalize=norm)
-    train_loader = make_loader(train_ds, tcfg["batch_size"], True, workers, seed)
+    train_parts, labels_all = [train_ds], [train_df["label"].to_numpy()]
+    extra_dev = []                       # (name, frame, loader)
+    for ex in cfg["data"].get("extra", []):
+        m = pd.read_csv(paths.manifest(ex["manifest"]), keep_default_na=False)
+        ex_cache = AudioCache(paths.cache_dir, ex["cache"])
+        ex_bounds = load_silence(paths.cache_dir, ex["cache"]) if cfg["audio"].get("trim_silence") else None
+        tr = m[m["split"] == ex["train_split"]].reset_index(drop=True)
+        dv = m[m["split"] == ex["val_split"]].reset_index(drop=True)
+        if cfg["data"].get("limit"):
+            tr, dv = stratified_limit(tr, cfg["data"]["limit"], seed), stratified_limit(dv, cfg["data"]["limit"], seed)
+        tr_ds = CropDataset(tr, ex_cache, crop, True, pad, sr, speech_bounds=ex_bounds, transform=augment,
+                            normalize=norm)
+        rep = int(ex.get("repeat", 1))          # oversample a small dataset (new random crop each time)
+        train_parts.extend([tr_ds] * rep)
+        labels_all.extend([tr["label"].to_numpy()] * rep)
+        dv_ds = CropDataset(dv, ex_cache, crop, False, pad, sr, speech_bounds=ex_bounds, normalize=norm)
+        extra_dev.append((f"{ex['manifest']}_{ex['val_split']}", dv,
+                          make_loader(dv_ds, tcfg.get("eval_batch_size", 64), False, workers, seed)))
+        print(f"Extra data {ex['manifest']}: train {len(tr):,}{f' x{rep}' if rep > 1 else ''}, dev {len(dv):,}")
+    train_loader = make_loader(ConcatDataset(train_parts) if len(train_parts) > 1 else train_ds,
+                               tcfg["batch_size"], True, workers, seed)
     dev_loader = make_loader(dev_ds, tcfg.get("eval_batch_size", 64), False, workers, seed)
-    n_real, n_fake = int((train_df["label"] == 0).sum()), int((train_df["label"] == 1).sum())
-    print(f"Train: {len(train_df):,} ({n_real:,} real / {n_fake:,} fake)   Dev: {len(dev_df):,}")
+    all_labels = np.concatenate(labels_all)
+    n_real, n_fake = int((all_labels == 0).sum()), int((all_labels == 1).sum())
+    print(f"Train: {len(all_labels):,} ({n_real:,} real / {n_fake:,} fake)   Dev: {len(dev_df):,}")
 
     # --- model, loss, optimiser ---------------------------------------------------------
     model = build_model(cfg).to(device)
+    if tcfg.get("init_from"):
+        init = torch.load(tcfg["init_from"], map_location="cpu", weights_only=False)
+        model.load_state_dict(init["model"])
+        print(f"Warm start from {tcfg['init_from']} (its dev EER {init['dev_eer'] * 100:.2f}%)")
     print(f"Model: {cfg['model']['name']}  parameters: {count_parameters(model, False):,} "
           f"(trainable {count_parameters(model):,})")
     pos_weight = None
@@ -147,18 +184,29 @@ def main() -> None:
         t0 = time.time()
         dev_scores, dev_labels = score_loader(model, dev_loader, device, amp)
         dev_eer, dev_thr = eer_from_labels(dev_scores, dev_labels)
+        extra_eer, extra_scores = {}, {}
+        for name, dv, loader in extra_dev:
+            sc, lb = score_loader(model, loader, device, amp)
+            extra_eer[name], extra_scores[name] = eer_from_labels(sc, lb)[0], (dv, lb, sc)
+            writer.add_scalar(f"dev/eer_{name}", extra_eer[name], epoch)
+        sel = float(np.mean([dev_eer, *extra_eer.values()]))
         t_eval = time.time() - t0
         writer.add_scalar("dev/eer", dev_eer, epoch)
+        writer.add_scalar("dev/selection", sel, epoch)
         writer.add_scalar("train/epoch_loss", loss, epoch)
-        improved = dev_eer < best_eer
+        improved = sel < best_eer
         history.append({"epoch": epoch, "train_loss": loss, "dev_eer": dev_eer, "dev_threshold": dev_thr,
+                        "extra_dev_eer": extra_eer, "selection_eer": sel,
                         "train_s": round(t_train, 1), "eval_s": round(t_eval, 1)})
         peak = torch.cuda.max_memory_allocated() / 1024**3 if device.type == "cuda" else 0.0
-        print(f"epoch {epoch:3d}  loss {loss:.4f}  dev EER {dev_eer * 100:6.2f}%  "
+        extra_txt = "".join(f"  {n} {e * 100:6.2f}%" for n, e in extra_eer.items())
+        print(f"epoch {epoch:3d}  loss {loss:.4f}  dev EER {dev_eer * 100:6.2f}%{extra_txt}  "
               f"({t_train:.0f}s train, {t_eval:.0f}s dev, peak VRAM {peak:.2f} GB){'  *best*' if improved else ''}",
               flush=True)
         if improved:
-            best_eer, best_epoch, bad_epochs = dev_eer, epoch, 0
+            for name, (dv, lb, sc) in extra_scores.items():
+                dv[["utt_id"]].assign(label=lb, score=sc).to_csv(run_dir / f"scores_{name}.csv", index=False)
+            best_eer, best_epoch, bad_epochs = sel, epoch, 0
             torch.save({"model": model.state_dict(), "config": cfg, "epoch": epoch,
                         "dev_eer": dev_eer, "dev_threshold": dev_thr}, run_dir / "best.pt")
             pd.DataFrame({"utt_id": dev_df["utt_id"], "label": dev_labels, "score": dev_scores}).to_csv(

@@ -1,0 +1,41 @@
+# E7b 6-hour retrain (2026-11-22) and the cross-verification it needs.
+#   python scripts/run_queue.py configs/queues/e7b_retrain.yaml
+# 1. train E7b (configs/e7b_wavlm_crnn_itw.yaml): ~4.8 h
+# 2. score E7b on every test set, plus the degraded dev subsets (calibration and ensemble tuning)
+# 3. score E7a and the VoiceGuard models on the new test sets (In-the-Wild test speakers,
+#    Speech_Dataset), so every model is compared on exactly the same clips
+# 4. calibration + OOD for E7b
+- train:
+    config: configs/e7b_wavlm_crnn_itw.yaml
+    seed: 42
+- evaluate:
+    run: e7b_wavlm_crnn_itw_s42
+    sets:
+    - asvspoof2019_la:dev
+    - asvspoof2019_la:eval
+    - in_the_wild_xd:test
+    - deep_voice:test
+    - speech_dataset:test
+- evaluate:
+    run: e7b_wavlm_crnn_itw_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e7a_wavlm_crnn_s42
+    tag: newsets
+    sets:
+    - in_the_wild_xd:test
+    - speech_dataset:test
+- script: [scripts/score_voiceguard.py, --sets, in_the_wild_xd:test, speech_dataset:test]
+- script: [scripts/fit_reliability.py, --run, runs/e7b_wavlm_crnn_itw_s42]

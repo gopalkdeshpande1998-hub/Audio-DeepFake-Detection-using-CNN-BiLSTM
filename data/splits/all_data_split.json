@@ -1,0 +1,54 @@
+{
+  "deep_voice_xd": {
+    "roles": {
+      "biden": "train",
+      "linus": "train",
+      "musk": "train",
+      "obama": "train",
+      "margot": "dev",
+      "ryan": "dev",
+      "taylor": "test",
+      "trump": "test"
+    },
+    "train": {
+      "rows": 7448,
+      "real": 1181,
+      "fake": 6267,
+      "recordings": 32
+    },
+    "dev": {
+      "rows": 3724,
+      "real": 83,
+      "fake": 3641,
+      "recordings": 16
+    },
+    "test": {
+      "rows": 3724,
+      "real": 598,
+      "fake": 3126,
+      "recordings": 16
+    }
+  },
+  "speech_dataset_xd": {
+    "shares": {
+      "train": 0.5,
+      "dev": 0.1,
+      "test": 0.4
+    },
+    "train": {
+      "rows": 932,
+      "real": 466,
+      "fake": 466
+    },
+    "dev": {
+      "rows": 186,
+      "real": 93,
+      "fake": 93
+    },
+    "test": {
+      "rows": 748,
+      "real": 374,
+      "fake": 374
+    }
+  }
+}
