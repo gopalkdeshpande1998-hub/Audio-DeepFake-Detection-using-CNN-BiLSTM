@@ -137,11 +137,11 @@ class EnsembleAnalyzer:
         verdict, gate = self.decide(p, [mr["p_fake"] for mr in mres], ood)
         c = self.cfg
         members = []
-        for mr in mres:
+        for mr, sec in zip(mres, msec):
             q = mr["p_fake"]
             members.append({"run": mr["run"], "label": mr["label"], "p_fake": q,
                             "vote": "Fake" if q >= c["vote_fake"] else "Real" if q <= c["vote_real"] else "Uncertain",
-                            "timeline": mr["timeline"]})
+                            "timeline": mr["timeline"], "per_second": [float(v) for v in sigmoid(sec)]})
         times = np.arange(n_sec) * STEP_S
         res = {
             "verdict": verdict, "p_fake": p, "logit": float(logit(p)), "gate_reason": gate,

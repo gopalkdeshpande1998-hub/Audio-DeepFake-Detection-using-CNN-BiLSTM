@@ -105,6 +105,52 @@ def plot_heatmap(seg: np.ndarray, sal: dict, source_s: float | None = None):
 REGION_COLOR = {"Fake": "#d1495b", "Real": "#1baf7a", "Uncertain": "#eda100"}
 
 
+ZONE_COLOR = {"Fake": "#d03b3b", "Uncertain": "#fab219", "Real": "#0ca30c"}   # status palette, labelled
+
+
+def plot_score_line(res: dict, show_members: bool = True):
+    """Easy-to-read line graph for an ensemble result: chance of fake (%) per second on labelled zones."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    th = res["thresholds"]
+    lo, hi = 100 * th["t_real"], 100 * th["t_fake"]
+    ps = res["per_second"]
+    t = np.array([w["start_s"] for w in ps] + [ps[-1]["end_s"]])
+    p = np.array([100 * w["p_fake"] for w in ps])
+    fig, ax = plt.subplots(figsize=(10, 3.4), facecolor=SURFACE)
+    ax.set_facecolor(SURFACE)
+    for (y0, y1, z, lab) in ((hi, 100, "Fake", "Fake zone"), (lo, hi, "Uncertain", "Uncertain"),
+                             (0, lo, "Real", "Real zone")):
+        ax.axhspan(y0, y1, color=ZONE_COLOR[z], alpha=0.12, linewidth=0, zorder=0)
+        ax.text(0.006, (y1 - 1.5) / 100, lab, transform=ax.transAxes, va="top", color=INK_2, fontsize=9,
+                fontweight="bold")
+    if show_members:
+        for m, ls, c in zip(res["members"], [(0, (6, 3)), (0, (2, 2)), (0, (8, 3, 2, 3))],
+                            ["#6f6e69", "#8a887f", "#a3a198"]):
+            q = 100 * np.array(m["per_second"])
+            ax.step(t, np.r_[q, q[-1]], where="post", color=c, linestyle=ls, linewidth=1.3, label=m["label"])
+    ax.step(t, np.r_[p, p[-1]], where="post", color=LINE, linewidth=2.5, label="merged score", zorder=3,
+            solid_joinstyle="round", solid_capstyle="round")
+    hot = p >= hi
+    if hot.any():
+        ax.scatter((t[:-1] + 0.5)[hot], p[hot], s=40, color=ZONE_COLOR["Fake"], edgecolor=SURFACE, linewidth=1.5,
+                   zorder=4, label="second in the Fake zone")
+    ax.set_ylim(0, 100)
+    ax.set_xlim(0, max(res["duration_s"], 1))
+    ax.set_xlabel("time in the recording (seconds)", color=INK_2)
+    ax.set_ylabel("chance of fake (%)", color=INK_2)
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    ax.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=5)
+    ax.set_title("How fake does each second sound? (blue line in the red zone = sounds synthetic)", loc="left",
+                 color=INK, fontsize=10)
+    fig.tight_layout()
+    return fig
+
+
 def plot_forensic(x: np.ndarray, res: dict):
     """Whole-file forensic view for an ensemble result (adfd.ensemble).
 
@@ -201,6 +247,7 @@ def explain(path: str, run: str | None = None, out: str = "explanations", device
         x = Analyzer.load_audio(path)
         res = ens.analyze(x)
         plot_forensic(x, res).savefig(d / "forensic.png", dpi=140, facecolor=SURFACE)
+        plot_score_line(res).savefig(d / "score_line.png", dpi=140, facecolor=SURFACE)
         res.pop("saliency", None)
         (d / "verdict.json").write_text(json.dumps(res, indent=2, default=float), encoding="utf-8")
         (d / "explanation.txt").write_text("\n".join(res["explanation"]["lines"]), encoding="utf-8")

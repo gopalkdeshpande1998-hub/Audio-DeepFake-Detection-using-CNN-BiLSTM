@@ -32,7 +32,7 @@ configure_caches()
 logging.getLogger("streamlit").setLevel(logging.ERROR)
 
 from adfd import registry  # noqa: E402
-from adfd.explain import plot_forensic, plot_heatmap, plot_timeline  # noqa: E402
+from adfd.explain import plot_forensic, plot_heatmap, plot_score_line, plot_timeline  # noqa: E402
 from adfd.inference import SR, load_audio  # noqa: E402
 
 AUDIO_TYPES = ["wav", "mp3", "flac", "ogg", "m4a", "aiff", "aif", "webm", "opus"]
@@ -154,6 +154,79 @@ def measurement_table(res: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+LINE_BLUE = "#2a78d6"                       # categorical slot 1: the merged score
+ZONE = {"Fake": "#d03b3b", "Uncertain": "#fab219", "Real": "#0ca30c"}   # status palette, always with a label
+MEMBER_DASH = [[6, 3], [2, 2], [8, 3, 2, 3]]   # member lines: gray + dash pattern, so they never mimic a zone
+
+
+def score_line_chart(res: dict, show_members: bool):
+    """Easy-to-read line graph: chance of fake (%) second by second, on labelled zones.
+
+    The merged score is one blue line; the background says what each height means
+    (Fake zone / Uncertain / Real zone). Hover: a crosshair with that second's verdict
+    and every model's score. Seconds in the Fake zone get a dot, so they stand out.
+    """
+    import altair as alt
+
+    th = res["thresholds"]
+    t_real, t_fake = 100 * th["t_real"], 100 * th["t_fake"]
+    ps = res["per_second"]
+    dur = res["duration_s"]
+    t = [w["start_s"] for w in ps]
+    merged = [100 * w["p_fake"] for w in ps]
+    verdict = ["Fake" if p >= t_fake else "Real" if p <= t_real else "Uncertain" for p in merged]
+    wide = pd.DataFrame({"time_s": t, "Merged score": merged, "This second": verdict})
+    for m in res["members"]:
+        wide[m["label"]] = [100 * v for v in m["per_second"]]
+    long = wide.melt(id_vars=["time_s", "This second"], var_name="series", value_name="pct")
+
+    x = alt.X("time_s:Q", title="time in the recording (seconds)", scale=alt.Scale(domain=[0, max(dur, 1)], nice=False))
+    y_scale = alt.Scale(domain=[0, 100], nice=False)
+    zones = pd.DataFrame([{"zone": "Fake zone", "y0": t_fake, "y1": 100, "c": ZONE["Fake"]},
+                          {"zone": "Uncertain", "y0": t_real, "y1": t_fake, "c": ZONE["Uncertain"]},
+                          {"zone": "Real zone", "y0": 0, "y1": t_real, "c": ZONE["Real"]}])
+    band = alt.Chart(zones).mark_rect(opacity=0.12).encode(
+        y=alt.Y("y0:Q", scale=y_scale, title="chance the audio is fake (%)"), y2="y1:Q",
+        color=alt.Color("c:N", scale=None, legend=None))
+    zone_txt = alt.Chart(zones).mark_text(align="left", baseline="top", dx=6, dy=4, fontSize=12, fontWeight="bold",
+                                          color="#52514e").encode(
+        x=alt.value(0), y=alt.Y("mid:Q", scale=y_scale), text="zone:N").transform_calculate(
+        mid="datum.y1")
+
+    layers = [band, zone_txt]
+    if show_members:
+        mem = long[long["series"] != "Merged score"]
+        names = [m["label"] for m in res["members"]]
+        layers.append(alt.Chart(mem).mark_line(strokeWidth=1.5, interpolate="step-after").encode(
+            x=x, y=alt.Y("pct:Q", scale=y_scale),
+            color=alt.Color("series:N", scale=alt.Scale(domain=names, range=["#6f6e69", "#8a887f", "#a3a198"]),
+                            legend=alt.Legend(title=None, orient="bottom")),
+            strokeDash=alt.StrokeDash("series:N", scale=alt.Scale(domain=names, range=MEMBER_DASH), legend=None)))
+    main = long[long["series"] == "Merged score"]
+    layers.append(alt.Chart(main).mark_line(strokeWidth=2.5, color=LINE_BLUE, interpolate="step-after",
+                                            strokeJoin="round", strokeCap="round").encode(
+        x=x, y=alt.Y("pct:Q", scale=y_scale)))
+    hot = main[main["This second"] == "Fake"]
+    if len(hot):
+        layers.append(alt.Chart(hot).mark_point(filled=True, size=90, color=ZONE["Fake"], stroke="#fcfcfb",
+                                                strokeWidth=2).encode(x=x, y=alt.Y("pct:Q", scale=y_scale)))
+    # hover: nearest second -> crosshair + one tooltip listing every series
+    hover = alt.selection_point(fields=["time_s"], nearest=True, on="pointerover", empty=False, clear="pointerout")
+    tips = [alt.Tooltip("time_s:Q", title="second", format=".0f"), alt.Tooltip("This second:N", title="verdict here"),
+            alt.Tooltip("Merged score:Q", title="merged chance of fake %", format=".0f")]
+    tips += [alt.Tooltip(f"{m['label']}:Q", format=".0f") for m in res["members"]]
+    # invisible full-height targets per second carry the selection (readers aim at a time, not a 2px line)
+    layers.append(alt.Chart(wide).mark_rule(strokeWidth=12, color="#000000", opacity=0).encode(
+        x=x, tooltip=tips).add_params(hover))
+    layers.append(alt.Chart(wide).mark_rule(color="#52514e", strokeWidth=1).encode(x=x).transform_filter(hover))
+    layers.append(alt.Chart(wide).mark_point(filled=True, size=70, color=LINE_BLUE, stroke="#fcfcfb",
+                                             strokeWidth=2, opacity=1).encode(
+        x=x, y=alt.Y("Merged score:Q", scale=y_scale)).transform_filter(hover))
+    return alt.layer(*layers).properties(height=280).configure_axis(
+        gridColor="#e4e3df", domainColor="#c3c2b7", tickColor="#c3c2b7", labelColor="#52514e",
+        titleColor="#52514e").configure_view(strokeWidth=0)
+
+
 def ensemble_view(name: str, x: np.ndarray, res: dict) -> tuple[bytes, pd.DataFrame]:
     left, right = st.columns([1, 2])
     with left:
@@ -173,6 +246,16 @@ def ensemble_view(name: str, x: np.ndarray, res: dict) -> tuple[bytes, pd.DataFr
         st.markdown("\n".join(body))
         st.markdown("**Model votes**")
         st.dataframe(members, hide_index=True, width="stretch")
+    st.markdown("**How fake does each second sound?**")
+    show = st.toggle("Show each model's own line", value=False, key=f"members_{name}")
+    st.altair_chart(score_line_chart(res, show), width="stretch")
+    fake_s = sum(r["end_s"] - r["start_s"] for r in res["regions"] if r["label"] == "Fake")
+    unc_s = sum(r["end_s"] - r["start_s"] for r in res["regions"] if r["label"] == "Uncertain")
+    st.caption(f"Read it like a heart-rate monitor: when the blue line climbs into the red **Fake zone**, that "
+               f"second sounds synthetic (red dots); in the green **Real zone** it sounds natural; in between the "
+               f"models are unsure. Here: {fake_s:.0f} s in the Fake zone, {unc_s:.0f} s uncertain, "
+               f"{res['duration_s'] - fake_s - unc_s:.0f} s in the Real zone. Hover the graph for each second's "
+               "scores.")
     with st.spinner("Drawing the forensic view…"):
         fpng = fig_png(plot_forensic(x, res))
     st.image(fpng, width="stretch")
@@ -204,6 +287,7 @@ def ensemble_view(name: str, x: np.ndarray, res: dict) -> tuple[bytes, pd.DataFr
 
 def ensemble_report(name: str, res: dict, fpng: bytes, members: pd.DataFrame) -> str:
     b64 = base64.b64encode(fpng).decode()
+    line64 = base64.b64encode(fig_png(plot_score_line(res))).decode()
     icon, color = VERDICT_STYLE[res["verdict"]]
     lines = "".join(f"<li>{ln.lstrip('• ')}</li>" for ln in res["explanation"]["lines"][1:])
     regs = "".join(f"<tr><td>{r['label']}</td><td>{r['start_s']:.0f}–{r['end_s']:.0f} s</td>"
@@ -217,6 +301,7 @@ img{{max-width:100%}} table{{border-collapse:collapse;margin:.5rem 0}} td,th{{bo
 <h1>Audio deepfake report</h1>
 <p>File: <b>{name}</b> ({res['duration_s']:.1f} s) · {datetime.now():%Y-%m-%d %H:%M} · model: {registry.ENSEMBLE_LABEL}</p>
 <div class='v'><h2 style='margin:0'>{icon} {res['verdict']}</h2>Merged probability of fake: <b>{100 * res['p_fake']:.1f}%</b>{gate}</div>
+<h2>How fake does each second sound?</h2><img src='data:image/png;base64,{line64}'>
 <h2>Why</h2><ul>{lines}</ul>
 <h2>Forensic view</h2><img src='data:image/png;base64,{b64}'>
 <h2>Regions</h2><table><tr><th>verdict</th><th>time</th><th>mean P(fake)</th></tr>{regs}</table>
@@ -236,8 +321,13 @@ def analyse_one(name: str, data: bytes, run: str, compare: bool) -> None:
         return
     if run != registry.ENSEMBLE:
         return analyse_single(name, x, run, compare)
-    with st.spinner("Analysing with all models…"):
-        res = get_analyzer(run).analyze(x)
+    import hashlib
+
+    key = ("analysis", run, hashlib.sha1(data).hexdigest())
+    if key not in st.session_state:   # widgets rerun the script; analyse each file only once
+        with st.spinner("Analysing with all models…"):
+            st.session_state[key] = get_analyzer(run).analyze(x)
+    res = st.session_state[key]
     fpng, members = ensemble_view(name, x, res)
     st.download_button("Download report (HTML)", ensemble_report(name, res, fpng, members),
                        file_name=f"{Path(name).stem}_deepfake_report.html", mime="text/html")
