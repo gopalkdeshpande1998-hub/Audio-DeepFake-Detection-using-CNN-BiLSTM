@@ -77,6 +77,8 @@ def main() -> int:
                 cmd += ["--workers", str(spec["workers"])]
             if "stop_after" in spec:  # keeps the config's LR schedule, unlike --max-epochs
                 cmd += ["--stop-after", str(spec["stop_after"])]
+            if "max_epochs" in spec:  # shorter run with the LR schedule fitted to it
+                cmd += ["--max-epochs", str(spec["max_epochs"])]
         elif kind == "evaluate":
             name = spec["run"]
             tag = spec.get("tag")

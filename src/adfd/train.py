@@ -109,13 +109,22 @@ def main() -> None:
 
     # --- model, loss, optimiser ---------------------------------------------------------
     model = build_model(cfg).to(device)
-    print(f"Model: {cfg['model']['name']}  parameters: {count_parameters(model):,}")
+    print(f"Model: {cfg['model']['name']}  parameters: {count_parameters(model, False):,} "
+          f"(trainable {count_parameters(model):,})")
     pos_weight = None
     if cfg["data"].get("balance") == "class_weights":
         # Spoof is the positive class and the majority: weight it down to balance the classes.
         pos_weight = torch.tensor(n_real / n_fake, device=device)
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    opt = torch.optim.AdamW(model.parameters(), lr=tcfg["lr"], weight_decay=tcfg["weight_decay"])
+    # Pretrained SSL transformer: its own (smaller) learning rate; frozen parameters are left out.
+    ssl_params = model.frontend.ssl_parameters() if hasattr(model.frontend, "ssl_parameters") else []
+    ssl_params = [p for p in ssl_params if p.requires_grad]
+    ssl_ids = {id(p) for p in ssl_params}
+    groups = [{"params": [p for p in model.parameters() if p.requires_grad and id(p) not in ssl_ids], "lr": tcfg["lr"]}]
+    if ssl_params:
+        groups.append({"params": ssl_params, "lr": tcfg.get("ssl_lr", tcfg["lr"])})
+    opt = torch.optim.AdamW(groups, lr=tcfg["lr"], weight_decay=tcfg["weight_decay"])
+    freeze_ssl = int(tcfg.get("freeze_ssl_epochs", 0)) if ssl_params else 0
     steps_per_epoch = len(train_loader) // tcfg["grad_accum"]
     sched = None
     if tcfg.get("scheduler") == "cosine":
@@ -130,6 +139,9 @@ def main() -> None:
     t_start = time.time()
     last_epoch = min(tcfg["max_epochs"], tcfg.get("stop_after_epochs") or tcfg["max_epochs"])
     for epoch in range(1, last_epoch + 1):
+        if freeze_ssl:
+            model.frontend.set_ssl_trainable(epoch > freeze_ssl)
+            print(f"SSL transformer {'trainable' if epoch > freeze_ssl else 'frozen'} in epoch {epoch}")
         loss, step, t_train = train_one_epoch(model, train_loader, opt, sched, scaler, loss_fn, device, amp,
                                               tcfg["grad_accum"], tcfg.get("grad_clip", 5.0), writer, step)
         t0 = time.time()

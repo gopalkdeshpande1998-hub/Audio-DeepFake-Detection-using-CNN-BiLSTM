@@ -1,0 +1,7 @@
+{
+  "run": "e6b_crnn_seres_asp_s42",
+  "best_epoch": 13,
+  "best_dev_eer": 0.010921487912876504,
+  "epochs_run": 15,
+  "minutes": 37.6
+}

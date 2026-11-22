@@ -1,0 +1,256 @@
+{
+  "members": [
+    "e7a_wavlm_crnn_s42",
+    "vg_improved",
+    "vg_v2"
+  ],
+  "target_pct": 2.0,
+  "fusions": {
+    "e7a": {
+      "weights": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "bias": 0.0,
+      "eer_pct": {
+        "tuning (dev + degraded dev)": 3.755697259534717,
+        "ASVspoof eval": 6.215587070578442,
+        "In-the-Wild": 10.670854613533344,
+        "DEEP-VOICE (windows)": 23.684210526315788,
+        "DEEP-VOICE (recording)": 12.5
+      }
+    },
+    "equal": {
+      "weights": [
+        0.3333333333333333,
+        0.3333333333333333,
+        0.3333333333333333
+      ],
+      "bias": 0.0,
+      "eer_pct": {
+        "tuning (dev + degraded dev)": 26.787131935247633,
+        "ASVspoof eval": 25.97917161636243,
+        "In-the-Wild": 3.672389299350718,
+        "DEEP-VOICE (windows)": 20.84164492864815,
+        "DEEP-VOICE (recording)": 12.5
+      }
+    },
+    "lr": {
+      "weights": [
+        1.026401032799454,
+        -0.04695750852206025,
+        -0.05629942010001654
+      ],
+      "bias": -0.20780793064078543,
+      "eer_pct": {
+        "tuning (dev + degraded dev)": 3.672686620174866,
+        "ASVspoof eval": 8.269775674733056,
+        "In-the-Wild": 12.797443042139806,
+        "DEEP-VOICE (windows)": 26.36949516648765,
+        "DEEP-VOICE (recording)": 24.107142857142858
+      }
+    }
+  },
+  "single_members_eer_pct": {
+    "e7a_wavlm_crnn_s42": {
+      "tuning (dev + degraded dev)": 3.755697259534717,
+      "ASVspoof eval": 6.215587070578442,
+      "In-the-Wild": 10.670854613533344,
+      "DEEP-VOICE (windows)": 23.684210526315788
+    },
+    "vg_improved": {
+      "tuning (dev + degraded dev)": 49.76567780528068,
+      "ASVspoof eval": 47.04290675634084,
+      "In-the-Wild": 36.15312396993341,
+      "DEEP-VOICE (windows)": 30.389749884916373
+    },
+    "vg_v2": {
+      "tuning (dev + degraded dev)": 44.48656266926438,
+      "ASVspoof eval": 36.247766557864345,
+      "In-the-Wild": 3.826200848007541,
+      "DEEP-VOICE (windows)": 36.18612858677306
+    }
+  },
+  "decision": {
+    "config": {
+      "fusion": "lr",
+      "bias": -0.20780793064078543,
+      "t_real": 0.17354382005971353,
+      "t_fake": 0.7631154533407936,
+      "vote_fake": 0.5,
+      "vote_real": 0.5,
+      "min_agree": 2,
+      "veto_p": 0.95,
+      "fitted_on": "ASVspoof 2019 LA dev, clean + 10 degraded dev conditions",
+      "target_pct": 2.0
+    },
+    "sets": {
+      "fused thresholds only": {
+        "tuning (dev + degraded dev)": {
+          "n": 91044,
+          "decided_pct": 95.7350292166425,
+          "error_among_decided_pct": 2.0892371588210326,
+          "real_called_fake_pct": 2.0001773993258825,
+          "fake_called_real_pct": 2.0001167951413223,
+          "fake_detected_pct": 93.84051623452464,
+          "real_confirmed_pct": 93.4140500266099
+        },
+        "ASVspoof eval": {
+          "n": 71237,
+          "decided_pct": 93.21700801549756,
+          "error_among_decided_pct": 14.533544160831264,
+          "real_called_fake_pct": 0.054384772263766146,
+          "fake_called_real_pct": 15.10128048589587,
+          "fake_detected_pct": 77.35512350896965,
+          "real_confirmed_pct": 99.768864717879
+        },
+        "In-the-Wild": {
+          "n": 31779,
+          "decided_pct": 88.8228075143963,
+          "error_among_decided_pct": 9.040989123888474,
+          "real_called_fake_pct": 5.32485097430246,
+          "fake_called_real_pct": 12.60155721056195,
+          "fake_detected_pct": 70.14218009478674,
+          "real_confirmed_pct": 87.09612783649752
+        },
+        "DEEP-VOICE (windows)": {
+          "n": 14896,
+          "decided_pct": 71.93206229860365,
+          "error_among_decided_pct": 61.36257582827811,
+          "real_called_fake_pct": 4.242749731471536,
+          "fake_called_real_pct": 49.838882921589686,
+          "fake_detected_pct": 19.45680527850238,
+          "real_confirmed_pct": 86.14393125671322
+        }
+      },
+      "+ agreement gate and veto (used)": {
+        "tuning (dev + degraded dev)": {
+          "n": 91044,
+          "decided_pct": 64.0108079609859,
+          "error_among_decided_pct": 2.750609149250146,
+          "real_called_fake_pct": 1.8449529891786411,
+          "fake_called_real_pct": 1.7329479093669702,
+          "fake_detected_pct": 59.08958187339407,
+          "real_confirmed_pct": 71.85116196558454
+        },
+        "ASVspoof eval": {
+          "n": 71237,
+          "decided_pct": 65.17680418883445,
+          "error_among_decided_pct": 6.685332758992031,
+          "real_called_fake_pct": 0.027192386131883073,
+          "fake_called_real_pct": 4.855827932751009,
+          "fake_detected_pct": 60.70254531792993,
+          "real_confirmed_pct": 61.83548606390211
+        },
+        "In-the-Wild": {
+          "n": 31779,
+          "decided_pct": 81.12590075206899,
+          "error_among_decided_pct": 2.5251153950583762,
+          "real_called_fake_pct": 1.7181786304663629,
+          "fake_called_real_pct": 2.6066350710900474,
+          "fake_detected_pct": 67.65402843601895,
+          "real_confirmed_pct": 85.8388017832991
+        },
+        "DEEP-VOICE (windows)": {
+          "n": 14896,
+          "decided_pct": 54.73952738990333,
+          "error_among_decided_pct": 76.747608535688,
+          "real_called_fake_pct": 0.0,
+          "fake_called_real_pct": 48.01288936627282,
+          "fake_detected_pct": 2.270983581402486,
+          "real_confirmed_pct": 85.92910848549946
+        }
+      }
+    }
+  },
+  "members_at_0_5": {
+    "e7a_wavlm_crnn_s42": {
+      "ASVspoof eval": {
+        "n": 71237,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 16.65286297850836,
+        "real_called_fake_pct": 0.10876954452753229,
+        "fake_called_real_pct": 18.55765317303779,
+        "fake_detected_pct": 81.44234682696221,
+        "real_confirmed_pct": 99.89123045547247
+      },
+      "In-the-Wild": {
+        "n": 31779,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 11.142578432298059,
+        "real_called_fake_pct": 6.737464308971597,
+        "fake_called_real_pct": 18.58496953283683,
+        "fake_detected_pct": 81.41503046716316,
+        "real_confirmed_pct": 93.2625356910284
+      },
+      "DEEP-VOICE (windows)": {
+        "n": 14896,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 65.47395273899033,
+        "real_called_fake_pct": 4.672395273899033,
+        "fake_called_real_pct": 74.15988951971767,
+        "fake_detected_pct": 25.84011048028234,
+        "real_confirmed_pct": 95.32760472610097
+      }
+    },
+    "vg_improved": {
+      "ASVspoof eval": {
+        "n": 71237,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 37.97324424105451,
+        "real_called_fake_pct": 62.13460231135283,
+        "fake_called_real_pct": 35.191446729908265,
+        "fake_detected_pct": 64.80855327009174,
+        "real_confirmed_pct": 37.86539768864718
+      },
+      "In-the-Wild": {
+        "n": 31779,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 34.88467226784984,
+        "real_called_fake_pct": 30.005510193858637,
+        "fake_called_real_pct": 43.127962085308056,
+        "fake_detected_pct": 56.872037914691944,
+        "real_confirmed_pct": 69.99448980614136
+      },
+      "DEEP-VOICE (windows)": {
+        "n": 14896,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 83.15655209452201,
+        "real_called_fake_pct": 0.37593984962406013,
+        "fake_called_real_pct": 94.98235384379315,
+        "fake_detected_pct": 5.017646156206844,
+        "real_confirmed_pct": 99.62406015037594
+      }
+    },
+    "vg_v2": {
+      "ASVspoof eval": {
+        "n": 71237,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 39.499136684588066,
+        "real_called_fake_pct": 33.636981645139365,
+        "fake_called_real_pct": 40.174070943301714,
+        "fake_detected_pct": 59.82592905669829,
+        "real_confirmed_pct": 66.36301835486064
+      },
+      "In-the-Wild": {
+        "n": 31779,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 3.175052707762988,
+        "real_called_fake_pct": 1.7281971647547962,
+        "fake_called_real_pct": 5.619498984427895,
+        "fake_detected_pct": 94.38050101557211,
+        "real_confirmed_pct": 98.2718028352452
+      },
+      "DEEP-VOICE (windows)": {
+        "n": 14896,
+        "decided_pct": 100.0,
+        "error_among_decided_pct": 83.4250805585392,
+        "real_called_fake_pct": 0.5907626208378088,
+        "fake_called_real_pct": 95.25855454963941,
+        "fake_detected_pct": 4.741445450360595,
+        "real_confirmed_pct": 99.40923737916219
+      }
+    }
+  }
+}

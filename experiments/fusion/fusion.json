@@ -1,0 +1,90 @@
+{
+  "members": [
+    "e4a_rawboost",
+    "e7a_wavlm_crnn"
+  ],
+  "seeds": [
+    42
+  ],
+  "systems": {
+    "e4a_rawboost": {
+      "n": 1,
+      "mean": {
+        "ASVspoof eval": 15.622289958429686,
+        "eval min t-DCF": 0.3703,
+        "In-the-Wild": 35.976599235667905,
+        "DEEP-VOICE (recording)": 50.0,
+        "degraded eval, mean of 10": 26.424288211788213
+      },
+      "std": {
+        "ASVspoof eval": NaN,
+        "eval min t-DCF": NaN,
+        "In-the-Wild": NaN,
+        "DEEP-VOICE (recording)": NaN,
+        "degraded eval, mean of 10": NaN
+      }
+    },
+    "e7a_wavlm_crnn": {
+      "n": 1,
+      "mean": {
+        "ASVspoof eval": 6.215587070578442,
+        "eval min t-DCF": 0.1254,
+        "In-the-Wild": 10.670854613533344,
+        "DEEP-VOICE (recording)": 12.5,
+        "degraded eval, mean of 10": NaN
+      },
+      "std": {
+        "ASVspoof eval": NaN,
+        "eval min t-DCF": NaN,
+        "In-the-Wild": NaN,
+        "DEEP-VOICE (recording)": NaN,
+        "degraded eval, mean of 10": NaN
+      }
+    },
+    "e4a_rawboost + e7a_wavlm_crnn": {
+      "members": [
+        "e4a_rawboost",
+        "e7a_wavlm_crnn"
+      ],
+      "weights_per_seed": [
+        [
+          1.0283,
+          0.593
+        ]
+      ],
+      "per_seed": [
+        {
+          "ASVspoof eval": 7.341802721711732,
+          "eval min t-DCF": 0.1404,
+          "In-the-Wild": 17.07756463540149,
+          "DEEP-VOICE (recording)": 35.714285714285715,
+          "degraded eval, mean of 10": NaN,
+          "dev EER": 0.1171761244035579
+        }
+      ],
+      "n": 1,
+      "mean": {
+        "ASVspoof eval": 7.341802721711732,
+        "eval min t-DCF": 0.1404,
+        "In-the-Wild": 17.07756463540149,
+        "DEEP-VOICE (recording)": 35.714285714285715,
+        "degraded eval, mean of 10": NaN,
+        "dev EER": 0.1171761244035579
+      },
+      "std": {
+        "ASVspoof eval": NaN,
+        "eval min t-DCF": NaN,
+        "In-the-Wild": NaN,
+        "DEEP-VOICE (recording)": NaN,
+        "degraded eval, mean of 10": NaN,
+        "dev EER": NaN
+      }
+    }
+  },
+  "gain_vs_best_single": {
+    "ASVspoof eval": -1.1262156511332897,
+    "In-the-Wild": -6.406710021868147,
+    "DEEP-VOICE (recording)": -23.214285714285715,
+    "degraded eval, mean of 10": NaN
+  }
+}

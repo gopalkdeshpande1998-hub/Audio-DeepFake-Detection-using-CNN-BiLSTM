@@ -130,7 +130,7 @@ def main() -> None:
     ap.add_argument("--run", required=True, help="run folder containing best.pt")
     ap.add_argument("--sets", nargs="*", help="dataset:split entries (default: dev + config test_sets)")
     ap.add_argument("--workers", type=int)
-    ap.add_argument("--batch-size", type=int, default=64)
+    ap.add_argument("--batch-size", type=int, help="default: the config's train.eval_batch_size, else 64")
     ap.add_argument("--trim-silence", choices=["auto", "on", "off"], default="auto",
                     help="trim leading/trailing silence of whole-file test items (auto = as in training)")
     ap.add_argument("--normalize", choices=["auto", "none", "rms", "peak"], default="auto",
@@ -175,7 +175,7 @@ def main() -> None:
             raise FileNotFoundError(f"silence bounds for {name} missing: run scripts/compute_silence.py")
         loader = make_loader(CropDataset(df, cache, crop, False, cfg["audio"]["pad_mode"], sr, speech_bounds=bounds,
                                          normalize=norm),
-                             args.batch_size, False, workers)
+                             args.batch_size or cfg["train"].get("eval_batch_size", 64), False, workers)
         print(f"Scoring {entry}{' (silence trimmed)' if bounds else ''}: {len(df):,} items ...", flush=True)
         scores, labels = score_loader(model, loader, device, amp)
         keep = [c for c in ("utt_id", "recording_id", "speaker", "attack", "start_s", "end_s") if c in df]

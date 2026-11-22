@@ -1,0 +1,13 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  cpu-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11", cache: pip}
+      - run: sudo apt-get update && sudo apt-get install -y libsndfile1
+      - run: pip install -r requirements.txt pytest==9.2.0 httpx==0.28.1 tensorboard==2.21.0 && pip install -e .
+      # Tests that need the datasets on disk skip themselves; everything else runs on the CPU.
+      - run: pytest -q

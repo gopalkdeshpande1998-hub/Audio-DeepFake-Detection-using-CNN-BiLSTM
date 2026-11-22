@@ -237,18 +237,32 @@ Findings:
 
 **Done when:** one main table lists every model's EER on the three test sets, its min t-DCF on ASVspoof, its size and its speed, with the best model chosen for the app.
 
+**Status (2026-11-21): prototype run.** To reach a full working prototype quickly (user decision), Phase 3 was cut to about 5 h: `configs/queues/phase3_proto.yaml` trains **seed 42 only** with shortened schedules (E6b 15, RawNet2 12, WavLM 2, AASIST 3 epochs; LCNN s42 finished its full schedule), then fusion, efficiency and `experiments/tables/phase3.md` (n = 1 rows). E6a, E6c and the other SSL variants are not run yet. **Upgrade later:** delete the shortened run folders and run `phase3_p31_p32.yaml` and `phase3_p33_final.yaml` (3 seeds, full schedules). ONNX: `scripts/export_onnx.py` exports the back end (the TorchScript exporter cannot export the complex STFT of the spectral front ends); FP32 matches PyTorch (max diff 3e-4), INT8 dynamic quantization is smaller but distorts the logits and is slower, so it is not used. Decisions:
+- **Protocol:** every Phase 3 model trains under the Phase 2 result: silence-trimmed audio and the selected augmentation (E4a: RawBoost + gain), 3 seeds, the same scoring sets as Phase 2 (dev, eval, In-the-Wild, DEEP-VOICE, degraded dev and eval subsets). E4a is the reference row.
+- **Models:** `src/adfd/models/lcnn.py` (E5a, 270k params), `rawnet2.py` (E5b, 17.6M), `aasist.py` (E5c, 297,705 params, the paper's size; also accepts SSL feature maps), `crnn.py` (E6a SE-residual CNN + time-major BiLSTM; E6b + attentive statistics pooling; E6c light CNN + BiGRU + ASP), `src/adfd/features/ssl.py` (WavLM / wav2vec 2.0 / XLS-R front end, learned layer weights, fine-tuned or frozen).
+- **AASIST on 4 GB:** batch 12 × 2 accumulation (effective 24, as in the paper) and a 20-epoch cosine schedule instead of 100 epochs (about 20 min per epoch). The paper-reproduction run (untrimmed, no augmentation) was skipped by choice; the port matches the reference parameter count exactly.
+- **P3.3 cut to an 8 h budget (user decision):** one SSL model, **E7a = WavLM-Base+ (fine-tuned, CNN encoder frozen, gradient checkpointing) + the E6b back end (SSL-CNN-BiLSTM-Att)**, 3 seeds, 3 epochs, batch 8 × 4, SSL LR 1e-5, back-end LR 1e-4; peak VRAM 3.2 GB. Not run: wav2vec2-base, XLS-R-300M (frozen) and WavLM + AASIST; the code supports all three (`frontend: {name: ssl, model: ..., mode: frozen}`, `aasist` with `input: features`). Large models would run frozen on the fly rather than from a feature cache, so augmentation still applies.
+- **P3.4:** `scripts/fuse_scores.py`: per-seed logistic regression on dev scores of the best spectrogram model (by degraded-dev EER), AASIST and E7a, plus every pair.
+- **P3.5:** `scripts/efficiency.py` (parameters, checkpoint size, GPU and CPU speed); `scripts/make_tables_p3.py` builds the main table and picks the app model on dev data only (lowest degraded-dev EER). ONNX export follows once the app model is known (needs the `onnx` and `onnxruntime` packages).
+
 ---
 
 ## Phase 4: Reliability and explainability
 
-- [ ] **P4.1 Calibration:** fit temperature or Platt scaling on **dev** scores. Report Expected Calibration Error before and after, with reliability diagrams on all three test sets. The app then shows real probabilities.
-- [ ] **P4.2 Three-way decision:** choose two thresholds on dev, giving **Real / Uncertain / Fake**.
-- [ ] **P4.3 Out-of-distribution check:** flag non-speech or unusual input (music, tones, silence, noise) using voice-activity speech ratio, an energy/entropy check, and the Mahalanobis distance of the model's internal features from the training data. Test it on the tone and noise examples that currently score "fake" at 0.99.
-- [ ] **P4.4 Segment timeline:** sliding 2–4 s windows, giving a score-over-time curve and the most suspicious segments. Test it on DEEP-VOICE: clips with a converted segment spliced into real speech should show a visible spike.
-- [ ] **P4.5 Grad-CAM / Integrated Gradients:** heatmaps over the time-frequency input for spectrogram models, and attention-weight plots for the pretrained-feature models. Analyse which frequency bands matter for each dataset and attack.
+- [x] **P4.1 Calibration:** fit temperature or Platt scaling on **dev** scores. Report Expected Calibration Error before and after, with reliability diagrams on all three test sets. The app then shows real probabilities.
+- [x] **P4.2 Three-way decision:** choose two thresholds on dev, giving **Real / Uncertain / Fake**.
+- [x] **P4.3 Out-of-distribution check:** flag non-speech or unusual input (music, tones, silence, noise) using voice-activity speech ratio, an energy/entropy check, and the Mahalanobis distance of the model's internal features from the training data. Test it on the tone and noise examples that currently score "fake" at 0.99.
+- [x] **P4.4 Segment timeline:** sliding 2–4 s windows, giving a score-over-time curve and the most suspicious segments. Test it on DEEP-VOICE: clips with a converted segment spliced into real speech should show a visible spike.
+- [ ] **P4.5 Grad-CAM / Integrated Gradients** *(prototype: gradient × input saliency on the input features, in the app and explain.py; Grad-CAM, attention plots and the per-band analysis are open)*: heatmaps over the time-frequency input for spectrogram models, and attention-weight plots for the pretrained-feature models. Analyse which frequency bands matter for each dataset and attack.
 - [ ] **P4.6 Error analysis:** listen to and summarise the worst false accepts (fakes called real) and false rejects (real called fake) per test set. This feeds directly into the paper's discussion section.
 
 **Done when:** `explain.py` produces a timeline, a heatmap and a calibrated verdict for any audio file, and the calibration and out-of-distribution results are in `experiments/tables/`.
+
+**Status (2026-11-21): prototype done** (P4.1–P4.4; P4.5 partly; P4.6 open).
+- `src/adfd/calibration.py`: Platt scaling with balanced classes, fitted on clean dev scores plus the 10 degraded dev conditions when available (clean dev alone is almost separable and gives over-confident probabilities); ECE and reliability diagrams; Real / Uncertain / Fake thresholds with at most 5% of each dev class on the wrong side.
+- `src/adfd/ood.py`: one-sided signal checks (level, silence ratio, spectral flatness, tonality, voicing, syllabic rhythm) with limits from bona fide dev speech, plus a Mahalanobis check on the penultimate-layer embedding. E4a: flags all 8 synthetic non-speech inputs (tones that score P(fake) = 1.00, noise, hum, chord, clicks, silence) and 2.5–7.5% of real or fake test speech.
+- `src/adfd/inference.py` (`Analyzer`): whole-file analysis with 4 s windows, 1 s hop, mean logit, timeline, suspicious segments, saliency. `python -m adfd.explain <file>` writes verdict.json, timeline.png and heatmap.png.
+- `scripts/fit_reliability.py --run runs/<run>` writes `<run>/reliability.json` and `experiments/reliability/<run>.{md,json,png}`. E4a ECE: ASVspoof eval 22.4 → 14.7%, In-the-Wild 57.7 → 31.7%. Fitted for E1, E2a, E4a, E4c and E5a so far.
 
 ---
 
@@ -271,15 +285,19 @@ Rebuild the Streamlit app on the PyTorch model. With TensorFlow gone, upgrade St
 
 **Done when:** every "Must" and "Should" feature works in the running app with the real model, and the server terminal shows no warnings (checked by the same kind of upload test used for the current app).
 
+**Status (2026-11-21): prototype done.** `app.py` (Streamlit 1.67, PyTorch, CPU inference) has every Must and Should feature: calibrated three-way verdict, OOD warning, timeline with playable suspicious segments, spectrogram + saliency heatmap, model selector and an all-models comparison with an agreement count, batch mode (files or ZIP → CSV), HTML report; plus demo samples (DEEP-VOICE `DEMONSTRATION`, read from the dataset folder, not shipped). Checked in the browser on both demonstration clips; the server log shows no warnings. Open: microphone mode and video input (Could). The v1 TensorFlow app is in `legacy/app_v1_tensorflow.py`.
+
+**Merged detector (2026-11-22).** Two external CNN-BiLSTM log-mel checkpoints (VoiceGuard improved, VoiceGuard v2; `src/adfd/models/voiceguard.py`) were merged with E7a into `src/adfd/ensemble.py`, now the app/API default. Scores: `scripts/score_voiceguard.py`; fusion and decision rule: `scripts/fit_ensemble.py` → `experiments/ensemble/ensemble.md` (tuned on ASVspoof dev + degraded dev only). **VoiceGuard v2 was trained on ~79% of In-the-Wild**, so In-the-Wild is no longer a clean test for it or for the merged detector. The VoiceGuard models are near chance on ASVspoof and get ≈ 0 fusion weight; they act through an agreement gate (Fake needs ≥ 2 of 3 models) and a veto (no Real while any model has P(fake) ≥ 0.95). This cuts real → Fake from 0.11 / 6.74 / 4.67% (E7a alone, at 0.5) to 0.03 / 1.72 / 0.00% (ASVspoof eval / In-the-Wild / DEEP-VOICE), at the cost of more Uncertain answers. Voice conversion (DEEP-VOICE, RVC) remains mostly missed: about half of fake windows are still called Real. Explanations: `src/adfd/forensics.py` (Real/Uncertain/Fake regions over time, mel-spectrogram saliency per band, model-free acoustic measurements against 1,700 real reference clips, `scripts/fit_forensics.py`). Microphone and video input (PyAV) added to the app.
+
 ---
 
 ## Phase 6: Deployment and missing basics
 
-- [ ] **FastAPI service** (`api/`): `POST /predict` (file → verdict, probability, timeline) and `GET /health`, with an OpenAPI description.
-- [ ] **Docker:** separate CPU and GPU images, `docker compose up` runs the app and API together.
-- [ ] **Tests and CI:** pytest for manifests, feature shapes, metric correctness (EER on synthetic scores), model loading, and API and app smoke tests. A GitHub Actions workflow runs the CPU tests.
-- [ ] **Model card** (`docs/MODEL_CARD.md`): training data, intended use, results per dataset, known failure cases, and limits on misuse.
-- [ ] **README rewrite:** honest results table, setup instructions, dataset instructions (links and expected folder layout, **no redistributed data**), architecture diagram.
+- [x] **FastAPI service** (`api/`): `POST /predict` (file → verdict, probability, timeline) and `GET /health`, with an OpenAPI description.
+- [ ] **Docker** *(Dockerfile, Dockerfile.gpu and docker-compose.yml written; not built here because Docker is not installed)*: separate CPU and GPU images, `docker compose up` runs the app and API together.
+- [ ] **Tests and CI** *(pytest suite and `.github/workflows/ci.yml` written; CI not run until pushed)*: pytest for manifests, feature shapes, metric correctness (EER on synthetic scores), model loading, and API and app smoke tests. A GitHub Actions workflow runs the CPU tests.
+- [x] **Model card** (`docs/MODEL_CARD.md`): training data, intended use, results per dataset, known failure cases, and limits on misuse.
+- [x] **README rewrite:** honest results table, setup instructions, dataset instructions (links and expected folder layout, **no redistributed data**), architecture diagram.
 - [ ] **Model weights:** remove the three duplicate `.h5`/`.keras` files from the main tree. Publish weights as GitHub Release assets or on the Hugging Face Hub, with download-on-first-run in the app.
 - [ ] **LICENSE and CITATION.cff.** Note the licence terms of each dataset.
 - [ ] **Hugging Face Space** for a public demo (CPU build of the ONNX model).

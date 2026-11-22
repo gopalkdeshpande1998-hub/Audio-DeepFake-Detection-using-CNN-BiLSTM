@@ -1,0 +1,196 @@
+{
+  "run": "e6b_crnn_seres_asp_s42",
+  "calibration": {
+    "a": 0.2921449951213102,
+    "b": -1.41624153517454,
+    "t_real": 0.29049003184232003,
+    "t_fake": 0.7072609135432502,
+    "eer_threshold_p": 0.6156888045458059,
+    "fitted_on": "clean dev + 10 degraded dev conditions",
+    "target_error_pct": 5.0
+  },
+  "sets": {
+    "ASVspoof dev": {
+      "n": 24844,
+      "ece_raw_pct": 0.4284660434451097,
+      "ece_calibrated_pct": 23.143682083764848,
+      "three_way": {
+        "pct_real": 11.773466430526486,
+        "pct_uncertain": 50.289808404443725,
+        "pct_fake": 37.936725165029785,
+        "error_pct_decided": 3.182186234817814,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 1.7626480086114102
+      }
+    },
+    "ASVspoof eval": {
+      "n": 71237,
+      "ece_raw_pct": 23.258432365285767,
+      "ece_calibrated_pct": 40.216764881608576,
+      "three_way": {
+        "pct_real": 41.54021084548759,
+        "pct_uncertain": 38.560017968190685,
+        "pct_fake": 19.899771186321715,
+        "error_pct_decided": 50.87506854322793,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 34.85645408722331
+      }
+    },
+    "In-the-Wild": {
+      "n": 31779,
+      "ece_raw_pct": 61.93428192467276,
+      "ece_calibrated_pct": 35.35947251219584,
+      "three_way": {
+        "pct_real": 2.0862833946946093,
+        "pct_uncertain": 33.94694609647881,
+        "pct_fake": 63.966770508826585,
+        "error_pct_decided": 77.64756324138916,
+        "real_called_fake_pct": 79.94289435455593,
+        "fake_called_real_pct": 2.877454299255247
+      }
+    },
+    "DEEP-VOICE (windows)": {
+      "n": 14896,
+      "ece_raw_pct": 10.925526285242853,
+      "ece_calibrated_pct": 18.21864669263024,
+      "three_way": {
+        "pct_real": 1.6783029001074115,
+        "pct_uncertain": 1.9871106337271751,
+        "pct_fake": 96.33458646616542,
+        "error_pct_decided": 9.931506849315069,
+        "real_called_fake_pct": 77.87325456498388,
+        "fake_called_real_pct": 0.0
+      }
+    }
+  },
+  "signal_ranges": {
+    "level_dbfs": [
+      -50.0,
+      null
+    ],
+    "speech_ratio": [
+      0.15,
+      null
+    ],
+    "flatness": [
+      null,
+      0.25
+    ],
+    "tonality": [
+      null,
+      0.9
+    ],
+    "voiced_ratio": [
+      -0.031080485539383078,
+      null
+    ],
+    "syllabic_mod": [
+      0.08,
+      null
+    ]
+  },
+  "embedding_ood": {
+    "threshold": 5.311688406225854,
+    "dim": 128,
+    "fitted_on": "1000 dev clips"
+  },
+  "ood_flag_pct_on_test_speech": {
+    "ASVspoof eval, real": {
+      "signal": 0.0,
+      "embedding": 8.0,
+      "any": 8.0,
+      "n": 200
+    },
+    "ASVspoof eval, fake": {
+      "signal": 2.0,
+      "embedding": 1.5,
+      "any": 3.5,
+      "n": 200
+    },
+    "In-the-Wild, real": {
+      "signal": 1.5,
+      "embedding": 0.0,
+      "any": 1.5,
+      "n": 200
+    },
+    "In-the-Wild, fake": {
+      "signal": 1.5,
+      "embedding": 1.0,
+      "any": 2.5,
+      "n": 200
+    }
+  },
+  "synthetic": {
+    "tone 440 Hz": {
+      "flagged": true,
+      "reasons": [
+        "it sounds like a steady tone or hum",
+        "it lacks the rhythm of speech"
+      ],
+      "p_fake_raw": 0.9976311257447729,
+      "p_fake_calibrated": 0.5864190906360742,
+      "embedding_distance": 1.7569214123102581
+    },
+    "tone 1 kHz": {
+      "flagged": true,
+      "reasons": [
+        "it sounds like a steady tone or hum",
+        "it lacks the rhythm of speech"
+      ],
+      "p_fake_raw": 0.9996094860399791,
+      "p_fake_calibrated": 0.7060781400289395,
+      "embedding_distance": 0.6457686856987186
+    },
+    "white noise": {
+      "flagged": true,
+      "reasons": [
+        "it sounds like noise rather than speech"
+      ],
+      "p_fake_raw": 0.9935618974445167,
+      "p_fake_calibrated": 0.5139702015178889,
+      "embedding_distance": 2.8465502664304863
+    },
+    "pink noise": {
+      "flagged": false,
+      "reasons": [],
+      "p_fake_raw": 0.9994363249268947,
+      "p_fake_calibrated": 0.6833348229009463,
+      "embedding_distance": 1.0511883157604045
+    },
+    "50 Hz hum": {
+      "flagged": true,
+      "reasons": [
+        "it lacks the rhythm of speech"
+      ],
+      "p_fake_raw": 0.09825223213687319,
+      "p_fake_calibrated": 0.11265861470807506,
+      "embedding_distance": 5.195871672793196
+    },
+    "music-like chord": {
+      "flagged": false,
+      "reasons": [],
+      "p_fake_raw": 0.9996017869093836,
+      "p_fake_calibrated": 0.7048925816646916,
+      "embedding_distance": 0.5817663081867089
+    },
+    "click train": {
+      "flagged": true,
+      "reasons": [
+        "most of the audio is silence",
+        "it sounds like noise rather than speech"
+      ],
+      "p_fake_raw": 0.05242456596260684,
+      "p_fake_calibrated": 0.09433097183753374,
+      "embedding_distance": 4.3791076840099254
+    },
+    "near silence": {
+      "flagged": true,
+      "reasons": [
+        "it sounds like noise rather than speech"
+      ],
+      "p_fake_raw": 0.9989837559589321,
+      "p_fake_calibrated": 0.6449284522638742,
+      "embedding_distance": 1.830953158736507
+    }
+  }
+}

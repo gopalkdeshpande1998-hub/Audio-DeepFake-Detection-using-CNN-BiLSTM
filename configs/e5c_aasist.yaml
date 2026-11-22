@@ -1,0 +1,25 @@
+# P3.1 E5c: AASIST (raw waveform, graph attention). Phase 2 protocol.
+# Paper recipe: Adam 1e-4, batch 24, cosine, 100 epochs. Here batch 6 x 4 accumulation in fp32
+# (fits 4 GB) and a 20-epoch cosine schedule (about 20 min per epoch on the RTX 3050).
+name: e5c_aasist
+
+model:
+  name: aasist
+  frontend:
+    name: raw
+
+audio:
+  trim_silence: true
+
+augment:                    # the augmentation selected in Phase 2 (E4a)
+  rawboost: {p: 0.7, algos: [lnl, isd]}
+  gain: {p: 0.5, min_db: -6, max_db: 6}
+
+train:
+  batch_size: 6
+  grad_accum: 4
+  eval_batch_size: 6        # fp32 at 24 spilled into shared system memory (very slow on 4 GB)
+  amp: false               # fp16 overflowed (non-finite loss at step 977); the paper trains in fp32
+  lr: 1.0e-4
+  max_epochs: 20
+  early_stop_patience: 6

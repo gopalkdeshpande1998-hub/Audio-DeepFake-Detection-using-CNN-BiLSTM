@@ -1,0 +1,21 @@
+# P3.1 E5a: LFCC-LCNN, the ASVspoof 2021 spectral baseline. Phase 2 protocol (trimmed, RawBoost).
+name: e5a_lcnn
+
+model:
+  name: lcnn
+  frontend:
+    name: lfcc
+
+audio:
+  trim_silence: true
+
+augment:                    # the augmentation selected in Phase 2 (E4a)
+  rawboost: {p: 0.7, algos: [lnl, isd]}
+  gain: {p: 0.5, min_db: -6, max_db: 6}
+
+train:
+  batch_size: 32
+  eval_batch_size: 64
+  lr: 3.0e-4
+  max_epochs: 50
+  early_stop_patience: 8

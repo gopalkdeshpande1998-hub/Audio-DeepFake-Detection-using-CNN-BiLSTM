@@ -1,0 +1,614 @@
+# Phase 3, P3.1 baselines and P3.2 CNN-RNN upgrades: 3 seeds each, Phase 2 protocol
+# (silence-trimmed, RawBoost + gain). Finished steps are skipped by run_queue.py.
+- train:
+    config: configs/e5a_lcnn.yaml
+    seed: 42
+- evaluate:
+    run: e5a_lcnn_s42
+- evaluate:
+    run: e5a_lcnn_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5a_lcnn_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5a_lcnn.yaml
+    seed: 43
+- evaluate:
+    run: e5a_lcnn_s43
+- evaluate:
+    run: e5a_lcnn_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5a_lcnn_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5a_lcnn.yaml
+    seed: 44
+- evaluate:
+    run: e5a_lcnn_s44
+- evaluate:
+    run: e5a_lcnn_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5a_lcnn_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6a_crnn_seres.yaml
+    seed: 42
+- evaluate:
+    run: e6a_crnn_seres_s42
+- evaluate:
+    run: e6a_crnn_seres_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6a_crnn_seres_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6a_crnn_seres.yaml
+    seed: 43
+- evaluate:
+    run: e6a_crnn_seres_s43
+- evaluate:
+    run: e6a_crnn_seres_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6a_crnn_seres_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6a_crnn_seres.yaml
+    seed: 44
+- evaluate:
+    run: e6a_crnn_seres_s44
+- evaluate:
+    run: e6a_crnn_seres_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6a_crnn_seres_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6b_crnn_seres_asp.yaml
+    seed: 42
+- evaluate:
+    run: e6b_crnn_seres_asp_s42
+- evaluate:
+    run: e6b_crnn_seres_asp_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6b_crnn_seres_asp_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6b_crnn_seres_asp.yaml
+    seed: 43
+- evaluate:
+    run: e6b_crnn_seres_asp_s43
+- evaluate:
+    run: e6b_crnn_seres_asp_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6b_crnn_seres_asp_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6b_crnn_seres_asp.yaml
+    seed: 44
+- evaluate:
+    run: e6b_crnn_seres_asp_s44
+- evaluate:
+    run: e6b_crnn_seres_asp_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6b_crnn_seres_asp_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6c_crnn_light_gru.yaml
+    seed: 42
+- evaluate:
+    run: e6c_crnn_light_gru_s42
+- evaluate:
+    run: e6c_crnn_light_gru_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6c_crnn_light_gru_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6c_crnn_light_gru.yaml
+    seed: 43
+- evaluate:
+    run: e6c_crnn_light_gru_s43
+- evaluate:
+    run: e6c_crnn_light_gru_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6c_crnn_light_gru_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e6c_crnn_light_gru.yaml
+    seed: 44
+- evaluate:
+    run: e6c_crnn_light_gru_s44
+- evaluate:
+    run: e6c_crnn_light_gru_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e6c_crnn_light_gru_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5b_rawnet2.yaml
+    seed: 42
+- evaluate:
+    run: e5b_rawnet2_s42
+- evaluate:
+    run: e5b_rawnet2_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5b_rawnet2_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5b_rawnet2.yaml
+    seed: 43
+- evaluate:
+    run: e5b_rawnet2_s43
+- evaluate:
+    run: e5b_rawnet2_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5b_rawnet2_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5b_rawnet2.yaml
+    seed: 44
+- evaluate:
+    run: e5b_rawnet2_s44
+- evaluate:
+    run: e5b_rawnet2_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5b_rawnet2_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5c_aasist.yaml
+    seed: 42
+- evaluate:
+    run: e5c_aasist_s42
+- evaluate:
+    run: e5c_aasist_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5c_aasist_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5c_aasist.yaml
+    seed: 43
+- evaluate:
+    run: e5c_aasist_s43
+- evaluate:
+    run: e5c_aasist_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5c_aasist_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e5c_aasist.yaml
+    seed: 44
+- evaluate:
+    run: e5c_aasist_s44
+- evaluate:
+    run: e5c_aasist_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e5c_aasist_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test

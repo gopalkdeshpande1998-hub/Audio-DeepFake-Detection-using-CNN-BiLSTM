@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "streamlit-app",
-      "runtimeExecutable": ".venv/Scripts/streamlit.exe",
+      "runtimeExecutable": ".venv-torch/Scripts/streamlit.exe",
       "runtimeArgs": ["run", "app.py", "--server.port", "8501", "--server.headless", "true"],
       "port": 8501
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": ".venv-torch/Scripts/uvicorn.exe",
+      "runtimeArgs": ["api.main:app", "--port", "8000"],
+      "port": 8000
     }
   ]
 }

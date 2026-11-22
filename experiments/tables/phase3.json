@@ -1,0 +1,223 @@
+{
+  "e1_cnn_bilstm_mfcc": {
+    "label": "E1 CNN-BiLSTM, MFCC, untrimmed, no augmentation (v1 paper model)",
+    "dev": [
+      0.865,
+      1.806,
+      1.417
+    ],
+    "eval": [
+      8.008,
+      7.938,
+      7.968
+    ],
+    "tdcf": [
+      0.1939,
+      0.216,
+      0.2202
+    ],
+    "itw": [
+      42.461,
+      51.618,
+      47.893
+    ],
+    "dv": [
+      59.821,
+      47.321,
+      50.0
+    ],
+    "deg_eval": [
+      31.651099999999996,
+      38.1265,
+      31.093899999999998
+    ],
+    "deg_dev": [],
+    "efficiency": {
+      "label": "E1 CNN-BiLSTM, MFCC (v1)",
+      "params": 786625,
+      "trainable_params": 786625,
+      "checkpoint_mb": 3.5,
+      "cpu_ms_per_clip": 4.9,
+      "cpu_audio_s_per_s": 815.7,
+      "gpu_audio_s_per_s": 23278.0
+    }
+  },
+  "e4a_rawboost": {
+    "label": "E4a CNN-BiLSTM, LFCC (Phase 2 selection)",
+    "dev": [
+      0.551,
+      0.314,
+      0.157
+    ],
+    "eval": [
+      15.622,
+      13.599,
+      13.923
+    ],
+    "tdcf": [
+      0.3703,
+      0.3218,
+      0.3404
+    ],
+    "itw": [
+      35.977,
+      47.352,
+      58.828
+    ],
+    "dv": [
+      50.0,
+      37.5,
+      63.393
+    ],
+    "deg_eval": [
+      26.4243,
+      25.085299999999997,
+      22.0249
+    ],
+    "deg_dev": [
+      20.5315,
+      18.402300000000004,
+      16.3457
+    ],
+    "efficiency": {
+      "label": "E4a CNN-BiLSTM, LFCC + RawBoost",
+      "params": 786625,
+      "trainable_params": 786625,
+      "checkpoint_mb": 3.1,
+      "cpu_ms_per_clip": 13.9,
+      "cpu_audio_s_per_s": 288.4,
+      "gpu_audio_s_per_s": 8579.0
+    }
+  },
+  "e5a_lcnn": {
+    "label": "E5a LCNN, LFCC",
+    "dev": [
+      0.237
+    ],
+    "eval": [
+      15.364
+    ],
+    "tdcf": [
+      0.3179
+    ],
+    "itw": [
+      53.595
+    ],
+    "dv": [
+      25.0
+    ],
+    "deg_eval": [
+      26.4432
+    ],
+    "deg_dev": [
+      19.523
+    ],
+    "efficiency": {
+      "label": "E5a LCNN, LFCC",
+      "params": 269729,
+      "trainable_params": 269729,
+      "checkpoint_mb": 1.1,
+      "cpu_ms_per_clip": 7.7,
+      "cpu_audio_s_per_s": 521.0,
+      "gpu_audio_s_per_s": 8917.0
+    }
+  },
+  "e5b_rawnet2": {
+    "label": "E5b RawNet2, raw waveform",
+    "dev": [
+      5.251
+    ],
+    "eval": [
+      19.508
+    ],
+    "tdcf": [
+      0.4935
+    ],
+    "itw": [
+      44.904
+    ],
+    "dv": [
+      50.893
+    ],
+    "deg_eval": [
+      25.8801
+    ],
+    "deg_dev": [
+      14.2518
+    ],
+    "efficiency": {
+      "label": "E5b RawNet2",
+      "params": 17620385,
+      "trainable_params": 17620385,
+      "checkpoint_mb": 67.3,
+      "cpu_ms_per_clip": 64.7,
+      "cpu_audio_s_per_s": 61.8,
+      "gpu_audio_s_per_s": 1870.0
+    }
+  },
+  "e6b_crnn_seres_asp": {
+    "label": "E6b E6a + attentive stats pooling (CNN-BiLSTM-Att)",
+    "dev": [
+      1.092
+    ],
+    "eval": [
+      17.729
+    ],
+    "tdcf": [
+      0.3362
+    ],
+    "itw": [
+      71.783
+    ],
+    "dv": [
+      25.0
+    ],
+    "deg_eval": [
+      37.1764
+    ],
+    "deg_dev": [
+      30.4943
+    ],
+    "efficiency": {
+      "label": "E6b SE-res CNN-BiLSTM-Att",
+      "params": 1422206,
+      "trainable_params": 1422206,
+      "checkpoint_mb": 5.5,
+      "cpu_ms_per_clip": 13.8,
+      "cpu_audio_s_per_s": 290.8,
+      "gpu_audio_s_per_s": 4925.0
+    }
+  },
+  "e7a_wavlm_crnn": {
+    "label": "E7a WavLM-Base+ (fine-tuned) + CNN-BiLSTM-Att",
+    "dev": [
+      0.783
+    ],
+    "eval": [
+      6.216
+    ],
+    "tdcf": [
+      0.1254
+    ],
+    "itw": [
+      10.671
+    ],
+    "dv": [
+      12.5
+    ],
+    "deg_eval": [],
+    "deg_dev": [
+      2.8211
+    ],
+    "efficiency": {
+      "label": "E7a WavLM-Base+ + CNN-BiLSTM-Att",
+      "params": 96199035,
+      "trainable_params": 91998587,
+      "checkpoint_mb": 367.1,
+      "cpu_ms_per_clip": 244.6,
+      "cpu_audio_s_per_s": 16.4,
+      "gpu_audio_s_per_s": 337.0
+    }
+  },
+  "_app_model": "e7a_wavlm_crnn"
+}

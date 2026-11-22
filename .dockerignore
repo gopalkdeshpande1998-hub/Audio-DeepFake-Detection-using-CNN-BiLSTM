@@ -1,0 +1,13 @@
+.venv*
+deepfake_env
+runs
+.cache
+experiments
+data
+legacy
+Results
+Research_Paper
+savedmodels
+explanations
+.git
+**/__pycache__

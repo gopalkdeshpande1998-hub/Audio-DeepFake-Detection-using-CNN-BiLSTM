@@ -1,0 +1,14 @@
+# docker compose up  ->  app on http://localhost:8501, API on http://localhost:8000/docs
+# Needs trained models in ./runs (each run folder with best.pt, train_summary.json, reliability.json).
+services:
+  app:
+    build: .
+    ports: ["8501:8501"]
+    volumes: ["./runs:/app/runs:ro", "./experiments:/app/experiments:ro", "hf-cache:/app/.cache/huggingface"]
+  api:
+    build: .
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    volumes: ["./runs:/app/runs:ro", "./experiments:/app/experiments:ro", "hf-cache:/app/.cache/huggingface"]
+volumes:
+  hf-cache:

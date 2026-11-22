@@ -1,5 +1,5 @@
 # Training / research environment (.venv-torch), Python 3.11.
-# The Streamlit app still uses requirements.txt (TensorFlow) until Phase 5.
+# Includes everything the app and API need (requirements.txt is the CPU-only runtime subset).
 #
 # Setup on Windows (RTX 3050, CUDA 13 driver):
 #   python -m venv .venv-torch
@@ -23,3 +23,12 @@ PyYAML==6.0.3
 tensorboard==2.21.0
 tqdm==4.70.1
 pytest==9.2.0
+httpx==0.28.1             # FastAPI test client
+streamlit==1.67.0
+fastapi==0.165.0
+uvicorn==0.54.0
+python-multipart==0.0.34
+onnx==1.23.2              # P3.5 export
+onnxruntime==1.32.0
+scipy==1.17.1
+soxr==1.1.0

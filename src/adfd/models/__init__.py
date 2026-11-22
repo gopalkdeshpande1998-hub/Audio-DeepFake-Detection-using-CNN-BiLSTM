@@ -25,6 +25,12 @@ def build_frontend(cfg: dict, sample_rate: int) -> nn.Module:
     kwargs = {k: v for k, v in cfg.items() if k != "name"}
     if name == "mfcc":
         return MFCCFrontend(sample_rate=sample_rate, **kwargs)
+    if name == "raw":
+        return nn.Identity()  # the backbone reads the waveform itself
+    if name == "ssl":
+        from adfd.features.ssl import SSLFrontend
+
+        return SSLFrontend(sample_rate=sample_rate, **kwargs)
     from adfd.features import spectral
 
     frontends = {
@@ -46,10 +52,26 @@ def build_model(cfg: dict) -> Detector:
     kwargs = mcfg.get("kwargs", {})
     if name == "cnn_bilstm":
         backbone = CNNBiLSTM(**kwargs)
+    elif name == "crnn":
+        from adfd.models.crnn import CRNN
+
+        backbone = CRNN(**kwargs)
+    elif name == "lcnn":
+        from adfd.models.lcnn import LCNN
+
+        backbone = LCNN(**kwargs)
+    elif name == "rawnet2":
+        from adfd.models.rawnet2 import RawNet2
+
+        backbone = RawNet2(**kwargs)
+    elif name == "aasist":
+        from adfd.models.aasist import AASIST
+
+        backbone = AASIST(**kwargs)
     else:
         raise ValueError(f"Unknown model {name!r}")
     return Detector(frontend, backbone)
 
 
-def count_parameters(model: nn.Module) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+def count_parameters(model: nn.Module, trainable_only: bool = True) -> int:
+    return sum(p.numel() for p in model.parameters() if p.requires_grad or not trainable_only)

@@ -1,10 +1,23 @@
-# Tested with Python 3.11
-streamlit==1.60.0
-# Starlette >=1.8 breaks Streamlit 1.60's gzip middleware (ASGI "Expected
-# http.response.start" errors). Newer Streamlit fixes it but needs protobuf>=5,
-# which tensorflow 2.15 does not allow.
-starlette==1.7.0
-librosa==0.11.0
+# Runtime for the app (app.py) and the REST API (api/), CPU inference. Python 3.11.
+#   pip install -r requirements.txt && pip install -e .
+# CPU-only torch builds come from the PyTorch index below (for a GPU, use requirements-train.txt).
+# The v1 TensorFlow app and its requirements are in legacy/.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.11.0
+torchaudio==2.11.0
+transformers==5.23.0      # only needed for the WavLM model
+numpy==2.4.6
+scipy==1.17.1
 soundfile==0.14.0
-tensorflow==2.15.0
-numpy==1.26.4
+soxr==1.1.0
+librosa==0.11.0           # fallback decoder for formats libsndfile cannot read
+nnAudio==0.3.4
+pandas==3.1.1
+scikit-learn==1.9.1
+matplotlib==3.10.7
+PyYAML==6.0.3
+streamlit==1.67.0
+fastapi==0.165.0
+uvicorn==0.54.0
+python-multipart==0.0.34
+av>=12          # video and M4A/WebM input (bundles FFmpeg)

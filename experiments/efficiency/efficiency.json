@@ -1,0 +1,56 @@
+{
+  "e1_cnn_bilstm_mfcc": {
+    "label": "E1 CNN-BiLSTM, MFCC (v1)",
+    "params": 786625,
+    "trainable_params": 786625,
+    "checkpoint_mb": 3.5,
+    "cpu_ms_per_clip": 4.9,
+    "cpu_audio_s_per_s": 815.7,
+    "gpu_audio_s_per_s": 23278.0
+  },
+  "e4a_rawboost": {
+    "label": "E4a CNN-BiLSTM, LFCC + RawBoost",
+    "params": 786625,
+    "trainable_params": 786625,
+    "checkpoint_mb": 3.1,
+    "cpu_ms_per_clip": 13.9,
+    "cpu_audio_s_per_s": 288.4,
+    "gpu_audio_s_per_s": 8579.0
+  },
+  "e5a_lcnn": {
+    "label": "E5a LCNN, LFCC",
+    "params": 269729,
+    "trainable_params": 269729,
+    "checkpoint_mb": 1.1,
+    "cpu_ms_per_clip": 7.7,
+    "cpu_audio_s_per_s": 521.0,
+    "gpu_audio_s_per_s": 8917.0
+  },
+  "e5b_rawnet2": {
+    "label": "E5b RawNet2",
+    "params": 17620385,
+    "trainable_params": 17620385,
+    "checkpoint_mb": 67.3,
+    "cpu_ms_per_clip": 64.7,
+    "cpu_audio_s_per_s": 61.8,
+    "gpu_audio_s_per_s": 1870.0
+  },
+  "e6b_crnn_seres_asp": {
+    "label": "E6b SE-res CNN-BiLSTM-Att",
+    "params": 1422206,
+    "trainable_params": 1422206,
+    "checkpoint_mb": 5.5,
+    "cpu_ms_per_clip": 13.8,
+    "cpu_audio_s_per_s": 290.8,
+    "gpu_audio_s_per_s": 4925.0
+  },
+  "e7a_wavlm_crnn": {
+    "label": "E7a WavLM-Base+ + CNN-BiLSTM-Att",
+    "params": 96199035,
+    "trainable_params": 91998587,
+    "checkpoint_mb": 367.1,
+    "cpu_ms_per_clip": 244.6,
+    "cpu_audio_s_per_s": 16.4,
+    "gpu_audio_s_per_s": 337.0
+  }
+}

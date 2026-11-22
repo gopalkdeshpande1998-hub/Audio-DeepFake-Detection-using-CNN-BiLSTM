@@ -1,0 +1,110 @@
+# Phase 3, P3.3 (WavLM-Base+ SSL model, 3 seeds, about 7.7 h), then P3.4 fusion, P3.5 efficiency
+# and the Phase 3 table. Runs after phase3_p31_p32.yaml. Finished steps are skipped.
+- train:
+    config: configs/e7a_wavlm_crnn.yaml
+    seed: 42
+- evaluate:
+    run: e7a_wavlm_crnn_s42
+- evaluate:
+    run: e7a_wavlm_crnn_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e7a_wavlm_crnn_s42
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e7a_wavlm_crnn.yaml
+    seed: 43
+- evaluate:
+    run: e7a_wavlm_crnn_s43
+- evaluate:
+    run: e7a_wavlm_crnn_s43
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e7a_wavlm_crnn_s43
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- train:
+    config: configs/e7a_wavlm_crnn.yaml
+    seed: 44
+- evaluate:
+    run: e7a_wavlm_crnn_s44
+- evaluate:
+    run: e7a_wavlm_crnn_s44
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- evaluate:
+    run: e7a_wavlm_crnn_s44
+    tag: robust
+    sets:
+    - asvspoof2019_la_robust_clean:test
+    - asvspoof2019_la_robust_mp3_51k:test
+    - asvspoof2019_la_robust_mp3_19k:test
+    - asvspoof2019_la_robust_opus_84k:test
+    - asvspoof2019_la_robust_opus_10k:test
+    - asvspoof2019_la_robust_telephone:test
+    - asvspoof2019_la_robust_white_20db:test
+    - asvspoof2019_la_robust_white_10db:test
+    - asvspoof2019_la_robust_white_5db:test
+    - asvspoof2019_la_robust_pink_10db:test
+- script:
+  - scripts/fuse_scores.py
+- script:
+  - scripts/efficiency.py
+- script:
+  - scripts/make_tables_p3.py

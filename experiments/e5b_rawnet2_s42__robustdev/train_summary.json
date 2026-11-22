@@ -1,0 +1,7 @@
+{
+  "run": "e5b_rawnet2_s42",
+  "best_epoch": 12,
+  "best_dev_eer": 0.05251059809532822,
+  "epochs_run": 12,
+  "minutes": 37.5
+}

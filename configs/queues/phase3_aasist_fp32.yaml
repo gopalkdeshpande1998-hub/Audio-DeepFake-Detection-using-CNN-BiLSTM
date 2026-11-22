@@ -1,0 +1,34 @@
+# AASIST rerun in fp32 after the fp16 run hit a non-finite loss (2026-11-21), then refresh Phase 3 outputs.
+- train:
+    config: configs/e5c_aasist.yaml
+    seed: 42
+    max_epochs: 3
+- evaluate:
+    run: e5c_aasist_s42
+- evaluate:
+    run: e5c_aasist_s42
+    tag: robustdev
+    n_boot: 0
+    sets:
+    - asvspoof2019_la_robustdev_clean:test
+    - asvspoof2019_la_robustdev_mp3_51k:test
+    - asvspoof2019_la_robustdev_mp3_19k:test
+    - asvspoof2019_la_robustdev_opus_84k:test
+    - asvspoof2019_la_robustdev_opus_10k:test
+    - asvspoof2019_la_robustdev_telephone:test
+    - asvspoof2019_la_robustdev_white_20db:test
+    - asvspoof2019_la_robustdev_white_10db:test
+    - asvspoof2019_la_robustdev_white_5db:test
+    - asvspoof2019_la_robustdev_pink_10db:test
+- script:
+  - scripts/fit_reliability.py
+  - --run
+  - runs/e5c_aasist_s42
+  - --device
+  - cuda
+- script:
+  - scripts/fuse_scores.py
+- script:
+  - scripts/efficiency.py
+- script:
+  - scripts/make_tables_p3.py
