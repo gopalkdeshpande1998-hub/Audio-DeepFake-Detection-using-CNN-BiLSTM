@@ -102,10 +102,11 @@ def plot_heatmap(seg: np.ndarray, sal: dict, source_s: float | None = None):
     return fig
 
 
-REGION_COLOR = {"Fake": "#d1495b", "Real": "#1baf7a", "Uncertain": "#eda100"}
+REGION_COLOR = {"Fake": "#d92d20", "Real": "#16a34a", "Uncertain": "#eda100", "No speech": "#b9b7ae"}
 
 
-ZONE_COLOR = {"Fake": "#d03b3b", "Uncertain": "#fab219", "Real": "#0ca30c"}   # status palette, labelled
+ZONE_COLOR = {"Fake": "#d92d20", "Border": "#f59e0b", "Uncertain": "#f59e0b", "Real": "#16a34a"}   # labelled
+BORDER = 10.0     # +-10 points around the decision line: drawn amber for reference, never a verdict
 
 
 def plot_score_line(res: dict, show_members: bool = True):
@@ -114,38 +115,44 @@ def plot_score_line(res: dict, show_members: bool = True):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    th = res["thresholds"]
-    lo, hi = 100 * th["t_real"], 100 * th["t_fake"]
+    decision = 100 * res["thresholds"].get("decision", 0.5)
     ps = res["per_second"]
-    t = np.array([w["start_s"] for w in ps] + [ps[-1]["end_s"]])
-    p = np.array([100 * w["p_fake"] for w in ps])
+    c = np.array([(w["start_s"] + w["end_s"]) / 2 for w in ps])
+    p = np.array([np.nan if w["p_fake"] is None else 100 * w["p_fake"] for w in ps], float)
     fig, ax = plt.subplots(figsize=(10, 3.4), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
-    for (y0, y1, z, lab) in ((hi, 100, "Fake", "Fake zone"), (lo, hi, "Uncertain", "Uncertain"),
-                             (0, lo, "Real", "Real zone")):
+    lo, hi = decision - BORDER, decision + BORDER
+    for (y0, y1, z, lab) in ((hi, 100, "Fake", "FAKE zone"), (lo, hi, "Border", "near the line (visual only)"),
+                             (0, lo, "Real", "REAL zone")):
         ax.axhspan(y0, y1, color=ZONE_COLOR[z], alpha=0.12, linewidth=0, zorder=0)
-        ax.text(0.006, (y1 - 1.5) / 100, lab, transform=ax.transAxes, va="top", color=INK_2, fontsize=9,
+        ax.text(0.006, (y1 - 1.5) / 100, lab, transform=ax.transAxes, va="top", color=INK_2, fontsize=8.5,
                 fontweight="bold")
+    ax.axhline(decision, color=INK_2, linestyle=(0, (5, 3)), linewidth=1.2, zorder=2,
+               label=f"decision threshold {decision:.0f}%")
+    for sg in res.get("segments", []):
+        ax.axvspan(sg["start_s"], sg["end_s"], color=ZONE_COLOR["Fake"], alpha=0.08, linewidth=0, zorder=0)
+        for e in (sg["start_s"], sg["end_s"]):
+            ax.axvline(e, color=ZONE_COLOR["Fake"], linewidth=0.9, alpha=0.7, zorder=1)
     if show_members:
-        for m, ls, c in zip(res["members"], [(0, (6, 3)), (0, (2, 2)), (0, (8, 3, 2, 3))],
-                            ["#6f6e69", "#8a887f", "#a3a198"]):
-            q = 100 * np.array(m["per_second"])
-            ax.step(t, np.r_[q, q[-1]], where="post", color=c, linestyle=ls, linewidth=1.3, label=m["label"])
-    ax.step(t, np.r_[p, p[-1]], where="post", color=LINE, linewidth=2.5, label="merged score", zorder=3,
-            solid_joinstyle="round", solid_capstyle="round")
-    hot = p >= hi
-    if hot.any():
-        ax.scatter((t[:-1] + 0.5)[hot], p[hot], s=40, color=ZONE_COLOR["Fake"], edgecolor=SURFACE, linewidth=1.5,
-                   zorder=4, label="second in the Fake zone")
+        for m, ls, col in zip(res["members"], [(0, (6, 3)), (0, (2, 2)), (0, (8, 3, 2, 3))],
+                              ["#6f6e69", "#8a887f", "#a3a198"]):
+            q = np.array([np.nan if v is None else 100 * v for v in m["per_second"]], float)
+            ax.plot(c, q, color=col, linestyle=ls, linewidth=1.2, label=m["label"])
+    ax.plot(c, p, color=LINE, linewidth=2.4, label="merged fake probability", zorder=3,
+            solid_joinstyle="round", solid_capstyle="round", marker="o" if len(p) <= 60 else None, markersize=3.5)
+    hot = p >= decision
+    if np.any(hot):
+        ax.scatter(c[hot], p[hot], s=26, color=ZONE_COLOR["Fake"], edgecolor=SURFACE, linewidth=1, zorder=4,
+                   label="step above the threshold")
     ax.set_ylim(0, 100)
-    ax.set_xlim(0, max(res["duration_s"], 1))
-    ax.set_xlabel("time in the recording (seconds)", color=INK_2)
-    ax.set_ylabel("chance of fake (%)", color=INK_2)
-    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    ax.set_xlim(0, max(res["duration_s"], 1e-3))
+    ax.set_xlabel("time (s)", color=INK_2)
+    ax.set_ylabel("fake probability (%)", color=INK_2)
+    ax.grid(color=GRID, linewidth=0.8)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=5)
-    ax.set_title("How fake does each second sound? (blue line in the red zone = sounds synthetic)", loc="left",
+    ax.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=4)
+    ax.set_title("Fake probability over time (merged, per local window; red bands = flagged segments)", loc="left",
                  color=INK, fontsize=10)
     fig.tight_layout()
     return fig
@@ -179,7 +186,7 @@ def plot_forensic(x: np.ndarray, res: dict):
         m = (t >= r["start_s"]) & (t <= r["end_s"])
         ax.plot(t[m], env[m], color=REGION_COLOR[r["label"]], linewidth=0.6)
     ax.set_ylabel("amplitude", color=INK_2)
-    ax.set_title(f"Where: waveform coloured by region (red = fake, green = real, amber = uncertain)",
+    ax.set_title("Where: waveform coloured by local analysis (red = suspected fake, green = real, grey = no speech)",
                  loc="left", color=INK, fontsize=10)
     # 2. mel spectrogram, region bar, saliency box
     ax = axes[1]
@@ -215,10 +222,11 @@ def plot_forensic(x: np.ndarray, res: dict):
     for mm, ls in zip(res["members"], ["-", "--", ":"]):
         c = [(w["start_s"] + w["end_s"]) / 2 for w in mm["timeline"]]
         ax.plot(c, [w["p_fake"] for w in mm["timeline"]], color="#8a887f", linestyle=ls, linewidth=1,
-                label=mm["label"])
+                label=mm["label"] + " (own windows)")
     ps = res["per_second"]
-    ax.step([w["start_s"] for w in ps] + [ps[-1]["end_s"]], [w["p_fake"] for w in ps] + [ps[-1]["p_fake"]],
-            where="post", color=LINE, linewidth=2.2, label="merged score")
+    ax.plot([(w["start_s"] + w["end_s"]) / 2 for w in ps],
+            [np.nan if w["p_fake"] is None else w["p_fake"] for w in ps], color=LINE, linewidth=2.2,
+            label="merged, local windows")
     ax.set_ylim(0, 1)
     ax.set_ylabel("P(fake)", color=INK_2)
     ax.set_xlabel("time (s)", color=INK_2)

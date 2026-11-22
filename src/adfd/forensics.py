@@ -188,7 +188,8 @@ def band_shares(sal_map: np.ndarray) -> list[dict]:
 # segments and statements
 # ---------------------------------------------------------------------------------------
 def regions(times: np.ndarray, p: np.ndarray, t_real: float, t_fake: float, step: float) -> list[dict]:
-    """Merge consecutive per-second scores into Real / Uncertain / Fake regions."""
+    """Merge consecutive scores into regions: Fake if p >= t_fake, Real if p <= t_real, else
+    Uncertain. The merged detector passes t_real = t_fake = 0.5, so only Real / Fake occur."""
     lab = np.where(p >= t_fake, "Fake", np.where(p <= t_real, "Real", "Uncertain"))
     out = []
     for i, (t, l) in enumerate(zip(times, lab)):
@@ -204,47 +205,49 @@ def regions(times: np.ndarray, p: np.ndarray, t_real: float, t_fake: float, step
 
 def statements(res: dict) -> dict:
     """Plain-language explanation of an ensemble result (adfd.ensemble.EnsembleAnalyzer.analyze)."""
+    from adfd.segments import fmt_ts
+
     v, p = res["verdict"], res["p_fake"]
     members = res["members"]
     n_fake = sum(m["vote"] == "Fake" for m in members)
-    n_real = sum(m["vote"] == "Real" for m in members)
-    lines = []
+    lines = [{"Fake": f"Verdict: FAKE (likely synthetic or converted speech). Merged fake probability {100 * p:.0f}%, "
+                      f"realness {100 * (1 - p):.0f}%.",
+              "Real": f"Verdict: REAL (likely bona fide speech). Merged fake probability {100 * p:.0f}%, "
+                      f"realness {100 * (1 - p):.0f}%."}[v]]
+    votes = ", ".join(f"{m['label']}: {100 * m['p_fake']:.0f}%" for m in members)
+    lines.append(f"{n_fake} of {len(members)} models score the file above 50% fake on their own ({votes}). The verdict "
+                 "comes from the weighted combination of all three; no single model decides it.")
     if res["out_of_distribution"]:
-        lines.append("The input does not look like normal speech (" + "; ".join(res["ood_reasons"]) +
-                     "), so no verdict is given.")
-    head = {"Fake": f"Verdict: likely FAKE (synthetic or converted speech), P(fake) = {p:.2f}.",
-            "Real": f"Verdict: likely REAL (bona fide speech), P(fake) = {p:.2f}.",
-            "Uncertain": f"Verdict: UNCERTAIN, P(fake) = {p:.2f}. The evidence is not strong or consistent "
-                         "enough to call it either way."}[v]
-    lines.append(head)
-    votes = ", ".join(f"{m['label']}: {m['p_fake']:.2f}" for m in members)
-    lines.append(f"{n_fake} of {len(members)} models lean fake, {n_real} lean real ({votes}).")
-    if res.get("gate_reason"):
-        lines.append(res["gate_reason"])
-    regs = res.get("regions", [])
-    fake_r = [r for r in regs if r["label"] == "Fake"]
-    real_r = [r for r in regs if r["label"] == "Real"]
+        lines.append("Warning: the input does not look like normal speech (" + "; ".join(res["ood_reasons"]) +
+                     "), so this verdict is much less reliable than usual.")
+    segs = res.get("segments", [])
     dur = res["duration_s"]
-    if fake_r:
-        tot = sum(r["end_s"] - r["start_s"] for r in fake_r)
-        spans = ", ".join(f"{r['start_s']:.0f}–{r['end_s']:.0f} s" for r in fake_r[:4])
-        lines.append(f"Where: {tot:.0f} s of {dur:.0f} s score as fake ({spans}).")
-        if real_r and v != "Real":
-            lines.append("Other parts score as real, which fits partly manipulated (spliced) audio, or a model "
-                         "that is unsure about this recording.")
-    elif real_r and v == "Real":
-        lines.append("Where: no part of the recording scores above the fake threshold.")
+    if segs:
+        tot = sum(s["end_s"] - s["start_s"] for s in segs)
+        spans = ", ".join(f"{fmt_ts(s['start_s'])}–{fmt_ts(s['end_s'])}" for s in segs[:4])
+        lines.append(f"Where: {tot:.1f} s of {dur:.1f} s are flagged as suspected fake ({spans}).")
+        if v == "Real":
+            lines.append("These local regions score above 50% although the recording as a whole scores as real; "
+                         "treat them as places to listen to, not as findings.")
+    else:
+        lines.append("Where: no part of the recording scores above the 50% line in the local analysis." +
+                     (" The FAKE verdict rests on evidence spread over the whole file rather than on one region."
+                      if v == "Fake" else ""))
+    if not res.get("time_resolved", True):
+        lines.append("The clip is too short for time-local analysis (a single analysis window), so the timeline has "
+                     "one value.")
     bands = res.get("bands")
     if bands:
         top = max(bands, key=lambda b: b["share_pct"] / max(b["bandwidth_share_pct"], 1e-6))
-        lines.append(f"Which frequencies: for the most suspicious window, the mel-spectrogram model relied most on the "
+        lines.append(f"Which frequencies: for the most decisive window, the mel-spectrogram model relied most on the "
                      f"{top['band']} band ({top['share_pct']:.0f}% of the evidence on "
                      f"{top['bandwidth_share_pct']:.0f}% of the mel bands).")
     obs = res.get("observations", [])
     if obs:
-        lines.append("Acoustic observations (model-free, compared with real reference speech; these support, but "
-                     "never decide, the verdict):")
+        lines.append("Whole-file acoustic observations (model-free, compared with real reference speech; these "
+                     "support, but never decide, the verdict):")
         lines += ["• " + o["statement"] for o in obs[:4]]
     else:
-        lines.append("Acoustic observations: every measured property is inside the normal range of real speech.")
-    return {"summary": lines[0] if not res["out_of_distribution"] else lines[0], "lines": lines}
+        lines.append("Whole-file acoustic observations: every measured property is inside the normal range of real "
+                     "speech.")
+    return {"summary": lines[0], "lines": lines}

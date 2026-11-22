@@ -1,22 +1,31 @@
 """Merged detector: the project's best model plus the two VoiceGuard checkpoints.
 
     ens = EnsembleAnalyzer()                      # reads runs/ensemble/ensemble.json
-    res = ens.analyze(load_audio("clip.wav"))     # verdict, P(fake), members, regions, explanation
+    res = ens.analyze(load_audio("clip.wav"))     # verdict, P(fake), members, timeline, segments
 
-How a file is decided
+How a file is decided (configuration fitted by scripts/fit_ensemble_binary.py)
   1. every member scores the file with its own windows (E7a: 4 s on the speech region;
-     VoiceGuard: 5 s, as each was trained) and its own calibration;
-  2. member logits are fused with fixed weights (scripts/fit_ensemble.py, fitted on
-     ASVspoof dev data only) into one P(fake) for the file and one per second;
-  3. the verdict is cautious by design, to keep false detections rare:
-       - input that does not look like speech (OOD)         -> Uncertain
-       - Fake  only if fused P(fake) >= t_fake AND at least `min_agree` members vote Fake
-       - Real  only if fused P(fake) <= t_real AND no member votes Fake with P >= `veto_p`
-       - everything else                                    -> Uncertain
-     So a single over-confident model can never produce a Fake (or a Real) on its own.
-  4. explanation: Real / Uncertain / Fake regions over time, mel-spectrogram saliency
-     of the most suspicious window with per-band shares, and model-free acoustic
-     observations (adfd.forensics).
+     VoiceGuard: 5 s, as each was trained) and its own calibration -> member P(fake);
+  2. fusion of the member log-odds z_i: each clipped to +-clip (an over-confident member
+     cannot swamp the others), weighted sum with weights 0.2 <= w_i <= 0.5 (every member
+     counts, and two members that agree always outweigh the third), then calibrated:
+         P(fake) = sigmoid(A * sum_i w_i * clip(z_i) + B)
+  3. two-way verdict: FAKE if P(fake) >= 0.5, else REAL; Realness = 1 - P(fake).
+     There is no Uncertain verdict. Input that fails the speech (OOD) checks keeps its
+     verdict and carries a warning.
+Where (time-local analysis, separate from the file verdict)
+  4. every member also scores short local windows (2 s, hop 0.5 s; longer for long files,
+     at most 120 windows) over the whole recording; each timeline step gets the mean member
+     log-odds of the windows covering its centre, fused with the same weights and clipping
+     but with the window-level calibration A_loc, B_loc (scripts/fit_local_calibration.py:
+     members score short windows differently from whole files). These are real per-window
+     model outputs, never the file score repeated. Windows with (almost) no speech, or with
+     non-finite scores, are left out; steps covered only by such windows have no score
+     ("No speech"). A clip with a single scored window has one value (`time_resolved` False).
+  5. consecutive steps >= 50% form the flagged segments (severity by their mean P(fake)),
+     each with model evidence and acoustic measurements (adfd.segments).
+Old three-way configurations (with t_real / t_fake / gates) still load, but are decided
+two-way at 0.5 as well.
 """
 
 from __future__ import annotations
@@ -26,12 +35,15 @@ from pathlib import Path
 
 import numpy as np
 
-from adfd import forensics
+from adfd import forensics, segments
 from adfd.calibration import sigmoid
 from adfd.inference import SR, Analyzer
 from adfd.paths import load_paths
 
-STEP_S = 1.0
+DECISION_P = 0.5
+LOCAL_S = 2.0            # local analysis window (s), unless ensemble.json says otherwise
+MIN_HOP_S = 0.5          # timeline resolution for clips up to ~1 min
+MAX_LOCAL = 120          # local windows per member at most (CPU time); the hop grows for long files
 
 
 def logit(p):
@@ -47,25 +59,63 @@ def load_config(path: Path | None = None) -> dict:
     return json.loads((path or ensemble_dir() / "ensemble.json").read_text(encoding="utf-8"))
 
 
-def _per_second(timeline: list[dict], n_sec: int, field: str = "p_fake") -> np.ndarray:
-    """Mean of the member's window scores (as logits) overlapping each 1 s step."""
-    out = np.full(n_sec, np.nan)
-    if not timeline:
-        return out
-    starts = np.array([w["start_s"] for w in timeline])
-    ends = np.array([w["end_s"] for w in timeline])
-    z = logit([w[field] for w in timeline])
-    for k in range(n_sec):
-        a, b = k * STEP_S, (k + 1) * STEP_S
-        m = (starts < b) & (ends > a)
+def local_grid(n: int, local_s: float = LOCAL_S) -> tuple[list[tuple[int, int]], float, float]:
+    """Local windows (sample spans) over the whole recording, the timeline step and window length (s)."""
+    dur = n / SR
+    hop = MIN_HOP_S if dur <= local_s else max(MIN_HOP_S, (dur - local_s) / (MAX_LOCAL - 1))
+    win = max(local_s, hop)
+    if dur <= win:
+        return [(0, n)], dur, dur
+    starts = list(np.arange(0.0, dur - win + 1e-9, hop))
+    if starts[-1] + win < dur - 1e-6:
+        starts.append(dur - win)
+    return [(int(round(s * SR)), min(n, int(round((s + win) * SR)))) for s in starts], hop, win
+
+
+def speech_windows(x: np.ndarray, spans: list[tuple[int, int]], min_frac: float = 0.2) -> np.ndarray:
+    """True for windows where at least `min_frac` of the 20 ms frames carry speech-level energy
+    (within 40 dB of the loudest frame of the recording and above -70 dBFS)."""
+    f = int(0.02 * SR)
+    n = max(1, len(x) // f)
+    xx = np.zeros(n * f) if len(x) < f else x[: n * f].astype(np.float64)
+    db = 10 * np.log10(np.mean(xx.reshape(n, f) ** 2, axis=1) + 1e-12)
+    active = (db > db.max() - 40) & (db > -70)
+    return np.array([active[a // f: max(a // f + 1, b // f)].mean() >= min_frac for a, b in spans])
+
+
+def step_logodds(spans: list[tuple[int, int]], z: np.ndarray, n: int, step: float,
+                 valid: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Timeline steps of `step` s over the recording; each gets the mean log-odds of the valid
+    local windows that contain its centre, or NaN when no valid window covers it."""
+    dur = n / SR
+    k = max(1, int(np.ceil(dur / step - 1e-9)))
+    t0 = np.arange(k) * step
+    centre = np.minimum(t0 + step / 2, dur - 1e-6)
+    a = np.array([s for s, _ in spans]) / SR
+    b = np.array([e for _, e in spans]) / SR
+    z = np.asarray(z, float)
+    ok = np.isfinite(z) if valid is None else (np.asarray(valid, bool) & np.isfinite(z))
+    out = np.full(k, np.nan)
+    for i, c in enumerate(centre):
+        m = (a <= c) & (b > c) & ok
         if m.any():
-            out[k] = z[m].mean()
-    # seconds no window covers (silence the model skipped): nearest covered value
-    if np.isnan(out).all():
-        return np.full(n_sec, z.mean())
-    idx = np.where(~np.isnan(out))[0]
-    for k in np.where(np.isnan(out))[0]:
-        out[k] = out[idx[np.argmin(np.abs(idx - k))]]
+            out[i] = z[m].mean()
+    return t0, out
+
+
+def timeline_regions(t0: np.ndarray, p: np.ndarray, step: float, dur: float) -> list[dict]:
+    """Consecutive steps merged into Fake (p >= 0.5), Real (p < 0.5) and No speech (no score) regions."""
+    out = []
+    for t, q in zip(t0, p):
+        lab = "No speech" if not np.isfinite(q) else ("Fake" if q >= DECISION_P else "Real")
+        if out and out[-1]["label"] == lab:
+            out[-1]["end_s"] = float(min(t + step, dur))
+            out[-1]["p"].append(q)
+        else:
+            out.append({"label": lab, "start_s": float(t), "end_s": float(min(t + step, dur)), "p": [q]})
+    for r in out:
+        v = [q for q in r.pop("p") if np.isfinite(q)]
+        r["p_fake_mean"] = float(np.mean(v)) if v else None
     return out
 
 
@@ -77,99 +127,116 @@ class EnsembleAnalyzer:
         self.members = self.cfg["members"]
         self.analyzers = analyzers or {m["run"]: Analyzer(runs / m["run"], device) for m in self.members}
         self.reference = forensics.load_reference()
+        self.local = self.cfg.get("local") or {"window_s": LOCAL_S, "A": self.cfg.get("A", 1.0),
+                                               "B": self.cfg.get("B", 0.0)}
 
     # ---------------------------------------------------------------------------------
     def member_prob(self, m: dict, z) -> np.ndarray:
         """Member logit -> member P(fake), with the member calibration of ensemble.json."""
         return sigmoid(m["a"] * np.asarray(z, float) + m["b"])
 
-    def fuse(self, member_logits: np.ndarray) -> np.ndarray:
-        """(members, ...) calibrated member log-odds -> fused P(fake)."""
+    def _weighted(self, member_logodds) -> np.ndarray:
+        z = np.asarray(member_logodds, float).reshape(len(self.members), -1)
         w = np.array([m["weight"] for m in self.members])[:, None]
-        return sigmoid((w * member_logits.reshape(len(self.members), -1)).sum(0) + self.cfg["bias"])
+        clip = self.cfg.get("clip")
+        return (w * (np.clip(z, -clip, clip) if clip else z)).sum(0)
 
-    def decide(self, p: float, member_p: list[float], ood: bool) -> tuple[str, str | None]:
+    def fuse(self, member_logodds: np.ndarray) -> np.ndarray:
+        """(members, ...) calibrated member log-odds -> merged P(fake) of a whole file."""
         c = self.cfg
-        votes = ["Fake" if q >= c["vote_fake"] else "Real" if q <= c["vote_real"] else "Uncertain" for q in member_p]
-        n_fake = votes.count("Fake")
-        if ood:
-            return "Uncertain", "The input failed the speech check, so the models' scores are not meaningful."
-        if p >= c["t_fake"]:
-            if n_fake >= c["min_agree"]:
-                return "Fake", None
-            return "Uncertain", (f"The fused score is high, but only {n_fake} of {len(member_p)} models vote fake "
-                                 f"(at least {c['min_agree']} must agree before the app says Fake).")
-        if p <= c["t_real"]:
-            strong = [q for q in member_p if q >= c["veto_p"]]
-            if not strong:
-                return "Real", None
-            return "Uncertain", ("The fused score is low, but one model is confident the audio is fake "
-                                 f"(P = {max(strong):.2f}), so the app does not call it Real.")
-        return "Uncertain", None
+        if "A" in c:                                   # clipped, constrained, calibrated (binary fit)
+            return sigmoid(c["A"] * self._weighted(member_logodds) + c["B"])
+        return sigmoid(self._weighted(member_logodds) + c.get("bias", 0.0))   # older linear fusion
+
+    def fuse_local(self, member_logodds: np.ndarray) -> np.ndarray:
+        """Like fuse(), with the window-level calibration of the local timeline (NaN stays NaN)."""
+        return sigmoid(self.local["A"] * self._weighted(member_logodds) + self.local["B"])
+
+    @staticmethod
+    def vote(p: float) -> str:
+        return "Fake" if p >= DECISION_P else "Real"
+
+    def decide(self, p: float, member_p: list[float] | None = None, ood: bool = False) -> tuple[str, None]:
+        """Two-way verdict from the merged P(fake). The members enter only through the fusion
+        (no gate or veto), and OOD input is flagged with a warning, not a third verdict."""
+        return ("Fake" if p >= DECISION_P else "Real"), None
 
     # ---------------------------------------------------------------------------------
     def analyze(self, x: np.ndarray, explain: bool = True) -> dict:
-        dur = len(x) / SR
-        n_sec = max(1, int(np.ceil(dur / STEP_S)))
-        mres, mz, msec = [], [], []
+        n = len(x)
+        dur = n / SR
+        spans, step, win = local_grid(n, self.local["window_s"])
+        speech = speech_windows(x, spans)
+        mres, mz, mlocal = [], [], []
         for m in self.members:
             an = self.analyzers[m["run"]]
             r = an.analyze(x)
-            # raw member logit, then the ensemble's member calibration
-            z_raw = r["logit"]
-            win_logits = np.array([w["logit"] for w in r["timeline"]])
-            p_m = float(self.member_prob(m, z_raw))
-            tl = [dict(w, p_fake=float(self.member_prob(m, l))) for w, l in zip(r["timeline"], win_logits)]
+            p_m = float(self.member_prob(m, r["logit"]))
+            tl = [dict(w, p_fake=float(self.member_prob(m, w["logit"]))) for w in r["timeline"]]
+            raw = np.asarray(an.score_segments(x, spans), float)
+            mlocal.append(np.where(np.isfinite(raw), logit(self.member_prob(m, np.nan_to_num(raw))), np.nan))
             mres.append({"run": m["run"], "label": m["label"], "p_fake": p_m, "result": r, "timeline": tl})
             mz.append(logit(p_m))
-            msec.append(_per_second(tl, n_sec))
+        # a local window counts only if it carries speech and every member scored it
+        valid = speech & np.isfinite(np.array(mlocal)).all(0)
+        mstep = []
+        for zl in mlocal:
+            t0, zs = step_logodds(spans, zl, n, step, valid)
+            mstep.append(zs)
         p = float(self.fuse(np.array(mz))[0])
-        sec_p = self.fuse(np.array(msec))
-        ood_reasons = sorted({s for mr in mres for s in mr["result"]["ood_reasons"]})
-        # the signal check is model-free and shared; embedding checks are per model and can
-        # disagree, so only the signal check and a majority of embedding checks count
-        sig_ood = bool(mres[0]["result"]["ood_reasons"] and any(
-            "internal features" not in s for s in mres[0]["result"]["ood_reasons"]))
+        step_p = self.fuse_local(np.array(mstep))
+        scored = np.isfinite(step_p)
+        # OOD: the model-free signal check, or a majority of the members' embedding checks
+        sig_reasons = [s for s in mres[0]["result"]["ood_reasons"] if "internal features" not in s]
         emb_flags = [any("internal features" in s for s in mr["result"]["ood_reasons"]) for mr in mres]
-        ood = sig_ood or sum(emb_flags) > len(mres) / 2
-        if not ood:
-            ood_reasons = [s for s in ood_reasons if "internal features" not in s] if not sig_ood else ood_reasons
-        verdict, gate = self.decide(p, [mr["p_fake"] for mr in mres], ood)
-        c = self.cfg
-        members = []
-        for mr, sec in zip(mres, msec):
-            q = mr["p_fake"]
-            members.append({"run": mr["run"], "label": mr["label"], "p_fake": q,
-                            "vote": "Fake" if q >= c["vote_fake"] else "Real" if q <= c["vote_real"] else "Uncertain",
-                            "timeline": mr["timeline"], "per_second": [float(v) for v in sigmoid(sec)]})
-        times = np.arange(n_sec) * STEP_S
+        emb_ood = sum(emb_flags) > len(mres) / 2
+        ood = bool(sig_reasons) or emb_ood
+        ood_reasons = sig_reasons + (["most models' internal features are far from anything seen in training"]
+                                     if emb_ood else [])
+        verdict, _ = self.decide(p)
+        # member lines: each member's own window-level P(fake) (display and segment evidence only)
+        members = [{"run": mr["run"], "label": mr["label"], "p_fake": mr["p_fake"], "vote": self.vote(mr["p_fake"]),
+                    "weight": m["weight"], "timeline": mr["timeline"],
+                    "local": [{"start_s": a / SR, "end_s": b / SR, "p_fake": float(sigmoid(z)) if ok else None}
+                              for (a, b), z, ok in zip(spans, zl, valid)],
+                    "per_second": [float(v) if np.isfinite(v) else None for v in sigmoid(zs)]}
+                   for mr, m, zs, zl in zip(mres, self.members, mstep, mlocal)]
+        per_step = [{"start_s": float(t), "end_s": float(min(t + step, dur)),
+                     "p_fake": float(q) if ok else None, "speech": bool(ok)}
+                    for t, q, ok in zip(t0, step_p, scored)]
         res = {
-            "verdict": verdict, "p_fake": p, "logit": float(logit(p)), "gate_reason": gate,
-            "out_of_distribution": ood, "ood_reasons": ood_reasons if ood else [],
+            "verdict": verdict, "p_fake": p, "p_real": 1.0 - p, "logit": float(logit(p)), "gate_reason": None,
+            "out_of_distribution": ood, "ood_reasons": ood_reasons,
             "signal": mres[0]["result"]["signal"], "duration_s": dur, "analysed_region_s": [0.0, dur],
-            "members": members, "per_second": [{"start_s": float(t), "end_s": float(min(t + STEP_S, dur)),
-                                                "p_fake": float(q)} for t, q in zip(times, sec_p)],
-            "thresholds": {"t_real": c["t_real"], "t_fake": c["t_fake"]}, "calibrated": True, "model": "ensemble",
+            "members": members,
+            "per_second": per_step,                 # timeline steps (name kept for API compatibility)
+            "step_s": step, "local_window_s": win, "n_local_windows": len(spans),
+            "n_local_windows_scored": int(valid.sum()), "time_resolved": int(valid.sum()) > 1,
+            "thresholds": {"t_real": DECISION_P, "t_fake": DECISION_P, "decision": DECISION_P},
+            "calibrated": True, "model": "ensemble",
         }
-        res["timeline"] = [dict(w, logit=float(logit(w["p_fake"]))) for w in res["per_second"]]
-        res["regions"] = forensics.regions(times, sec_p, c["t_real"], c["t_fake"], STEP_S)
-        for r in res["regions"]:
-            r["end_s"] = min(r["end_s"], dur)
-        res["suspicious_segments"] = sorted(
-            ({"start_s": r["start_s"], "end_s": r["end_s"], "p_fake": r["p_fake_mean"]}
-             for r in res["regions"] if r["label"] == "Fake"), key=lambda w: -w["p_fake"])[:3]
+        res["timeline"] = per_step
+        res["regions"] = timeline_regions(t0, step_p, step, dur)
+        res["segments"] = [{"start_s": r["start_s"], "end_s": r["end_s"], "duration_s": r["end_s"] - r["start_s"],
+                            "p_fake": r["p_fake_mean"],
+                            "p_fake_peak": max(w["p_fake"] for w in per_step if w["p_fake"] is not None
+                                               and w["start_s"] < r["end_s"] and w["end_s"] > r["start_s"]),
+                            "severity": segments.severity(r["p_fake_mean"])}
+                           for r in res["regions"] if r["label"] == "Fake"]
+        res["suspicious_segments"] = sorted(({"start_s": s["start_s"], "end_s": s["end_s"], "p_fake": s["p_fake"]}
+                                             for s in res["segments"]), key=lambda w: -w["p_fake"])[:3]
         if explain:
             self._explain(x, res)
         return res
 
     def _explain(self, x: np.ndarray, res: dict) -> None:
-        # saliency: the VoiceGuard member with the largest weight, on its most suspicious window
+        # saliency: the VoiceGuard member with the largest weight, on its most decisive window
         vg = [m for m in self.members if m["run"].startswith("vg_")]
         if vg:
             m = max(vg, key=lambda m: abs(m["weight"]))
             an = self.analyzers[m["run"]]
             tl = next(mm["timeline"] for mm in res["members"] if mm["run"] == m["run"])
-            top = max(tl, key=lambda w: w["p_fake"]) if res["verdict"] != "Real" else \
+            top = max(tl, key=lambda w: w["p_fake"]) if res["verdict"] == "Fake" else \
                 min(tl, key=lambda w: w["p_fake"])
             a, b = int(top["start_s"] * SR), int(top["end_s"] * SR)
             sal = an.saliency(x[a:b])
@@ -180,4 +247,8 @@ class EnsembleAnalyzer:
         meas = forensics.measure(x)
         res["measurements"] = meas
         res["observations"] = forensics.observations(meas, self.reference)
+        if res["segments"]:
+            ff = segments.frame_features(x)
+            for s in res["segments"]:
+                s["evidence"] = segments.segment_evidence(x, s, ff, res, self.reference)
         res["explanation"] = forensics.statements(res)

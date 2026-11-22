@@ -11,8 +11,10 @@ Steps for one file:
   4. sliding windows of the training crop length (4 s), hop 1 s; short files give one
      window, repeat-padded exactly as in training;
   5. spoof logit per window; the file-level logit is the mean over windows;
-  6. calibrated p_fake and the Real / Uncertain / Fake verdict (adfd.calibration,
-     fitted on dev); embedding OOD distance from the penultimate layer.
+  6. calibrated p_fake (adfd.calibration, fitted on dev, class-balanced) and a two-way
+     verdict: Fake if p_fake >= 0.5, else Real (the app never answers Uncertain); an
+     input that fails the OOD checks keeps its verdict and carries a warning;
+     embedding OOD distance from the penultimate layer.
 A saliency map (gradient x input on the model's input features) is available for the
 most suspicious window.
 """
@@ -37,6 +39,7 @@ from adfd.ood import DEFAULT_RANGES, EmbeddingOOD, check_signal, signal_features
 
 SR = 16000
 HOP_S = 1.0
+DECISION_P = 0.5          # Fake if calibrated P(fake) >= 0.5, else Real
 SPECTRAL_FRONTENDS = {"mfcc", "lfcc", "logmel", "cqcc", "sinc", "vg_logmel"}
 
 
@@ -164,6 +167,11 @@ class Analyzer:
             embs.append(self._emb.float().cpu().numpy())
         return np.concatenate(logits), np.concatenate(embs)
 
+    def score_segments(self, x: np.ndarray, spans: list[tuple[int, int]]) -> np.ndarray:
+        """Spoof logits for arbitrary sample ranges, each prepared exactly like an analysis window
+        (padded to the training crop as in training). Used for the ensemble's local timeline."""
+        return self._score([self._prep(x[a:b]) for a, b in spans])[0]
+
     def prob(self, z) -> np.ndarray:
         return self.calibration.prob_fake(z) if self.calibration else sigmoid(np.asarray(z, float))
 
@@ -182,9 +190,8 @@ class Analyzer:
             if emb_dist > self.emb_ood.threshold:
                 reasons.append("the model's internal features are far from anything seen in training")
         cal = self.calibration
-        verdict = cal.decide(p) if cal else ("Fake" if p >= 0.5 else "Real")
-        t_fake = cal.t_fake if cal else 0.5
-        suspicious = sorted((w for w in timeline if w.p_fake >= t_fake), key=lambda w: -w.p_fake)[:3]
+        verdict = "Fake" if p >= DECISION_P else "Real"      # two-way: never Uncertain
+        suspicious = sorted((w for w in timeline if w.p_fake >= DECISION_P), key=lambda w: -w.p_fake)[:3]
         return {
             "verdict": verdict, "p_fake": p, "logit": z,
             "out_of_distribution": bool(reasons), "ood_reasons": reasons,
@@ -193,7 +200,7 @@ class Analyzer:
             "duration_s": len(x) / SR, "analysed_region_s": [r / SR for r in self.region(x)],
             "timeline": [w.__dict__ for w in timeline],
             "suspicious_segments": [w.__dict__ for w in suspicious],
-            "thresholds": {"t_real": cal.t_real, "t_fake": cal.t_fake} if cal else None,
+            "thresholds": {"t_real": DECISION_P, "t_fake": DECISION_P, "decision": DECISION_P},
             "calibrated": cal is not None, "model": self.name,
         }
 

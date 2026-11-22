@@ -1,0 +1,216 @@
+{
+  "weights": [
+    0.45,
+    0.35,
+    0.2
+  ],
+  "clip": 4.0,
+  "margin": 0.2,
+  "A": 0.6010133793446945,
+  "B": 0.12020267586893874,
+  "w_range": [
+    0.2,
+    0.45
+  ],
+  "threshold_s": -0.19999999999999973,
+  "tuning_mean_balanced_acc_pct": 68.9297995910362,
+  "systems": {
+    "merged (chosen)": {
+      "ASVspoof dev + degraded dev": {
+        "n": 91044,
+        "accuracy_pct": 81.96476428979395,
+        "balanced_accuracy_pct": 85.07901783366707,
+        "real_called_fake_pct": 8.750221749157353,
+        "fake_called_real_pct": 21.091742583508527,
+        "eer_pct": 10.608199199179413
+      },
+      "DEEP-VOICE tuning persons": {
+        "n": 11172,
+        "accuracy_pct": 16.24597207303974,
+        "balanced_accuracy_pct": 52.780581348405335,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 94.43883730318933,
+        "eer_pct": 26.023929646417933
+      },
+      "DEEP-VOICE tuning persons (per recording)": {
+        "n": 48,
+        "accuracy_pct": 14.583333333333334,
+        "balanced_accuracy_pct": 51.19047619047619,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 97.61904761904762,
+        "eer_pct": 16.666666666666664
+      },
+      "ASVspoof eval": {
+        "n": 71237,
+        "accuracy_pct": 81.42117158218342,
+        "balanced_accuracy_pct": 84.68436451205892,
+        "real_called_fake_pct": 11.203263086335825,
+        "fake_called_real_pct": 19.42800788954635,
+        "eer_pct": 14.262320009587699
+      },
+      "DEEP-VOICE test persons": {
+        "n": 3724,
+        "accuracy_pct": 19.87110633727175,
+        "balanced_accuracy_pct": 52.27127319257837,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 95.45745361484325,
+        "eer_pct": 21.23933050453955
+      },
+      "DEEP-VOICE test persons (per recording)": {
+        "n": 16,
+        "accuracy_pct": 12.5,
+        "balanced_accuracy_pct": 50.0,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 100.0,
+        "eer_pct": 0.0
+      },
+      "In-the-Wild (VG v2 contaminated)": {
+        "n": 31779,
+        "accuracy_pct": 92.9418798577677,
+        "balanced_accuracy_pct": 91.5188787306619,
+        "real_called_fake_pct": 2.9304212793668287,
+        "fake_called_real_pct": 14.03182125930941,
+        "eer_pct": 6.617693392898731
+      }
+    },
+    "E7a alone (for comparison)": {
+      "ASVspoof dev + degraded dev": {
+        "n": 91044,
+        "accuracy_pct": 95.93712930011863,
+        "balanced_accuracy_pct": 96.21246378822275,
+        "real_called_fake_pct": 3.2419726805038143,
+        "fake_called_real_pct": 4.333099743050689,
+        "eer_pct": 3.755697259534717
+      },
+      "DEEP-VOICE tuning persons": {
+        "n": 11172,
+        "accuracy_pct": 32.921589688506984,
+        "balanced_accuracy_pct": 59.73182711323928,
+        "real_called_fake_pct": 5.617088607594937,
+        "fake_called_real_pct": 74.91925716592652,
+        "eer_pct": 26.643170970395996
+      },
+      "DEEP-VOICE tuning persons (per recording)": {
+        "n": 48,
+        "accuracy_pct": 27.083333333333332,
+        "balanced_accuracy_pct": 58.333333333333336,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 83.33333333333334,
+        "eer_pct": 16.666666666666664
+      },
+      "ASVspoof eval": {
+        "n": 71237,
+        "accuracy_pct": 83.34713702149163,
+        "balanced_accuracy_pct": 90.66678864121734,
+        "real_called_fake_pct": 0.10876954452753229,
+        "fake_called_real_pct": 18.55765317303779,
+        "eer_pct": 6.215587070578442
+      },
+      "DEEP-VOICE test persons": {
+        "n": 3724,
+        "accuracy_pct": 39.339419978517725,
+        "balanced_accuracy_pct": 62.78568784410393,
+        "real_called_fake_pct": 2.6755852842809364,
+        "fake_called_real_pct": 71.7530390275112,
+        "eer_pct": 18.721554253140667
+      },
+      "DEEP-VOICE test persons (per recording)": {
+        "n": 16,
+        "accuracy_pct": 25.0,
+        "balanced_accuracy_pct": 57.14285714285714,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 85.71428571428571,
+        "eer_pct": 0.0
+      },
+      "In-the-Wild (VG v2 contaminated)": {
+        "n": 31779,
+        "accuracy_pct": 88.85742156770195,
+        "balanced_accuracy_pct": 87.33878307909578,
+        "real_called_fake_pct": 6.737464308971597,
+        "fake_called_real_pct": 18.58496953283683,
+        "eer_pct": 10.670854613533344
+      }
+    },
+    "equal weights (for comparison)": {
+      "ASVspoof dev + degraded dev": {
+        "n": 91044,
+        "accuracy_pct": 72.76811212161152,
+        "balanced_accuracy_pct": 76.781812364099,
+        "real_called_fake_pct": 15.26521199219443,
+        "fake_called_real_pct": 31.171163279607565,
+        "eer_pct": 20.43190869678129
+      },
+      "DEEP-VOICE tuning persons": {
+        "n": 11172,
+        "accuracy_pct": 15.977443609022558,
+        "balanced_accuracy_pct": 52.62918853451756,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 94.74162293096488,
+        "eer_pct": 26.108904452609575
+      },
+      "DEEP-VOICE tuning persons (per recording)": {
+        "n": 48,
+        "accuracy_pct": 12.5,
+        "balanced_accuracy_pct": 50.0,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 100.0,
+        "eer_pct": 16.666666666666664
+      },
+      "ASVspoof eval": {
+        "n": 71237,
+        "accuracy_pct": 79.17234021646054,
+        "balanced_accuracy_pct": 77.52336400064267,
+        "real_called_fake_pct": 24.554724677090416,
+        "fake_called_real_pct": 20.398547321624243,
+        "eer_pct": 22.66504017615245
+      },
+      "DEEP-VOICE test persons": {
+        "n": 3724,
+        "accuracy_pct": 19.68313641245972,
+        "balanced_accuracy_pct": 52.159309021113245,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 95.68138195777351,
+        "eer_pct": 22.74359830272373
+      },
+      "DEEP-VOICE test persons (per recording)": {
+        "n": 16,
+        "accuracy_pct": 12.5,
+        "balanced_accuracy_pct": 50.0,
+        "real_called_fake_pct": 0.0,
+        "fake_called_real_pct": 100.0,
+        "eer_pct": 0.0
+      },
+      "In-the-Wild (VG v2 contaminated)": {
+        "n": 31779,
+        "accuracy_pct": 95.67953680103213,
+        "balanced_accuracy_pct": 95.0828972665104,
+        "real_called_fake_pct": 2.589791113560086,
+        "fake_called_real_pct": 7.244414353419093,
+        "eer_pct": 4.266649225237305
+      }
+    }
+  },
+  "single_members_eer_pct": {
+    "e7a_wavlm_crnn_s42": {
+      "ASVspoof dev + degraded dev": 3.755697259534717,
+      "DEEP-VOICE tuning persons": 26.643170970395996,
+      "ASVspoof eval": 6.215587070578442,
+      "DEEP-VOICE test persons": 18.721554253140667,
+      "In-the-Wild (VG v2 contaminated)": 10.670854613533344
+    },
+    "vg_improved": {
+      "ASVspoof dev + degraded dev": 49.76567780528068,
+      "DEEP-VOICE tuning persons": 36.548429091949735,
+      "ASVspoof eval": 47.04290675634084,
+      "DEEP-VOICE test persons": 18.721554253140667,
+      "In-the-Wild (VG v2 contaminated)": 36.15312396993341
+    },
+    "vg_v2": {
+      "ASVspoof dev + degraded dev": 44.48656266926438,
+      "DEEP-VOICE tuning persons": 30.61940421498035,
+      "ASVspoof eval": 36.247766557864345,
+      "DEEP-VOICE test persons": 46.32112372870113,
+      "In-the-Wild (VG v2 contaminated)": 3.826200848007541
+    }
+  }
+}

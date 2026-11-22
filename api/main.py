@@ -5,10 +5,12 @@
 Endpoints
   GET  /health    service status and the default model
   GET  /models    available models
-  POST /predict   multipart audio file -> verdict, calibrated P(fake), OOD check, timeline
+  POST /predict   multipart audio file -> verdict (always "Real" or "Fake"), calibrated P(fake) and
+                  P(real) = 1 - P(fake), OOD warning, timeline
                   query: model=<run name> (optional; default: the merged "ensemble"), timeline=true|false
-                  The ensemble also returns each member's vote, Real / Uncertain / Fake regions over
-                  time and a plain-language explanation (explanation=false skips the acoustic part).
+                  The ensemble also returns each member's score and vote, Real / Fake / No speech
+                  regions from the time-local analysis, the flagged segments with severity and
+                  evidence, and a plain-language explanation (explanation=false skips the acoustic part).
 Inference runs on the CPU (set ADFD_DEVICE=cuda to use a GPU).
 """
 
@@ -33,14 +35,14 @@ MAX_BYTES = 50 * 2**20
 DEVICE = os.environ.get("ADFD_DEVICE", "cpu")
 
 app = FastAPI(title="Audio Deepfake Detection API", version=ADFD_VERSION,
-              description="Calibrated Real / Uncertain / Fake verdicts for speech recordings. Research prototype: "
-                          "trained on ASVspoof 2019 LA and much less reliable on real-world audio.")
+              description="Calibrated two-way Real / Fake verdicts for speech recordings, with time-local analysis. "
+                          "Research prototype: every verdict can be wrong.")
 
 
 class Segment(BaseModel):
     start_s: float
     end_s: float
-    p_fake: float
+    p_fake: float | None          # None: no speech in this stretch (not scored)
 
 
 class Member(BaseModel):
@@ -48,13 +50,25 @@ class Member(BaseModel):
     label: str
     p_fake: float
     vote: str
+    weight: float | None = None
 
 
 class Region(BaseModel):
-    label: str
+    label: str                    # "Real", "Fake" or "No speech"
     start_s: float
     end_s: float
-    p_fake_mean: float
+    p_fake_mean: float | None
+
+
+class FlaggedSegment(BaseModel):
+    start_s: float
+    end_s: float
+    duration_s: float
+    p_fake: float
+    p_fake_peak: float
+    severity: str                 # Low / Medium / High
+    model_evidence: list[str] | None = None
+    acoustic_evidence: list[str] | None = None
 
 
 class Prediction(BaseModel):
@@ -62,6 +76,7 @@ class Prediction(BaseModel):
     model: str
     verdict: str
     p_fake: float
+    p_real: float
     calibrated: bool
     out_of_distribution: bool
     ood_reasons: list[str]
@@ -70,6 +85,7 @@ class Prediction(BaseModel):
     timeline: list[Segment] | None = None
     members: list[Member] | None = None
     regions: list[Region] | None = None
+    segments: list[FlaggedSegment] | None = None
     gate_reason: str | None = None
     explanation: list[str] | None = None
 
@@ -115,14 +131,24 @@ async def predict(file: UploadFile = File(...), model: str | None = Query(None, 
     res = an.analyze(x, explain=explanation) if run == registry.ENSEMBLE else an.analyze(x)
     seg = lambda w: Segment(start_s=w["start_s"], end_s=w["end_s"], p_fake=w["p_fake"])  # noqa: E731
     ens = run == registry.ENSEMBLE
+    def flagged(s):
+        ev = s.get("evidence") or {}
+        return FlaggedSegment(**{k: s[k] for k in ("start_s", "end_s", "duration_s", "p_fake", "p_fake_peak",
+                                                    "severity")},
+                              model_evidence=ev.get("model"),
+                              acoustic_evidence=[a["statement"] for a in ev["acoustic"]] if "acoustic" in ev else None)
+
     return Prediction(file=file.filename or "upload", model=run, verdict=res["verdict"], p_fake=res["p_fake"],
+                      p_real=1.0 - res["p_fake"],
                       calibrated=res["calibrated"], out_of_distribution=res["out_of_distribution"],
                       ood_reasons=res["ood_reasons"], duration_s=res["duration_s"],
                       suspicious_segments=[seg(w) for w in res["suspicious_segments"]],
                       timeline=[seg(w) for w in res["timeline"]] if timeline else None,
-                      members=[Member(model=m["run"], label=m["label"], p_fake=m["p_fake"], vote=m["vote"])
+                      members=[Member(model=m["run"], label=m["label"], p_fake=m["p_fake"], vote=m["vote"],
+                                      weight=m.get("weight"))
                                for m in res["members"]] if ens else None,
                       regions=[Region(**{k: r[k] for k in ("label", "start_s", "end_s", "p_fake_mean")})
                                for r in res["regions"]] if ens else None,
+                      segments=[flagged(s) for s in res["segments"]] if ens else None,
                       gate_reason=res.get("gate_reason") if ens else None,
                       explanation=res["explanation"]["lines"] if ens and "explanation" in res else None)
