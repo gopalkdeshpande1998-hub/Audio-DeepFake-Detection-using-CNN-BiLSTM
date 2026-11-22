@@ -157,30 +157,33 @@ class Analyzer:
         return normalize_level(seg, self.normalize)
 
     @torch.no_grad()
-    def _score(self, segs: list[np.ndarray], batch: int = 16) -> tuple[np.ndarray, np.ndarray]:
+    def _score(self, segs: list[np.ndarray], batch: int = 16, on_batch=None) -> tuple[np.ndarray, np.ndarray]:
         logits, embs = [], []
         for i in range(0, len(segs), batch):
             wav = torch.from_numpy(np.stack(segs[i:i + batch])).to(self.device)
             with torch.autocast(self.device.type, dtype=torch.float16, enabled=self.device.type == "cuda"):
                 out = self.model(wav)
             logits.append(out.float().cpu().numpy())
+            if on_batch is not None:
+                on_batch(min(i + batch, len(segs)) / len(segs))
             embs.append(self._emb.float().cpu().numpy())
         return np.concatenate(logits), np.concatenate(embs)
 
-    def score_segments(self, x: np.ndarray, spans: list[tuple[int, int]]) -> np.ndarray:
+    def score_segments(self, x: np.ndarray, spans: list[tuple[int, int]], on_batch=None) -> np.ndarray:
         """Spoof logits for arbitrary sample ranges, each prepared exactly like an analysis window
         (padded to the training crop as in training). Used for the ensemble's local timeline."""
-        return self._score([self._prep(x[a:b]) for a, b in spans])[0]
+        return self._score([self._prep(x[a:b]) for a, b in spans], on_batch=on_batch)[0]
 
     def prob(self, z) -> np.ndarray:
         return self.calibration.prob_fake(z) if self.calibration else sigmoid(np.asarray(z, float))
 
     # -- analysis -----------------------------------------------------------------------
-    def analyze(self, x: np.ndarray) -> dict:
+    def analyze(self, x: np.ndarray, on_batch=None) -> dict:
+        """on_batch: optional callback(fraction of windows scored), for progress bars."""
         feats = signal_features(x)
         reasons = check_signal(feats, self.signal_ranges)
         wins = self.windows(x)
-        logits, embs = self._score([self._prep(x[a:b]) for a, b in wins])
+        logits, embs = self._score([self._prep(x[a:b]) for a, b in wins], on_batch=on_batch)
         z = float(logits.mean())
         p = float(self.prob(z))
         timeline = [Window(a / SR, b / SR, float(l), float(self.prob(l))) for (a, b), l in zip(wins, logits)]

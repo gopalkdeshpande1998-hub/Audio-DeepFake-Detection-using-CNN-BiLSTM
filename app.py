@@ -20,16 +20,27 @@ import base64
 import html
 import io
 import logging
+import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import soundfile as sf
 import streamlit as st
 
-from adfd.paths import configure_caches, load_paths
+# Draw the page shell before the heavy imports: loading PyTorch and the model code takes
+# ~7-20 s on the first run, and without this the browser shows a blank white page meanwhile.
+st.set_page_config(page_title="Audio Deepfake Detector", page_icon="🎙️", layout="wide")
+st.title("🎙️ Audio Deepfake Detector")
+_boot = st.empty()
+if "adfd.inference" not in sys.modules:
+    _boot.info("Starting the detector: loading PyTorch and the model code (about 10–20 s on the first start)…",
+               icon="⏳")
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import soundfile as sf  # noqa: E402
+
+from adfd.paths import configure_caches, load_paths  # noqa: E402
 
 configure_caches()
 logging.getLogger("streamlit").setLevel(logging.ERROR)
@@ -38,6 +49,8 @@ from adfd import registry  # noqa: E402
 from adfd.explain import plot_forensic, plot_heatmap, plot_score_line, plot_timeline  # noqa: E402
 from adfd.inference import SR, load_audio  # noqa: E402
 from adfd.segments import SEVERITY_TEXT, fmt_ts  # noqa: E402
+
+_boot.empty()
 
 AUDIO_TYPES = ["wav", "mp3", "flac", "ogg", "m4a", "aiff", "aif", "webm", "opus"]
 VIDEO_TYPES = ["mp4", "mov", "mkv", "avi", "webm"]
@@ -52,8 +65,6 @@ LIMITS = ("Research prototype. The final verdict is always REAL or FAKE: the wei
           "called REAL; see "
           "experiments/ensemble_binary/ensemble.md. Flagged regions are model-flagged suspicions, not proof of "
           "manipulation. Never use one verdict as evidence on its own.")
-
-st.set_page_config(page_title="Audio Deepfake Detector", page_icon="🎙️", layout="wide")
 
 CSS = f"""
 <style>
@@ -494,8 +505,18 @@ def analyse_one(name: str, data: bytes, run: str, compare: bool) -> None:
 
     key = ("analysis", run, hashlib.sha1(data).hexdigest())
     if key not in st.session_state:   # widgets rerun the script; analyse each file only once
-        with st.spinner("Analysing with all three models (whole file and local windows)…"):
-            st.session_state[key] = get_analyzer(run).analyze(x)
+        dur = len(x) / SR
+        # measured on the project laptop's CPU: ~0.65 s (cool) to ~3.4 s (hot, throttled) per second of
+        # audio up to 1 min; longer files grow more slowly (the local timeline is capped at 120 windows)
+        eff = dur if dur <= 60 else 60 + 0.4 * (dur - 60)
+        lo, hi = max(5, 5 * round(0.65 * eff / 5)), max(15, 5 * round(3.5 * eff / 5))
+        st.info(f"Analysing {name} ({dur:.0f} s of audio) with all three models on the CPU. This usually takes "
+                f"{lo:.0f}–{hi:.0f} s (plus ~15 s the first time, while the models load). The bar below shows the "
+                "progress; the results appear when it finishes.", icon="⏳")
+        an = get_analyzer(run)
+        bar = st.progress(0.0, text="Starting…")
+        st.session_state[key] = an.analyze(x, progress=lambda f, t: bar.progress(f, text=t))
+        st.rerun()                     # redraw without the progress widgets
     res = st.session_state[key]
     fpng = ensemble_view(name, x, res)
     st.download_button("Download report (HTML)", ensemble_report(name, res, fpng),
@@ -622,7 +643,6 @@ def unpack(uploads) -> list[tuple[str, bytes]]:
 def main() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     models = registry.available()
-    st.title("🎙️ Audio Deepfake Detector")
     if not models:
         st.error("No trained models found in runs/. Train one first (see README).")
         return

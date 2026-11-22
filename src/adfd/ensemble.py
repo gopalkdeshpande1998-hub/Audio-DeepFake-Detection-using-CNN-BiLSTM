@@ -44,6 +44,15 @@ DECISION_P = 0.5
 LOCAL_S = 2.0            # local analysis window (s), unless ensemble.json says otherwise
 MIN_HOP_S = 0.5          # timeline resolution for clips up to ~1 min
 MAX_LOCAL = 120          # local windows per member at most (CPU time); the hop grows for long files
+# Relative CPU time per analysis window (progress bar only), measured on the project laptop
+# (i7-12650H): E7a ~0.54 s, VoiceGuard improved ~0.21 s, VoiceGuard v2 ~0.03 s per window;
+# the explanation ~0.12 s per second of audio.
+WINDOW_COST = {"e7a": 1.0, "vg_improved": 0.4, "vg_v2": 0.06}
+EXPLAIN_COST_PER_S = 0.23
+
+
+def window_cost(run: str) -> float:
+    return next((v for k, v in WINDOW_COST.items() if run.startswith(k)), 1.0)
 
 
 def logit(p):
@@ -162,18 +171,46 @@ class EnsembleAnalyzer:
         return ("Fake" if p >= DECISION_P else "Real"), None
 
     # ---------------------------------------------------------------------------------
-    def analyze(self, x: np.ndarray, explain: bool = True) -> dict:
+    def analyze(self, x: np.ndarray, explain: bool = True, progress=None) -> dict:
+        """progress: optional callback(fraction 0-1, text) for a UI progress bar."""
         n = len(x)
         dur = n / SR
         spans, step, win = local_grid(n, self.local["window_s"])
         speech = speech_windows(x, spans)
+        # progress: stages weighted by their expected CPU time (windows x per-window cost)
+        weights = []
+        for m in self.members:
+            an = self.analyzers[m["run"]]
+            c = window_cost(m["run"])
+            n_file = len(an.windows(x)) if hasattr(an, "windows") else 1
+            weights += [c * n_file, c * len(spans)]
+        if explain:
+            weights.append(EXPLAIN_COST_PER_S * dur)
+        total_w = sum(weights) or 1.0
+        stage = 0
+
+        def report(text: str, sub: float = 0.0) -> None:
+            if progress is not None:
+                f = (sum(weights[:stage]) + sub * weights[min(stage, len(weights) - 1)]) / total_w
+                progress(min(f, 1.0), f"Step {min(stage + 1, len(weights))} of {len(weights)} · {text}")
+
+        def tracker(text: str):
+            return None if progress is None else (lambda f: report(f"{text} ({100 * f:.0f}%)", f))
+
         mres, mz, mlocal = [], [], []
         for m in self.members:
             an = self.analyzers[m["run"]]
-            r = an.analyze(x)
+            txt = f"{m['label']}: scoring the whole file"
+            report(txt + "…")
+            r = an.analyze(x, on_batch=tracker(txt)) if progress is not None else an.analyze(x)
+            stage += 1
             p_m = float(self.member_prob(m, r["logit"]))
             tl = [dict(w, p_fake=float(self.member_prob(m, w["logit"]))) for w in r["timeline"]]
-            raw = np.asarray(an.score_segments(x, spans), float)
+            txt = f"{m['label']}: scoring {len(spans)} local windows"
+            report(txt + "…")
+            raw = np.asarray(an.score_segments(x, spans, on_batch=tracker(txt)) if progress is not None
+                             else an.score_segments(x, spans), float)
+            stage += 1
             mlocal.append(np.where(np.isfinite(raw), logit(self.member_prob(m, np.nan_to_num(raw))), np.nan))
             mres.append({"run": m["run"], "label": m["label"], "p_fake": p_m, "result": r, "timeline": tl})
             mz.append(logit(p_m))
@@ -226,7 +263,10 @@ class EnsembleAnalyzer:
         res["suspicious_segments"] = sorted(({"start_s": s["start_s"], "end_s": s["end_s"], "p_fake": s["p_fake"]}
                                              for s in res["segments"]), key=lambda w: -w["p_fake"])[:3]
         if explain:
+            report("Measuring flagged segments and writing the explanation…")
             self._explain(x, res)
+            stage += 1
+        report("Done")
         return res
 
     def _explain(self, x: np.ndarray, res: dict) -> None:
