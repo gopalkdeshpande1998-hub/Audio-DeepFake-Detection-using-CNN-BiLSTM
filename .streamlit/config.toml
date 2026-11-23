@@ -3,3 +3,36 @@ maxUploadSize = 50
 
 [browser]
 gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"
+
+# VoiceGuard forensic workstation: dark navy ground, slate panels, cyan accent.
+[theme]
+base = "dark"
+primaryColor = "#22d3ee"
+backgroundColor = "#0a0f1a"
+secondaryBackgroundColor = "#111827"
+textColor = "#e6ebf2"
+linkColor = "#67e8f9"
+borderColor = "#1f2a3c"
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+baseFontSize = 15
+redColor = "#f87171"
+greenColor = "#34d399"
+orangeColor = "#fbbf24"
+yellowColor = "#fbbf24"
+blueColor = "#22d3ee"
+chartCategoricalColors = ["#22d3ee", "#34d399", "#f87171", "#fbbf24", "#94a3b8", "#38bdf8"]
+dataframeHeaderBackgroundColor = "#0f1726"
+
+[theme.sidebar]
+backgroundColor = "#0c1320"
+secondaryBackgroundColor = "#111a2b"
+borderColor = "#1b2536"

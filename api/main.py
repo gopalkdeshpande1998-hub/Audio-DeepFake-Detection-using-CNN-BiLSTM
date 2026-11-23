@@ -11,7 +11,9 @@ Endpoints
                   The ensemble also returns each member's score and vote, Real / Fake / No speech
                   regions from the time-local analysis, the flagged segments with severity and
                   evidence, and a plain-language explanation (explanation=false skips the acoustic part).
-Inference runs on the CPU (set ADFD_DEVICE=cuda to use a GPU).
+                  Every response has a trust block: the held-out accuracy of verdicts with the
+                  same confidence (and member agreement), from scripts/error_analysis.py.
+Inference runs on the GPU when one is available, else the CPU (override: ADFD_DEVICE=cpu|cuda).
 """
 
 from __future__ import annotations
@@ -28,11 +30,22 @@ from adfd.paths import configure_caches
 configure_caches()
 
 from adfd import __version__ as ADFD_VERSION  # noqa: E402
-from adfd import registry  # noqa: E402
+from adfd import registry, trust  # noqa: E402
 from adfd.inference import SR, load_audio  # noqa: E402
 
 MAX_BYTES = 50 * 2**20
-DEVICE = os.environ.get("ADFD_DEVICE", "cpu")
+
+
+def _device() -> str:
+    """ADFD_DEVICE if set, else the GPU when PyTorch can see one, else the CPU."""
+    if os.environ.get("ADFD_DEVICE"):
+        return os.environ["ADFD_DEVICE"]
+    import torch
+
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+DEVICE = _device()
 
 app = FastAPI(title="Audio Deepfake Detection API", version=ADFD_VERSION,
               description="Calibrated two-way Real / Fake verdicts for speech recordings, with time-local analysis. "
@@ -71,6 +84,14 @@ class FlaggedSegment(BaseModel):
     acoustic_evidence: list[str] | None = None
 
 
+class Trust(BaseModel):
+    level: str                    # very low / low / medium / high / very high (distance from the 50% line)
+    models_agreeing: int          # members that share the final verdict (ensemble)
+    n_members: int
+    advice: str
+    heldout_accuracy_pct: dict[str, float]   # test set -> accuracy of verdicts like this one
+
+
 class Prediction(BaseModel):
     file: str
     model: str
@@ -87,6 +108,7 @@ class Prediction(BaseModel):
     regions: list[Region] | None = None
     segments: list[FlaggedSegment] | None = None
     gate_reason: str | None = None
+    trust: Trust | None = None
     explanation: list[str] | None = None
 
 
@@ -138,6 +160,9 @@ async def predict(file: UploadFile = File(...), model: str | None = Query(None, 
                               model_evidence=ev.get("model"),
                               acoustic_evidence=[a["statement"] for a in ev["acoustic"]] if "acoustic" in ev else None)
 
+    t = trust.assess(res["p_fake"], [m["p_fake"] for m in res["members"]] if ens else [res["p_fake"]])
+    trust_out = Trust(level=t["level"], models_agreeing=t["agree"], n_members=t["n_members"], advice=t["advice"],
+                      heldout_accuracy_pct={k: v["accuracy_pct"] for k, v in t["sets"].items()})
     return Prediction(file=file.filename or "upload", model=run, verdict=res["verdict"], p_fake=res["p_fake"],
                       p_real=1.0 - res["p_fake"],
                       calibrated=res["calibrated"], out_of_distribution=res["out_of_distribution"],
@@ -150,5 +175,5 @@ async def predict(file: UploadFile = File(...), model: str | None = Query(None, 
                       regions=[Region(**{k: r[k] for k in ("label", "start_s", "end_s", "p_fake_mean")})
                                for r in res["regions"]] if ens else None,
                       segments=[flagged(s) for s in res["segments"]] if ens else None,
-                      gate_reason=res.get("gate_reason") if ens else None,
+                      gate_reason=res.get("gate_reason") if ens else None, trust=trust_out,
                       explanation=res["explanation"]["lines"] if ens and "explanation" in res else None)

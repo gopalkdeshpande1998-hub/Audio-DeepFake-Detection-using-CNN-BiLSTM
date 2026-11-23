@@ -11,6 +11,9 @@ leak-free, cross-dataset research pipeline in PyTorch, with a web app and a REST
 - the **score over time** (4 s windows) with the most suspicious segments, playable;
 - the **spectrogram with a saliency heatmap** of what moved the score;
 - every model's opinion side by side, batch scoring to CSV, and an HTML report.
+- a **trust panel**: how often verdicts with the same confidence and model agreement were right on held-out data;
+- a full app, not only the detector: overview, batch, session history, results,
+  error analysis, model card and help (`ui/`; research pages never load PyTorch).
 
 > **Honest limits.** Models are trained on ASVspoof 2019 LA (English, studio quality, 2019-era
 > attacks). The app's default, a fine-tuned WavLM-Base+ model, reaches 10.7% EER on real-world
@@ -110,13 +113,14 @@ Key findings so far:
    `python -m adfd.evaluate --run runs/<run>`; or run a whole queue: `python scripts/run_queue.py configs/queues/<queue>.yaml`.
 4. Reliability for the app: `python scripts/fit_reliability.py --run runs/<run>` (calibration, thresholds, OOD).
 5. Tables: `python scripts/make_tables.py`, `python scripts/make_tables_p3.py`; efficiency: `python scripts/efficiency.py`.
+6. Error analysis and the app's trust table: `python scripts/error_analysis.py` (reads the stored scores, about 1 min).
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `src/adfd/` | data pipeline, front ends, models, training, evaluation, calibration, OOD, inference |
-| `app.py`, `api/` | Streamlit app and FastAPI service |
+| `src/adfd/` | data pipeline, front ends, models, training, evaluation, calibration, OOD, inference, trust lookup |
+| `app.py`, `ui/`, `api/` | Streamlit app (entry, pages, detector views, theme) and FastAPI service |
 | `configs/` | one YAML per experiment, plus run queues |
 | `scripts/` | data preparation, analysis, tables, export |
 | `experiments/` | metrics, tables and figures for every run (small files, in git) |

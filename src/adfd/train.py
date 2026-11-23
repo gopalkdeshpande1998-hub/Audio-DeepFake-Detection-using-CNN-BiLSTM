@@ -130,8 +130,10 @@ def main() -> None:
         train_parts.extend([tr_ds] * rep)
         labels_all.extend([tr["label"].to_numpy()] * rep)
         dv_ds = CropDataset(dv, ex_cache, crop, False, pad, sr, speech_bounds=ex_bounds, normalize=norm)
+        # 0 workers: each persistent worker pool commits ~2 GB per process on Windows, and three extra dev
+        # sets with 3 workers each exhausted the commit limit (E8 smoke test, 2026-11-22)
         extra_dev.append((f"{ex['manifest']}_{ex['val_split']}", dv,
-                          make_loader(dv_ds, tcfg.get("eval_batch_size", 64), False, workers, seed)))
+                          make_loader(dv_ds, tcfg.get("eval_batch_size", 64), False, 0, seed)))
         print(f"Extra data {ex['manifest']}: train {len(tr):,}{f' x{rep}' if rep > 1 else ''}, dev {len(dv):,}")
     train_loader = make_loader(ConcatDataset(train_parts) if len(train_parts) > 1 else train_ds,
                                tcfg["batch_size"], True, workers, seed)

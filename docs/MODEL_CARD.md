@@ -2,15 +2,16 @@
 
 ## Model details
 
-- **Default app model:** E7a, WavLM-Base+ (pretrained self-supervised speech model, fine-tuned, learned
-  layer weights, 128-d projection) followed by an SE-ResNet CNN-BiLSTM with attentive statistics pooling;
-  96.2M parameters. Silence-trimmed 4 s windows, RawBoost and gain augmentation, 2 training epochs
-  (prototype schedule, seed 42). Chosen on dev data only (lowest mean EER on degraded dev audio).
-  Other selectable models: the v1 MFCC CNN-BiLSTM, LFCC CNN-BiLSTMs (Phase 2 pick E4a), LCNN, RawNet2,
+- **Default app model: the merged detector** (`src/adfd/ensemble.py`): E7a, WavLM-Base+ (fine-tuned, learned
+  layer weights) followed by an SE-ResNet CNN-BiLSTM with attentive statistics pooling (96.2M parameters, weight
+  0.45), plus two log-mel CNN-BiLSTM checkpoints, VoiceGuard improved (0.35) and VoiceGuard v2 (0.20). Each
+  member's calibrated log-odds are clipped to ±4 and weighted, so no single model decides. Weights and the line
+  were tuned on ASVspoof dev (clean + degraded) and the DEEP-VOICE non-test persons only.
+  Other selectable models: E7a alone, the v1 MFCC CNN-BiLSTM, LFCC CNN-BiLSTMs (Phase 2 pick E4a), LCNN, RawNet2,
   and the SE-ResNet CNN-BiLSTM-Att on LFCC.
-- **Output:** one spoof logit per 4 s window; the file score is the mean. A Platt-scaled
-  probability of "fake" and a Real / Uncertain / Fake verdict, fitted on ASVspoof dev data
-  (`scripts/fit_reliability.py`).
+- **Output:** a calibrated P(fake) and a two-way REAL / FAKE verdict at 50%, a per-second timeline from 2 s windows,
+  flagged segments with evidence, and a **trust lookup**: the held-out accuracy of verdicts with the same confidence
+  band and member agreement (`scripts/error_analysis.py`, `src/adfd/trust.py`).
 - **Framework:** PyTorch 2.11. Code: `src/adfd/`. Version 0.1.0 (prototype). Runs on CPU at about 16× real time (E7a).
 
 ## Intended use
@@ -48,6 +49,11 @@ For E7a the dev classes barely overlap, so the Real/Fake thresholds meet at p = 
 "Uncertain" band is empty: every file gets a Real or Fake verdict.
 
 ## Known failure cases
+
+- **Merged detector** (`experiments/error_analysis/error_analysis.md`): on ASVspoof eval it calls 11.2% of real
+  clips FAKE and 19.4% of fakes REAL; attacks A10 (71% missed) and A18 (52%) are the hardest. It misses about 95%
+  of DEEP-VOICE voice-conversion windows. Verdicts within 10 points of the 50% line are right only 48% of the time
+  on ASVspoof eval; the app says so in its trust panel.
 
 - **Real-world fakes are missed more than real speech is wrongly flagged.** With its dev-fitted threshold,
   E7a calls 17% of In-the-Wild fakes and 71% of DEEP-VOICE fake windows "Real"; it calls the DEEP-VOICE

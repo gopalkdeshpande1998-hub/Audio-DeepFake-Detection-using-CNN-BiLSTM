@@ -1,0 +1,1301 @@
+{
+ "decision": "FAKE if merged P(fake) >= 0.5",
+ "members": [
+  "e7a_wavlm_crnn_s42",
+  "vg_improved",
+  "vg_v2"
+ ],
+ "confidence_bins": [
+  "very low (50\u00b110%)",
+  "low (60\u201370% / 30\u201340%)",
+  "medium (70\u201380% / 20\u201330%)",
+  "high (80\u201390% / 10\u201320%)",
+  "very high (\u226590% / \u226410%)"
+ ],
+ "sets": {
+  "ASVspoof eval": {
+   "overall": {
+    "n": 71237,
+    "n_real": 7355,
+    "n_fake": 63882,
+    "accuracy_pct": 81.42117158218342,
+    "real_called_fake_pct": 11.203263086335825,
+    "fake_called_real_pct": 19.42800788954635
+   },
+   "eer_pct": 14.262320009587699,
+   "reliability": {
+    "by_agreement": {
+     "1": {
+      "n": 8981,
+      "accuracy_pct": 76.70638013584234
+     },
+     "2": {
+      "n": 37359,
+      "accuracy_pct": 73.76000428276988
+     },
+     "3": {
+      "n": 24897,
+      "accuracy_pct": 94.61782544081616
+     }
+    },
+    "by_confidence": {
+     "very low (50\u00b110%)": {
+      "n": 15520,
+      "accuracy_pct": 47.83505154639175
+     },
+     "low (60\u201370% / 30\u201340%)": {
+      "n": 11829,
+      "accuracy_pct": 81.5284470369431
+     },
+     "medium (70\u201380% / 20\u201330%)": {
+      "n": 15490,
+      "accuracy_pct": 86.54615881213687
+     },
+     "high (80\u201390% / 10\u201320%)": {
+      "n": 16425,
+      "accuracy_pct": 95.3607305936073
+     },
+     "very high (\u226590% / \u226410%)": {
+      "n": 11973,
+      "accuracy_pct": 99.09797043347533
+     }
+    },
+    "grid": {
+     "1|0": {
+      "n": 6293,
+      "accuracy_pct": 70.09375496583505
+     },
+     "1|1": {
+      "n": 2548,
+      "accuracy_pct": 91.87598116169545
+     },
+     "1|2": {
+      "n": 140,
+      "accuracy_pct": 97.85714285714285
+     },
+     "2|0": {
+      "n": 9217,
+      "accuracy_pct": 32.6678962786156
+     },
+     "2|1": {
+      "n": 9101,
+      "accuracy_pct": 79.45280738380399
+     },
+     "2|2": {
+      "n": 13973,
+      "accuracy_pct": 88.04122235740356
+     },
+     "2|3": {
+      "n": 5068,
+      "accuracy_pct": 98.89502762430939
+     },
+     "3|1": {
+      "n": 180,
+      "accuracy_pct": 40.0
+     },
+     "3|2": {
+      "n": 1377,
+      "accuracy_pct": 70.22512708787218
+     },
+     "3|3": {
+      "n": 11357,
+      "accuracy_pct": 93.78356960464912
+     },
+     "3|4": {
+      "n": 11973,
+      "accuracy_pct": 99.09797043347533
+     }
+    }
+   },
+   "false_accepts": [
+    {
+     "utt_id": "LA_E_2859071",
+     "speaker": "LA_0013",
+     "attack": "A18",
+     "duration_s": 2.64,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 0.8,
+     "vg_v2_pct": 0.6
+    },
+    {
+     "utt_id": "LA_E_4241139",
+     "speaker": "LA_0047",
+     "attack": "A11",
+     "duration_s": 2.79,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.4,
+     "vg_improved_pct": 1.4,
+     "vg_v2_pct": 1.7
+    },
+    {
+     "utt_id": "LA_E_5547252",
+     "speaker": "LA_0028",
+     "attack": "A10",
+     "duration_s": 7.85,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 1.2,
+     "vg_v2_pct": 1.7
+    },
+    {
+     "utt_id": "LA_E_7840197",
+     "speaker": "LA_0031",
+     "attack": "A07",
+     "duration_s": 2.43,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 0.8,
+     "vg_v2_pct": 1.0
+    },
+    {
+     "utt_id": "LA_E_5887452",
+     "speaker": "LA_0031",
+     "attack": "A12",
+     "duration_s": 3.35,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.4,
+     "vg_improved_pct": 0.6,
+     "vg_v2_pct": 0.6
+    },
+    {
+     "utt_id": "LA_E_6571647",
+     "speaker": "LA_0025",
+     "attack": "A18",
+     "duration_s": 2.51,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.6,
+     "vg_improved_pct": 0.7,
+     "vg_v2_pct": 0.5
+    },
+    {
+     "utt_id": "LA_E_2267887",
+     "speaker": "LA_0024",
+     "attack": "A10",
+     "duration_s": 2.78,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.5,
+     "vg_improved_pct": 0.5,
+     "vg_v2_pct": 1.1
+    },
+    {
+     "utt_id": "LA_E_2168146",
+     "speaker": "LA_0031",
+     "attack": "A10",
+     "duration_s": 2.54,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.2,
+     "vg_improved_pct": 0.9,
+     "vg_v2_pct": 0.8
+    },
+    {
+     "utt_id": "LA_E_7616996",
+     "speaker": "LA_0019",
+     "attack": "A10",
+     "duration_s": 2.71,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.5,
+     "vg_improved_pct": 1.2,
+     "vg_v2_pct": 0.5
+    },
+    {
+     "utt_id": "LA_E_6195967",
+     "speaker": "LA_0008",
+     "attack": "A10",
+     "duration_s": 2.72,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.6,
+     "vg_improved_pct": 1.7,
+     "vg_v2_pct": 1.1
+    },
+    {
+     "utt_id": "LA_E_5244084",
+     "speaker": "LA_0031",
+     "attack": "A10",
+     "duration_s": 2.56,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 0.7,
+     "vg_v2_pct": 1.5
+    },
+    {
+     "utt_id": "LA_E_9023016",
+     "speaker": "LA_0031",
+     "attack": "A10",
+     "duration_s": 3.12,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 0.3,
+     "vg_v2_pct": 0.5
+    }
+   ],
+   "false_rejects": [
+    {
+     "utt_id": "LA_E_2427315",
+     "speaker": "LA_0011",
+     "attack": "-",
+     "duration_s": 2.09,
+     "p_fake_pct": 84.3,
+     "e7a_wavlm_crnn_s42_pct": 88.4,
+     "vg_improved_pct": 92.7,
+     "vg_v2_pct": 99.9
+    },
+    {
+     "utt_id": "LA_E_9964383",
+     "speaker": "LA_0056",
+     "attack": "-",
+     "duration_s": 1.78,
+     "p_fake_pct": 82.3,
+     "e7a_wavlm_crnn_s42_pct": 67.8,
+     "vg_improved_pct": 97.0,
+     "vg_v2_pct": 99.9
+    },
+    {
+     "utt_id": "LA_E_2553182",
+     "speaker": "LA_0041",
+     "attack": "-",
+     "duration_s": 1.44,
+     "p_fake_pct": 73.4,
+     "e7a_wavlm_crnn_s42_pct": 94.7,
+     "vg_improved_pct": 94.4,
+     "vg_v2_pct": 0.1
+    },
+    {
+     "utt_id": "LA_E_8198268",
+     "speaker": "LA_0026",
+     "attack": "-",
+     "duration_s": 3.24,
+     "p_fake_pct": 71.4,
+     "e7a_wavlm_crnn_s42_pct": 50.0,
+     "vg_improved_pct": 92.4,
+     "vg_v2_pct": 90.5
+    },
+    {
+     "utt_id": "LA_E_9904242",
+     "speaker": "LA_0004",
+     "attack": "-",
+     "duration_s": 2.05,
+     "p_fake_pct": 68.6,
+     "e7a_wavlm_crnn_s42_pct": 13.9,
+     "vg_improved_pct": 96.1,
+     "vg_v2_pct": 99.9
+    },
+    {
+     "utt_id": "LA_E_8778170",
+     "speaker": "LA_0004",
+     "attack": "-",
+     "duration_s": 1.78,
+     "p_fake_pct": 67.4,
+     "e7a_wavlm_crnn_s42_pct": 14.7,
+     "vg_improved_pct": 94.5,
+     "vg_v2_pct": 99.9
+    },
+    {
+     "utt_id": "LA_E_4362251",
+     "speaker": "LA_0026",
+     "attack": "-",
+     "duration_s": 4.43,
+     "p_fake_pct": 67.3,
+     "e7a_wavlm_crnn_s42_pct": 7.0,
+     "vg_improved_pct": 98.0,
+     "vg_v2_pct": 100.0
+    },
+    {
+     "utt_id": "LA_E_7634657",
+     "speaker": "LA_0012",
+     "attack": "-",
+     "duration_s": 2.64,
+     "p_fake_pct": 66.6,
+     "e7a_wavlm_crnn_s42_pct": 5.8,
+     "vg_improved_pct": 98.8,
+     "vg_v2_pct": 100.0
+    },
+    {
+     "utt_id": "LA_E_6308759",
+     "speaker": "LA_0012",
+     "attack": "-",
+     "duration_s": 2.0,
+     "p_fake_pct": 66.0,
+     "e7a_wavlm_crnn_s42_pct": 20.7,
+     "vg_improved_pct": 88.4,
+     "vg_v2_pct": 99.7
+    },
+    {
+     "utt_id": "LA_E_6784341",
+     "speaker": "LA_0012",
+     "attack": "-",
+     "duration_s": 2.43,
+     "p_fake_pct": 65.8,
+     "e7a_wavlm_crnn_s42_pct": 5.8,
+     "vg_improved_pct": 97.9,
+     "vg_v2_pct": 100.0
+    },
+    {
+     "utt_id": "LA_E_4663389",
+     "speaker": "LA_0067",
+     "attack": "-",
+     "duration_s": 3.15,
+     "p_fake_pct": 65.7,
+     "e7a_wavlm_crnn_s42_pct": 5.1,
+     "vg_improved_pct": 98.3,
+     "vg_v2_pct": 100.0
+    },
+    {
+     "utt_id": "LA_E_9326629",
+     "speaker": "LA_0012",
+     "attack": "-",
+     "duration_s": 1.91,
+     "p_fake_pct": 65.4,
+     "e7a_wavlm_crnn_s42_pct": 4.8,
+     "vg_improved_pct": 99.4,
+     "vg_v2_pct": 99.9
+    }
+   ],
+   "by_duration": {
+    "< 2 s": {
+     "n": 16631,
+     "n_real": 265,
+     "n_fake": 16366,
+     "accuracy_pct": 83.14593229511154,
+     "real_called_fake_pct": 14.716981132075471,
+     "fake_called_real_pct": 16.8886716363192
+    },
+    "2\u20133 s": {
+     "n": 23117,
+     "n_real": 2761,
+     "n_fake": 20356,
+     "accuracy_pct": 82.31171864861358,
+     "real_called_fake_pct": 11.517566099239405,
+     "fake_called_real_pct": 18.525250540381215
+    },
+    "3\u20134 s": {
+     "n": 15644,
+     "n_real": 2599,
+     "n_fake": 13045,
+     "accuracy_pct": 79.58961902326772,
+     "real_called_fake_pct": 11.04270873412851,
+     "fake_called_real_pct": 22.276734380988884
+    },
+    "4\u20136 s": {
+     "n": 12275,
+     "n_real": 1554,
+     "n_fake": 10721,
+     "accuracy_pct": 80.87983706720978,
+     "real_called_fake_pct": 11.389961389961389,
+     "fake_called_real_pct": 20.240649193172278
+    },
+    "\u2265 6 s": {
+     "n": 3570,
+     "n_real": 176,
+     "n_fake": 3394,
+     "accuracy_pct": 77.50700280112045,
+     "real_called_fake_pct": 1.7045454545454544,
+     "fake_called_real_pct": 23.57100766057749
+    }
+   },
+   "by_attack": {
+    "A07": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 83.4961334961335,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 16.503866503866504,
+     "merged_eer_pct": 13.408254886840881,
+     "e7a_eer_pct": 3.415723939177372
+    },
+    "A08": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 99.85754985754986,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 0.14245014245014245,
+     "merged_eer_pct": 0.6519089591829225,
+     "e7a_eer_pct": 0.14600413308774968
+    },
+    "A09": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 100.0,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 0.0,
+     "merged_eer_pct": 0.08148861989786531,
+     "e7a_eer_pct": 0.05771741665691361
+    },
+    "A10": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 29.08017908017908,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 70.91982091982092,
+     "merged_eer_pct": 33.57326712867162,
+     "e7a_eer_pct": 31.11163542502767
+    },
+    "A11": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 73.38217338217338,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 26.61782661782662,
+     "merged_eer_pct": 17.98859070782932,
+     "e7a_eer_pct": 6.047130979150014
+    },
+    "A12": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 82.51933251933252,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 17.48066748066748,
+     "merged_eer_pct": 13.65272074653448,
+     "e7a_eer_pct": 7.286433384325974
+    },
+    "A13": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 97.08994708994709,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 2.91005291005291,
+     "merged_eer_pct": 5.371450816726139,
+     "e7a_eer_pct": 0.20372154974466328
+    },
+    "A14": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 94.26129426129425,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 5.738705738705739,
+     "merged_eer_pct": 8.6072244093998,
+     "e7a_eer_pct": 0.4651605161462402
+    },
+    "A15": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 95.42124542124543,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 4.5787545787545785,
+     "merged_eer_pct": 7.041967524632378,
+     "e7a_eer_pct": 1.7859515412200662
+    },
+    "A16": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 84.7985347985348,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 15.2014652014652,
+     "merged_eer_pct": 12.698628511001047,
+     "e7a_eer_pct": 1.6705167079062389
+    },
+    "A17": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 91.06634106634107,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 8.933658933658933,
+     "merged_eer_pct": 9.951786637714577,
+     "e7a_eer_pct": 0.16297723979573062
+    },
+    "A18": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 48.433048433048434,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 51.566951566951566,
+     "merged_eer_pct": 21.608036196751357,
+     "e7a_eer_pct": 1.768978434512085
+    },
+    "A19": {
+     "n": 4914,
+     "n_real": 0,
+     "n_fake": 4914,
+     "accuracy_pct": 68.03011803011802,
+     "real_called_fake_pct": null,
+     "fake_called_real_pct": 31.969881969881968,
+     "merged_eer_pct": 14.263885395768469,
+     "e7a_eer_pct": 0.7096263758398361
+    }
+   }
+  },
+  "In-the-Wild": {
+   "overall": {
+    "n": 31779,
+    "n_real": 19963,
+    "n_fake": 11816,
+    "accuracy_pct": 92.9418798577677,
+    "real_called_fake_pct": 2.9304212793668287,
+    "fake_called_real_pct": 14.03182125930941
+   },
+   "eer_pct": 6.617693392898731,
+   "reliability": {
+    "by_agreement": {
+     "1": {
+      "n": 1066,
+      "accuracy_pct": 46.810506566604126
+     },
+     "2": {
+      "n": 12187,
+      "accuracy_pct": 87.10100927217526
+     },
+     "3": {
+      "n": 18526,
+      "accuracy_pct": 99.4386267947749
+     }
+    },
+    "by_confidence": {
+     "very low (50\u00b110%)": {
+      "n": 2681,
+      "accuracy_pct": 57.88884744498321
+     },
+     "low (60\u201370% / 30\u201340%)": {
+      "n": 3995,
+      "accuracy_pct": 82.97872340425532
+     },
+     "medium (70\u201380% / 20\u201330%)": {
+      "n": 6654,
+      "accuracy_pct": 94.57469191463781
+     },
+     "high (80\u201390% / 10\u201320%)": {
+      "n": 8459,
+      "accuracy_pct": 99.30251802813571
+     },
+     "very high (\u226590% / \u226410%)": {
+      "n": 9990,
+      "accuracy_pct": 99.85985985985985
+     }
+    },
+    "grid": {
+     "1|0": {
+      "n": 854,
+      "accuracy_pct": 42.27166276346605
+     },
+     "1|1": {
+      "n": 209,
+      "accuracy_pct": 64.5933014354067
+     },
+     "2|0": {
+      "n": 1816,
+      "accuracy_pct": 65.25330396475772
+     },
+     "2|1": {
+      "n": 3576,
+      "accuracy_pct": 83.38926174496645
+     },
+     "2|2": {
+      "n": 5749,
+      "accuracy_pct": 94.15550530527048
+     },
+     "2|3": {
+      "n": 1046,
+      "accuracy_pct": 98.94837476099426
+     },
+     "3|1": {
+      "n": 210,
+      "accuracy_pct": 94.28571428571428
+     },
+     "3|2": {
+      "n": 902,
+      "accuracy_pct": 97.22838137472284
+     },
+     "3|3": {
+      "n": 7413,
+      "accuracy_pct": 99.35248887090246
+     },
+     "3|4": {
+      "n": 9990,
+      "accuracy_pct": 99.85985985985985
+     }
+    }
+   },
+   "false_accepts": [
+    {
+     "utt_id": "itw_5623",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 3.97,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.7,
+     "vg_improved_pct": 0.0,
+     "vg_v2_pct": 0.2
+    },
+    {
+     "utt_id": "itw_2818",
+     "speaker": "Jerry Seinfeld",
+     "attack": "unknown",
+     "duration_s": 20.95,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.8,
+     "vg_improved_pct": 0.0,
+     "vg_v2_pct": 1.0
+    },
+    {
+     "utt_id": "itw_21590",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 6.77,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.5,
+     "vg_improved_pct": 0.2,
+     "vg_v2_pct": 0.3
+    },
+    {
+     "utt_id": "itw_15524",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 3.26,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.4,
+     "vg_improved_pct": 0.3,
+     "vg_v2_pct": 0.2
+    },
+    {
+     "utt_id": "itw_13552",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 3.83,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.7,
+     "vg_improved_pct": 0.1,
+     "vg_v2_pct": 0.0
+    },
+    {
+     "utt_id": "itw_9340",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 3.23,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.5,
+     "vg_improved_pct": 1.3,
+     "vg_v2_pct": 1.0
+    },
+    {
+     "utt_id": "itw_20474",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 13.95,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.4,
+     "vg_improved_pct": 0.0,
+     "vg_v2_pct": 1.2
+    },
+    {
+     "utt_id": "itw_16168",
+     "speaker": "Nick Offerman",
+     "attack": "unknown",
+     "duration_s": 14.83,
+     "p_fake_pct": 9.2,
+     "e7a_wavlm_crnn_s42_pct": 1.6,
+     "vg_improved_pct": 0.0,
+     "vg_v2_pct": 0.0
+    },
+    {
+     "utt_id": "itw_17774",
+     "speaker": "Robert Kardashian",
+     "attack": "unknown",
+     "duration_s": 3.72,
+     "p_fake_pct": 9.3,
+     "e7a_wavlm_crnn_s42_pct": 1.9,
+     "vg_improved_pct": 0.3,
+     "vg_v2_pct": 0.0
+    },
+    {
+     "utt_id": "itw_19266",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 6.13,
+     "p_fake_pct": 9.4,
+     "e7a_wavlm_crnn_s42_pct": 1.9,
+     "vg_improved_pct": 0.4,
+     "vg_v2_pct": 1.6
+    },
+    {
+     "utt_id": "itw_28651",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 3.58,
+     "p_fake_pct": 9.5,
+     "e7a_wavlm_crnn_s42_pct": 1.9,
+     "vg_improved_pct": 2.0,
+     "vg_v2_pct": 0.1
+    },
+    {
+     "utt_id": "itw_9971",
+     "speaker": "Adam Driver",
+     "attack": "unknown",
+     "duration_s": 22.61,
+     "p_fake_pct": 9.6,
+     "e7a_wavlm_crnn_s42_pct": 1.3,
+     "vg_improved_pct": 2.2,
+     "vg_v2_pct": 1.4
+    }
+   ],
+   "false_rejects": [
+    {
+     "utt_id": "itw_2815",
+     "speaker": "George Carlin",
+     "attack": "-",
+     "duration_s": 0.7,
+     "p_fake_pct": 91.6,
+     "e7a_wavlm_crnn_s42_pct": 99.1,
+     "vg_improved_pct": 96.6,
+     "vg_v2_pct": 99.9
+    },
+    {
+     "utt_id": "itw_21867",
+     "speaker": "Barack Obama",
+     "attack": "-",
+     "duration_s": 0.58,
+     "p_fake_pct": 90.1,
+     "e7a_wavlm_crnn_s42_pct": 98.8,
+     "vg_improved_pct": 92.4,
+     "vg_v2_pct": 99.1
+    },
+    {
+     "utt_id": "itw_6872",
+     "speaker": "Louis Farrakhan",
+     "attack": "-",
+     "duration_s": 1.3,
+     "p_fake_pct": 89.4,
+     "e7a_wavlm_crnn_s42_pct": 98.0,
+     "vg_improved_pct": 92.4,
+     "vg_v2_pct": 97.5
+    },
+    {
+     "utt_id": "itw_24314",
+     "speaker": "2Pac",
+     "attack": "-",
+     "duration_s": 1.07,
+     "p_fake_pct": 87.2,
+     "e7a_wavlm_crnn_s42_pct": 99.0,
+     "vg_improved_pct": 75.2,
+     "vg_v2_pct": 99.0
+    },
+    {
+     "utt_id": "itw_24740",
+     "speaker": "2Pac",
+     "attack": "-",
+     "duration_s": 1.15,
+     "p_fake_pct": 84.2,
+     "e7a_wavlm_crnn_s42_pct": 96.0,
+     "vg_improved_pct": 73.1,
+     "vg_v2_pct": 98.3
+    },
+    {
+     "utt_id": "itw_29941",
+     "speaker": "Malcolm X",
+     "attack": "-",
+     "duration_s": 0.77,
+     "p_fake_pct": 84.1,
+     "e7a_wavlm_crnn_s42_pct": 99.0,
+     "vg_improved_pct": 84.7,
+     "vg_v2_pct": 70.6
+    },
+    {
+     "utt_id": "itw_2726",
+     "speaker": "2Pac",
+     "attack": "-",
+     "duration_s": 1.4,
+     "p_fake_pct": 83.8,
+     "e7a_wavlm_crnn_s42_pct": 98.6,
+     "vg_improved_pct": 55.5,
+     "vg_v2_pct": 96.4
+    },
+    {
+     "utt_id": "itw_18531",
+     "speaker": "Milton Friedman",
+     "attack": "-",
+     "duration_s": 0.46,
+     "p_fake_pct": 83.4,
+     "e7a_wavlm_crnn_s42_pct": 99.1,
+     "vg_improved_pct": 91.4,
+     "vg_v2_pct": 33.0
+    },
+    {
+     "utt_id": "itw_17640",
+     "speaker": "Bernie Sanders",
+     "attack": "-",
+     "duration_s": 0.88,
+     "p_fake_pct": 82.8,
+     "e7a_wavlm_crnn_s42_pct": 98.7,
+     "vg_improved_pct": 85.3,
+     "vg_v2_pct": 50.0
+    },
+    {
+     "utt_id": "itw_12936",
+     "speaker": "Gilbert Gottfried",
+     "attack": "-",
+     "duration_s": 3.98,
+     "p_fake_pct": 82.7,
+     "e7a_wavlm_crnn_s42_pct": 98.7,
+     "vg_improved_pct": 98.4,
+     "vg_v2_pct": 0.9
+    },
+    {
+     "utt_id": "itw_11476",
+     "speaker": "Christopher Hitchens",
+     "attack": "-",
+     "duration_s": 0.55,
+     "p_fake_pct": 81.8,
+     "e7a_wavlm_crnn_s42_pct": 99.1,
+     "vg_improved_pct": 88.2,
+     "vg_v2_pct": 26.2
+    },
+    {
+     "utt_id": "itw_19719",
+     "speaker": "Bernie Sanders",
+     "attack": "-",
+     "duration_s": 0.44,
+     "p_fake_pct": 81.7,
+     "e7a_wavlm_crnn_s42_pct": 99.1,
+     "vg_improved_pct": 83.6,
+     "vg_v2_pct": 40.2
+    }
+   ],
+   "by_duration": {
+    "< 2 s": {
+     "n": 7084,
+     "n_real": 5134,
+     "n_fake": 1950,
+     "accuracy_pct": 89.45511010728401,
+     "real_called_fake_pct": 8.27814569536424,
+     "fake_called_real_pct": 16.512820512820515
+    },
+    "2\u20133 s": {
+     "n": 7127,
+     "n_real": 4895,
+     "n_fake": 2232,
+     "accuracy_pct": 92.49333520415321,
+     "real_called_fake_pct": 1.491317671092952,
+     "fake_called_real_pct": 20.698924731182796
+    },
+    "3\u20134 s": {
+     "n": 5174,
+     "n_real": 3514,
+     "n_fake": 1660,
+     "accuracy_pct": 94.80092771550058,
+     "real_called_fake_pct": 1.3659647125782584,
+     "fake_called_real_pct": 13.313253012048193
+    },
+    "4\u20136 s": {
+     "n": 6115,
+     "n_real": 3686,
+     "n_fake": 2429,
+     "accuracy_pct": 95.437448896157,
+     "real_called_fake_pct": 0.8410200759631037,
+     "fake_called_real_pct": 10.209962947715109
+    },
+    "\u2265 6 s": {
+     "n": 6279,
+     "n_real": 2734,
+     "n_fake": 3545,
+     "accuracy_pct": 93.42251950947603,
+     "real_called_fake_pct": 0.2926115581565472,
+     "fake_called_real_pct": 11.42454160789845
+    }
+   },
+   "by_speaker": {
+    "Frank Sinatra": {
+     "n": 55,
+     "n_real": 17,
+     "n_fake": 38,
+     "accuracy_pct": 50.90909090909091,
+     "real_called_fake_pct": 5.88235294117647,
+     "fake_called_real_pct": 68.42105263157895
+    },
+    "Adam Driver": {
+     "n": 217,
+     "n_real": 80,
+     "n_fake": 137,
+     "accuracy_pct": 54.377880184331794,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 72.26277372262774
+    },
+    "Nelson Mandela": {
+     "n": 381,
+     "n_real": 97,
+     "n_fake": 284,
+     "accuracy_pct": 69.02887139107612,
+     "real_called_fake_pct": 1.0309278350515463,
+     "fake_called_real_pct": 41.19718309859155
+    },
+    "Queen Elizabeth II": {
+     "n": 464,
+     "n_real": 105,
+     "n_fake": 359,
+     "accuracy_pct": 76.72413793103449,
+     "real_called_fake_pct": 1.9047619047619049,
+     "fake_called_real_pct": 29.526462395543174
+    },
+    "Milton Friedman": {
+     "n": 589,
+     "n_real": 289,
+     "n_fake": 300,
+     "accuracy_pct": 78.26825127334465,
+     "real_called_fake_pct": 0.34602076124567477,
+     "fake_called_real_pct": 42.333333333333336
+    },
+    "Robert Kardashian": {
+     "n": 143,
+     "n_real": 103,
+     "n_fake": 40,
+     "accuracy_pct": 78.32167832167832,
+     "real_called_fake_pct": 3.8834951456310676,
+     "fake_called_real_pct": 67.5
+    },
+    "Alan Watts": {
+     "n": 378,
+     "n_real": 86,
+     "n_fake": 292,
+     "accuracy_pct": 80.15873015873017,
+     "real_called_fake_pct": 23.25581395348837,
+     "fake_called_real_pct": 18.835616438356166
+    },
+    "Jerry Seinfeld": {
+     "n": 51,
+     "n_real": 8,
+     "n_fake": 43,
+     "accuracy_pct": 82.35294117647058,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 20.930232558139537
+    },
+    "Malcolm X": {
+     "n": 176,
+     "n_real": 130,
+     "n_fake": 46,
+     "accuracy_pct": 82.95454545454545,
+     "real_called_fake_pct": 16.923076923076923,
+     "fake_called_real_pct": 17.391304347826086
+    },
+    "Bill Clinton": {
+     "n": 1832,
+     "n_real": 1129,
+     "n_fake": 703,
+     "accuracy_pct": 83.67903930131004,
+     "real_called_fake_pct": 0.2657218777679362,
+     "fake_called_real_pct": 42.10526315789473
+    },
+    "FDR": {
+     "n": 471,
+     "n_real": 308,
+     "n_fake": 163,
+     "accuracy_pct": 84.07643312101911,
+     "real_called_fake_pct": 20.77922077922078,
+     "fake_called_real_pct": 6.748466257668712
+    },
+    "JFK": {
+     "n": 669,
+     "n_real": 396,
+     "n_fake": 273,
+     "accuracy_pct": 85.35127055306427,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 35.8974358974359
+    },
+    "George W. Bush": {
+     "n": 230,
+     "n_real": 55,
+     "n_fake": 175,
+     "accuracy_pct": 86.08695652173914,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 18.285714285714285
+    },
+    "2Pac": {
+     "n": 160,
+     "n_real": 59,
+     "n_fake": 101,
+     "accuracy_pct": 86.875,
+     "real_called_fake_pct": 35.59322033898305,
+     "fake_called_real_pct": 0.0
+    },
+    "Martin Luther King": {
+     "n": 799,
+     "n_real": 516,
+     "n_fake": 283,
+     "accuracy_pct": 88.36045056320401,
+     "real_called_fake_pct": 5.038759689922481,
+     "fake_called_real_pct": 23.674911660777383
+    },
+    "Arnold Schwarzenegger": {
+     "n": 351,
+     "n_real": 243,
+     "n_fake": 108,
+     "accuracy_pct": 89.74358974358975,
+     "real_called_fake_pct": 0.411522633744856,
+     "fake_called_real_pct": 32.407407407407405
+    },
+    "Richard Nixon": {
+     "n": 359,
+     "n_real": 233,
+     "n_fake": 126,
+     "accuracy_pct": 90.5292479108635,
+     "real_called_fake_pct": 0.4291845493562232,
+     "fake_called_real_pct": 26.190476190476193
+    },
+    "Nick Offerman": {
+     "n": 169,
+     "n_real": 158,
+     "n_fake": 11,
+     "accuracy_pct": 91.12426035502959,
+     "real_called_fake_pct": 5.69620253164557,
+     "fake_called_real_pct": 54.54545454545454
+    },
+    "Mark Zuckerberg": {
+     "n": 582,
+     "n_real": 321,
+     "n_fake": 261,
+     "accuracy_pct": 91.92439862542955,
+     "real_called_fake_pct": 1.2461059190031152,
+     "fake_called_real_pct": 16.47509578544061
+    },
+    "Barack Obama": {
+     "n": 3636,
+     "n_real": 3302,
+     "n_fake": 334,
+     "accuracy_pct": 91.996699669967,
+     "real_called_fake_pct": 1.4536644457904302,
+     "fake_called_real_pct": 72.75449101796407
+    },
+    "Norm MacDonald": {
+     "n": 129,
+     "n_real": 36,
+     "n_fake": 93,
+     "accuracy_pct": 92.24806201550388,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 10.75268817204301
+    },
+    "Ayn Rand": {
+     "n": 2493,
+     "n_real": 1389,
+     "n_fake": 1104,
+     "accuracy_pct": 92.90012033694343,
+     "real_called_fake_pct": 7.631389488840893,
+     "fake_called_real_pct": 6.4311594202898545
+    },
+    "Bill Burr": {
+     "n": 201,
+     "n_real": 144,
+     "n_fake": 57,
+     "accuracy_pct": 94.5273631840796,
+     "real_called_fake_pct": 7.638888888888889,
+     "fake_called_real_pct": 0.0
+    },
+    "Kanye West": {
+     "n": 154,
+     "n_real": 75,
+     "n_fake": 79,
+     "accuracy_pct": 94.8051948051948,
+     "real_called_fake_pct": 4.0,
+     "fake_called_real_pct": 6.329113924050633
+    },
+    "Dwight Eisenhower": {
+     "n": 268,
+     "n_real": 205,
+     "n_fake": 63,
+     "accuracy_pct": 95.1492537313433,
+     "real_called_fake_pct": 5.365853658536586,
+     "fake_called_real_pct": 3.1746031746031744
+    },
+    "George Carlin": {
+     "n": 248,
+     "n_real": 164,
+     "n_fake": 84,
+     "accuracy_pct": 95.16129032258065,
+     "real_called_fake_pct": 7.317073170731707,
+     "fake_called_real_pct": 0.0
+    },
+    "Gilbert Gottfried": {
+     "n": 208,
+     "n_real": 81,
+     "n_fake": 127,
+     "accuracy_pct": 95.1923076923077,
+     "real_called_fake_pct": 12.345679012345679,
+     "fake_called_real_pct": 0.0
+    },
+    "Bob Ross": {
+     "n": 108,
+     "n_real": 60,
+     "n_fake": 48,
+     "accuracy_pct": 96.29629629629629,
+     "real_called_fake_pct": 3.3333333333333335,
+     "fake_called_real_pct": 4.166666666666666
+    },
+    "Louis Farrakhan": {
+     "n": 410,
+     "n_real": 302,
+     "n_fake": 108,
+     "accuracy_pct": 96.34146341463415,
+     "real_called_fake_pct": 4.966887417218543,
+     "fake_called_real_pct": 0.0
+    },
+    "Alec Guinness": {
+     "n": 3625,
+     "n_real": 1907,
+     "n_fake": 1718,
+     "accuracy_pct": 96.8,
+     "real_called_fake_pct": 5.663345568956476,
+     "fake_called_real_pct": 0.46565774155995343
+    },
+    "Donald Trump": {
+     "n": 3423,
+     "n_real": 3268,
+     "n_fake": 155,
+     "accuracy_pct": 96.81565877884897,
+     "real_called_fake_pct": 0.03059975520195838,
+     "fake_called_real_pct": 69.6774193548387
+    },
+    "Harry Truman": {
+     "n": 63,
+     "n_real": 47,
+     "n_fake": 16,
+     "accuracy_pct": 96.82539682539682,
+     "real_called_fake_pct": 4.25531914893617,
+     "fake_called_real_pct": 0.0
+    },
+    "Mr. Rogers": {
+     "n": 130,
+     "n_real": 34,
+     "n_fake": 96,
+     "accuracy_pct": 96.92307692307692,
+     "real_called_fake_pct": 2.941176470588235,
+     "fake_called_real_pct": 3.125
+    },
+    "Louis C.K.": {
+     "n": 66,
+     "n_real": 9,
+     "n_fake": 57,
+     "accuracy_pct": 96.96969696969697,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 3.508771929824561
+    },
+    "Calvin Coolidge": {
+     "n": 73,
+     "n_real": 58,
+     "n_fake": 15,
+     "accuracy_pct": 97.26027397260275,
+     "real_called_fake_pct": 3.4482758620689653,
+     "fake_called_real_pct": 0.0
+    },
+    "John Cleese": {
+     "n": 129,
+     "n_real": 59,
+     "n_fake": 70,
+     "accuracy_pct": 97.67441860465115,
+     "real_called_fake_pct": 5.084745762711865,
+     "fake_called_real_pct": 0.0
+    },
+    "Alexandria Ocasio-Cortez": {
+     "n": 390,
+     "n_real": 290,
+     "n_fake": 100,
+     "accuracy_pct": 97.94871794871794,
+     "real_called_fake_pct": 2.7586206896551726,
+     "fake_called_real_pct": 0.0
+    },
+    "Christopher Hitchens": {
+     "n": 1339,
+     "n_real": 798,
+     "n_fake": 541,
+     "accuracy_pct": 98.28230022404779,
+     "real_called_fake_pct": 2.882205513784461,
+     "fake_called_real_pct": 0.0
+    },
+    "Winston Churchill": {
+     "n": 882,
+     "n_real": 625,
+     "n_fake": 257,
+     "accuracy_pct": 98.75283446712018,
+     "real_called_fake_pct": 1.6,
+     "fake_called_real_pct": 0.38910505836575876
+    },
+    "Tucker Carlson": {
+     "n": 100,
+     "n_real": 33,
+     "n_fake": 67,
+     "accuracy_pct": 99.0,
+     "real_called_fake_pct": 3.0303030303030303,
+     "fake_called_real_pct": 0.0
+    },
+    "Orson Welles": {
+     "n": 202,
+     "n_real": 26,
+     "n_fake": 176,
+     "accuracy_pct": 99.00990099009901,
+     "real_called_fake_pct": 7.6923076923076925,
+     "fake_called_real_pct": 0.0
+    },
+    "Lyndon Johnson": {
+     "n": 107,
+     "n_real": 95,
+     "n_fake": 12,
+     "accuracy_pct": 99.06542056074767,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 8.333333333333332
+    },
+    "Bernie Sanders": {
+     "n": 2877,
+     "n_real": 1623,
+     "n_fake": 1254,
+     "accuracy_pct": 99.33958985053876,
+     "real_called_fake_pct": 1.1090573012939002,
+     "fake_called_real_pct": 0.07974481658692185
+    },
+    "Ronald Reagan": {
+     "n": 1536,
+     "n_real": 620,
+     "n_fake": 916,
+     "accuracy_pct": 99.4140625,
+     "real_called_fake_pct": 1.129032258064516,
+     "fake_called_real_pct": 0.21834061135371177
+    },
+    "The Notorious B.I.G.": {
+     "n": 329,
+     "n_real": 14,
+     "n_fake": 315,
+     "accuracy_pct": 99.69604863221885,
+     "real_called_fake_pct": 7.142857142857142,
+     "fake_called_real_pct": 0.0
+    },
+    "Boris Johnson": {
+     "n": 295,
+     "n_real": 209,
+     "n_fake": 86,
+     "accuracy_pct": 100.0,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 0.0
+    },
+    "Jeff Goldblum": {
+     "n": 60,
+     "n_real": 56,
+     "n_fake": 4,
+     "accuracy_pct": 100.0,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 0.0
+    },
+    "Mitch Hedberg": {
+     "n": 31,
+     "n_real": 3,
+     "n_fake": 28,
+     "accuracy_pct": 100.0,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 0.0
+    },
+    "Scarlett Johansson": {
+     "n": 73,
+     "n_real": 31,
+     "n_fake": 42,
+     "accuracy_pct": 100.0,
+     "real_called_fake_pct": 0.0,
+     "fake_called_real_pct": 0.0
+    }
+   }
+  }
+ }
+}
