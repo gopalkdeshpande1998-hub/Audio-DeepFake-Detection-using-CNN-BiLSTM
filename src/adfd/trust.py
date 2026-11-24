@@ -1,7 +1,7 @@
 """How far to trust one verdict of the app's model, WavLM + CNN-BiLSTM-Att (E7a).
 
 Looks up the held-out accuracy of verdicts like this one (same confidence band of E7a's
-calibrated P(fake)) in the error analysis written by `scripts/error_analysis.py`
+calibrated P(fake)) in the error analysis written by `scripts/evaluation/error_analysis.py`
 (experiments/error_analysis_e7a/error_analysis.json). Given several member scores (the retired
 ensemble tables) it also matches the number of members sharing the verdict. Nothing here changes
 the verdict; it only reports how often such verdicts were right on test data.

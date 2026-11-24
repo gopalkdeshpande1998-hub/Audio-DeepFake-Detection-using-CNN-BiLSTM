@@ -441,10 +441,10 @@ def errors() -> None:
          "trust a verdict.", "search")
     ea = data.error_analysis()
     if not ea:
-        st.info("Run `python scripts/error_analysis.py` to build this page (it reads the stored scores; about 1 min).")
+        st.info("Run `python scripts/evaluation/error_analysis.py` to build this page (it reads the stored scores; about 1 min).")
         return
     st.markdown("Where the app's model, WavLM + CNN-BiLSTM-Att (E7a), goes wrong on held-out data at its "
-                "REAL/SYNTHETIC line of 50%. Built from its stored per-clip scores by `scripts/error_analysis.py`.")
+                "REAL/SYNTHETIC line of 50%. Built from its stored per-clip scores by `scripts/evaluation/error_analysis.py`.")
     names = [n for n in ea["sets"] if n in SHOWN_SETS]
     if not names:
         st.info("No held-out test set to show.")
@@ -519,10 +519,10 @@ def help_page() -> None:
     st.code("streamlit run app.py                     # this app, http://localhost:8501\n"
             "uvicorn api.main:app --port 8000         # REST API, docs at /docs\n"
             "python -m adfd.explain clip.wav          # verdict + figures on the command line\n"
-            "python scripts/error_analysis.py         # rebuild the error analysis and trust table", language="bash")
+            "python scripts/evaluation/error_analysis.py         # rebuild the error analysis and trust table", language="bash")
     st.markdown("#### Something went wrong")
     st.markdown("- **No trained models found:** the `runs/` folders (`best.pt`, `reliability.json`) are not in git; "
                 "copy them in or train (README).\n"
                 "- **Could not read the file:** convert it to WAV or FLAC; for video, MP4 works best.\n"
                 "- **Very slow:** the first analysis loads the model (~10 s); a hot laptop CPU can be 5× slower.\n"
-                "- **Trust panel says to run a script:** run `python scripts/error_analysis.py` once.")
+                "- **Trust panel says to run a script:** run `python scripts/evaluation/error_analysis.py` once.")

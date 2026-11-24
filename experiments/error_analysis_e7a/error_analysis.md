@@ -1,6 +1,6 @@
 # Error analysis of WavLM + CNN-BiLSTM-Att (E7a), the app's only model (P4.6)
 
-Produced by `scripts/error_analysis.py` from the stored per-utterance scores; decision: FAKE if E7a's calibrated P(fake) >= 0.5.
+Produced by `scripts/evaluation/error_analysis.py` from the stored per-utterance scores; decision: FAKE if E7a's calibrated P(fake) >= 0.5.
 
 ## ASVspoof eval
 

@@ -1,6 +1,6 @@
 """Train the temporal (segment-level) detector: frame labels every 0.16 s plus the clip label.
 
-    python -m adfd.train_temporal --config configs/t1_wavlm_crnn_temporal.yaml
+    python -m adfd.train_temporal --config configs/experiments/t1_wavlm_crnn_temporal.yaml
     python -m adfd.train_temporal --config ... --limit 400 --max-epochs 1     # smoke test
 
 Data: PartialSpoof dev, train speakers (partially fake, with 0.16-s labels) + ASVspoof 2019 LA train fully real

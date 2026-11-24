@@ -5,9 +5,7 @@ runs
 experiments
 data
 legacy
-Results
-Research_Paper
-savedmodels
+docs/paper
 explanations
 .git
 **/__pycache__

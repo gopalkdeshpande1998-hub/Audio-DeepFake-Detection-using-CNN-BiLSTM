@@ -1,23 +1,23 @@
 # Phase 2 after the feature ablation: LFCC-60 won on dev EER (0.04%).
 # Extra LFCC seeds, E3 silence-trimmed training, E4 augmentation (on E3), robustness scoring.
-- train:    {config: configs/e2a_lfcc.yaml, seed: 43}
+- train:    {config: configs/experiments/e2a_lfcc.yaml, seed: 43}
 - evaluate: {run: e2a_lfcc_s43}
-- train:    {config: configs/e2a_lfcc.yaml, seed: 44}
+- train:    {config: configs/experiments/e2a_lfcc.yaml, seed: 44}
 - evaluate: {run: e2a_lfcc_s44}
 - evaluate: {run: e2a_lfcc_s42, tag: trimmed, trim_silence: on}
 - evaluate: {run: e2a_lfcc_s43, tag: trimmed, trim_silence: on}
 - evaluate: {run: e2a_lfcc_s44, tag: trimmed, trim_silence: on}
-- train:    {config: configs/e3_trimmed.yaml, seed: 42}
+- train:    {config: configs/experiments/e3_trimmed.yaml, seed: 42}
 - evaluate: {run: e3_trimmed_s42}
 - evaluate: {run: e3_trimmed_s42, tag: untrimmed, trim_silence: off}
-- script:   [scripts/compute_silence.py, --workers, "3", --datasets, asvspoof2019_la_robust_clean, asvspoof2019_la_robust_mp3_51k, asvspoof2019_la_robust_mp3_19k, asvspoof2019_la_robust_opus_84k, asvspoof2019_la_robust_opus_10k, asvspoof2019_la_robust_telephone, asvspoof2019_la_robust_white_20db, asvspoof2019_la_robust_white_10db, asvspoof2019_la_robust_white_5db, asvspoof2019_la_robust_pink_10db]
-- train:    {config: configs/e4a_rawboost.yaml, seed: 42}
+- script:   [scripts/data/compute_silence.py, --workers, "3", --datasets, asvspoof2019_la_robust_clean, asvspoof2019_la_robust_mp3_51k, asvspoof2019_la_robust_mp3_19k, asvspoof2019_la_robust_opus_84k, asvspoof2019_la_robust_opus_10k, asvspoof2019_la_robust_telephone, asvspoof2019_la_robust_white_20db, asvspoof2019_la_robust_white_10db, asvspoof2019_la_robust_white_5db, asvspoof2019_la_robust_pink_10db]
+- train:    {config: configs/experiments/e4a_rawboost.yaml, seed: 42}
 - evaluate: {run: e4a_rawboost_s42}
-- train:    {config: configs/e4b_codec.yaml, seed: 42}
+- train:    {config: configs/experiments/e4b_codec.yaml, seed: 42}
 - evaluate: {run: e4b_codec_s42}
-- train:    {config: configs/e4c_rawboost_codec.yaml, seed: 42}
+- train:    {config: configs/experiments/e4c_rawboost_codec.yaml, seed: 42}
 - evaluate: {run: e4c_rawboost_codec_s42}
 - evaluate: {run: e1_cnn_bilstm_mfcc_s42, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
 - evaluate: {run: e2a_lfcc_s42, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
 - evaluate: {run: e3_trimmed_s42, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
-- script:   [scripts/make_tables.py]
+- script:   [scripts/evaluation/make_tables.py]

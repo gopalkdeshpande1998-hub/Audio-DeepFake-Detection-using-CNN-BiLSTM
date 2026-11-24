@@ -8,7 +8,7 @@ Three kinds of evidence, kept apart so a reader can weigh them:
    the VoiceGuard models, summarised per frequency band (below 1 kHz, 1-4 kHz, 4-8 kHz).
 3. Acoustic observations (model-free): measurements of the recording compared with
    real reference speech (percentiles of bona fide ASVspoof train + dev recordings,
-   `experiments/forensics/reference.json`, fitted by scripts/fit_forensics.py).
+   `experiments/forensics/reference.json`, fitted by scripts/evaluation/fit_forensics.py).
    Only measurements outside the central 90% of real speech are reported, with the
    usual forensic reading of such a deviation. They are observations, not proof: real
    recordings can be unusual too, and they never change the verdict.

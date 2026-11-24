@@ -91,4 +91,4 @@
     - asvspoof2019_la_robustdev_white_5db:test
     - asvspoof2019_la_robustdev_pink_10db:test
 - script:
-  - scripts/make_tables.py
+  - scripts/evaluation/make_tables.py

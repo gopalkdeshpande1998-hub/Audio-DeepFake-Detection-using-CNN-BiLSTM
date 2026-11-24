@@ -57,10 +57,10 @@ All phases done for a first version: model `runs/t1_wavlm_crnn_temporal_s42` (2 
 validation speakers, evaluation on PartialSpoof eval and on 10-15 s mixes, app + API integration. Results and
 limitations: `experiments/temporal_t1/REPORT.md`. Reproduce:
 
-    python scripts/build_partialspoof.py
-    python -m adfd.train_temporal --config configs/t1_wavlm_crnn_temporal.yaml --run-name t1_wavlm_crnn_temporal_s42
-    python scripts/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --fit
-    python scripts/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --split test --limit 6000
-    python scripts/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --split test --long 300
+    python scripts/data/build_partialspoof.py
+    python -m adfd.train_temporal --config configs/experiments/t1_wavlm_crnn_temporal.yaml --run-name t1_wavlm_crnn_temporal_s42
+    python scripts/evaluation/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --fit
+    python scripts/evaluation/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --split test --limit 6000
+    python scripts/evaluation/eval_temporal.py --run runs/t1_wavlm_crnn_temporal_s42 --split test --long 300
 
 Next: more seeds / epochs, tests on DEEP-VOICE and degraded audio, a full (71k) eval pass.

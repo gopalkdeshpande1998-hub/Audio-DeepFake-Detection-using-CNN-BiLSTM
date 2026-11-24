@@ -1,7 +1,7 @@
 # Phase 3, P3.3 (WavLM-Base+ SSL model, 3 seeds, about 7.7 h), then P3.4 fusion, P3.5 efficiency
 # and the Phase 3 table. Runs after phase3_p31_p32.yaml. Finished steps are skipped.
 - train:
-    config: configs/e7a_wavlm_crnn.yaml
+    config: configs/experiments/e7a_wavlm_crnn.yaml
     seed: 42
 - evaluate:
     run: e7a_wavlm_crnn_s42
@@ -35,7 +35,7 @@
     - asvspoof2019_la_robust_white_5db:test
     - asvspoof2019_la_robust_pink_10db:test
 - train:
-    config: configs/e7a_wavlm_crnn.yaml
+    config: configs/experiments/e7a_wavlm_crnn.yaml
     seed: 43
 - evaluate:
     run: e7a_wavlm_crnn_s43
@@ -69,7 +69,7 @@
     - asvspoof2019_la_robust_white_5db:test
     - asvspoof2019_la_robust_pink_10db:test
 - train:
-    config: configs/e7a_wavlm_crnn.yaml
+    config: configs/experiments/e7a_wavlm_crnn.yaml
     seed: 44
 - evaluate:
     run: e7a_wavlm_crnn_s44
@@ -103,8 +103,8 @@
     - asvspoof2019_la_robust_white_5db:test
     - asvspoof2019_la_robust_pink_10db:test
 - script:
-  - scripts/fuse_scores.py
+  - scripts/ensemble/fuse_scores.py
 - script:
-  - scripts/efficiency.py
+  - scripts/evaluation/efficiency.py
 - script:
-  - scripts/make_tables_p3.py
+  - scripts/evaluation/make_tables_p3.py

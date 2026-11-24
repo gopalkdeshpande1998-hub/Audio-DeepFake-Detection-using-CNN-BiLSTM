@@ -1,11 +1,11 @@
 # E8 all-data retrain (2026-11-22) and a like-for-like comparison with E7b.
-#   python scripts/run_queue.py configs/queues/e8_alldata.yaml
-# 1. train E8 (configs/e8_wavlm_crnn_alldata.yaml): ~3.7 h
+#   python scripts/train/run_queue.py configs/queues/e8_alldata.yaml
+# 1. train E8 (configs/experiments/e8_wavlm_crnn_alldata.yaml): ~3.7 h
 # 2. score E8 on every held-out test part, plus the degraded dev subsets (calibration)
 # 3. score E7b on the new DEEP-VOICE / Speech_Dataset test parts, so both are compared on the same clips
 # 4. calibration + OOD for E8
 - train:
-    config: configs/e8_wavlm_crnn_alldata.yaml
+    config: configs/experiments/e8_wavlm_crnn_alldata.yaml
     seed: 42
 - evaluate:
     run: e8_wavlm_crnn_alldata_s42
@@ -36,4 +36,4 @@
     - asvspoof2019_la_robustdev_white_10db:test
     - asvspoof2019_la_robustdev_white_5db:test
     - asvspoof2019_la_robustdev_pink_10db:test
-- script: [scripts/fit_reliability.py, --run, runs/e8_wavlm_crnn_alldata_s42]
+- script: [scripts/evaluation/fit_reliability.py, --run, runs/e8_wavlm_crnn_alldata_s42]

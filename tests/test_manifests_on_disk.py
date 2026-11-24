@@ -1,7 +1,7 @@
 """Checks on the built manifests against the real datasets.
 
 Skipped when a manifest has not been built or the dataset is not on this machine.
-Build them with: python scripts/build_manifests.py
+Build them with: python scripts/data/build_manifests.py
 """
 
 import pandas as pd

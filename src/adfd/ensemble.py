@@ -6,7 +6,7 @@ Merged detector: the project's best model plus the two VoiceGuard checkpoints.
     ens = EnsembleAnalyzer()                      # reads runs/ensemble/ensemble.json
     res = ens.analyze(load_audio("clip.wav"))     # verdict, P(fake), members, timeline, segments
 
-How a file is decided (configuration fitted by scripts/fit_ensemble_binary.py)
+How a file is decided (configuration fitted by scripts/ensemble/fit_ensemble_binary.py)
   1. every member scores the file with its own windows (E7a: 4 s on the speech region;
      VoiceGuard: 5 s, as each was trained) and its own calibration -> member P(fake);
   2. fusion of the member log-odds z_i: each clipped to +-clip (an over-confident member
@@ -20,7 +20,7 @@ Where (time-local analysis, separate from the file verdict)
   4. every member also scores short local windows (2 s, hop 0.5 s; longer for long files,
      at most 120 windows) over the whole recording; each timeline step gets the mean member
      log-odds of the windows covering its centre, fused with the same weights and clipping
-     but with the window-level calibration A_loc, B_loc (scripts/fit_local_calibration.py:
+     but with the window-level calibration A_loc, B_loc (scripts/ensemble/fit_local_calibration.py:
      members score short windows differently from whole files). These are real per-window
      model outputs, never the file score repeated. Windows with (almost) no speech, or with
      non-finite scores, are left out; steps covered only by such windows have no score

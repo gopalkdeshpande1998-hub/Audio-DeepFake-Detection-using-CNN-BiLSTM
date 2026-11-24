@@ -12,7 +12,7 @@ Endpoints
                   Also returns Real / Fake / No speech regions from the time-local analysis, the flagged
                   segments with severity and evidence, and a plain-language explanation
                   (explanation=false skips the acoustic part), and a trust block: the held-out accuracy
-                  of verdicts with the same confidence, from scripts/error_analysis.py.
+                  of verdicts with the same confidence, from scripts/evaluation/error_analysis.py.
                   Removed on 2026-11-23 with the three-model ensemble: `members` (per-model scores)
                   and the ensemble decision fields; trust.models_agreeing / n_members are always 1.
 Inference runs on the GPU when one is available (CUDA, or MPS on Apple silicon Macs), else the CPU

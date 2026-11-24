@@ -7,7 +7,7 @@
 > precision 0.938, recall 0.874, F1 0.905, false-positive rate 5.7% (vs 0.936 / 0.876 / 0.905 / 5.9% at 0.49).
 > The "UNCERTAIN band" row and the example's UNCERTAIN / NO SPEECH regions describe the earlier version.
 
-Run `runs/t1_wavlm_crnn_temporal_s42` (config `configs/t1_wavlm_crnn_temporal.yaml`), 1 seed, 2 epochs
+Run `runs/t1_wavlm_crnn_temporal_s42` (config `configs/experiments/t1_wavlm_crnn_temporal.yaml`), 1 seed, 2 epochs
 (37 min on the RTX 3050). Raw numbers: `test.json`, `test_long.json`; calibration:
 `runs/t1_wavlm_crnn_temporal_s42/temporal_calibration.json`.
 

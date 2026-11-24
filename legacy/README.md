@@ -8,5 +8,5 @@ The v2 pipeline (`src/adfd`, see `docs/IMPLEMENTATION_PLAN.md`) replaces them wi
 
 - `Model_Training.ipynb`: original training (Kaggle TPU)
 - `Model_Evaluation.ipynb`: original evaluation
-- `test.ipynb`: converted the TPU-trained weights to `savedmodels/updated_model.*` (still used by `app.py`)
+- `test.ipynb`: converted the TPU-trained weights to `savedmodels/updated_model.*` (used by `app_v1_tensorflow.py`, in `legacy/savedmodels/`)
 - `my_model.h5`: original weights exported from the training notebook

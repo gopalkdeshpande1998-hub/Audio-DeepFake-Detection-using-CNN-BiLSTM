@@ -1,7 +1,7 @@
 # Phase 2 last step: loudness sensitivity (test crops RMS-normalised), then rebuild all shortcut checks and tables.
 # E4d seed 42 is retrained first: its first attempt crashed when datasets.py changed mid-run.
 - train:
-    config: configs/e4d_full_aug.yaml
+    config: configs/experiments/e4d_full_aug.yaml
     seed: 42
     stop_after: 22
 - evaluate:
@@ -144,8 +144,8 @@
     - asvspoof2019_la:eval
     - in_the_wild:test
 - script:
-  - scripts/length_check.py
+  - scripts/checks/length_check.py
 - script:
-  - scripts/loudness_check.py
+  - scripts/checks/loudness_check.py
 - script:
-  - scripts/make_tables.py
+  - scripts/evaluation/make_tables.py

@@ -1,10 +1,10 @@
 # P2.1 feature ablation (seed 42), then the degraded robustness sets.
-- train:    {config: configs/e2a_lfcc.yaml, seed: 42}
+- train:    {config: configs/experiments/e2a_lfcc.yaml, seed: 42}
 - evaluate: {run: e2a_lfcc_s42}
-- train:    {config: configs/e2b_cqcc.yaml, seed: 42}
+- train:    {config: configs/experiments/e2b_cqcc.yaml, seed: 42}
 - evaluate: {run: e2b_cqcc_s42}
-- train:    {config: configs/e2c_logmel.yaml, seed: 42}
+- train:    {config: configs/experiments/e2c_logmel.yaml, seed: 42}
 - evaluate: {run: e2c_logmel_s42}
-- train:    {config: configs/e2d_sinc.yaml, seed: 42}
+- train:    {config: configs/experiments/e2d_sinc.yaml, seed: 42}
 - evaluate: {run: e2d_sinc_s42}
-- script:   [scripts/build_robustness_sets.py, --workers, "3"]
+- script:   [scripts/data/build_robustness_sets.py, --workers, "3"]

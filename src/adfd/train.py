@@ -1,14 +1,14 @@
 """Train a detector on ASVspoof 2019 LA train, early-stopping on dev EER.
 
 Usage:
-    python -m adfd.train --config configs/e1_cnn_bilstm_mfcc.yaml [--seed 43]
+    python -m adfd.train --config configs/experiments/e1_cnn_bilstm_mfcc.yaml [--seed 43]
     python -m adfd.train --config ... --limit 2000 --max-epochs 1   # quick smoke test
 
 Test sets are never touched here; score them afterwards with adfd.evaluate.
 
 Optional config keys (used by E7b):
   data.extra:      [{manifest, cache, train_split, val_split, repeat}] more training data (e.g. the
-                   In-the-Wild speaker split from scripts/build_extra_data.py); its train rows
+                   In-the-Wild speaker split from scripts/data/build_extra_data.py); its train rows
                    join the training set and its val rows form a second dev set
   data.val_limit:  score only this many (stratified) ASVspoof dev rows each epoch (speed)
   train.init_from: checkpoint to start from (warm start, e.g. the E7a best.pt)
@@ -106,7 +106,7 @@ def main() -> None:
     if cfg["audio"].get("trim_silence"):
         bounds = load_silence(paths.cache_dir, "asvspoof2019_la")
         if bounds is None:
-            raise FileNotFoundError("trim_silence is on but silence bounds are missing: run scripts/compute_silence.py")
+            raise FileNotFoundError("trim_silence is on but silence bounds are missing: run scripts/data/compute_silence.py")
         print("Trimming leading/trailing silence (train and dev)")
     augment = build_augmentation(cfg.get("augment"), sr, seed)
     if augment is not None:

@@ -1,0 +1,59 @@
+# E8: the E7b model retrained on ALL four datasets on disk (user request, 2026-11-22:
+# "make use of all data set less than 10 gb and improve the model ... for greater accuracy").
+#   - warm start from the E7b checkpoint (seed 42)
+#   - training data: ASVspoof 2019 LA train + In-the-Wild train speakers (E7b split, unchanged)
+#     + DEEP-VOICE train persons + Speech_Dataset train part (scripts/data/build_all_data_splits.py)
+#   - held out, never trained or tuned on: ASVspoof eval, In-the-Wild test speakers,
+#     DEEP-VOICE test persons (taylor, trump), Speech_Dataset test part
+#   - model selection: mean of the four dev EERs (ASVspoof dev 8,000-clip subset,
+#     In-the-Wild dev speakers, DEEP-VOICE dev persons, Speech_Dataset dev part)
+#   - lower learning rates than E7b: E7b peaked at epoch 2 and then drifted
+# Skipped as duplicates: G:/.idea/audio-deepfake-detection-main (a copy of DEEP-VOICE) and
+# G:/audio db/InTheWild_External (a re-export of the same 31,779 In-the-Wild clips).
+# Budget: ~37 min per epoch on the RTX 3050 -> 6 epochs ~3.7 h, then ~1 h of test scoring.
+name: e8_wavlm_crnn_alldata
+
+model:
+  name: crnn
+  frontend:
+    name: ssl
+    model: wavlm_base_plus
+    mode: finetune
+    proj_dim: 128
+    grad_checkpointing: true
+  kwargs:
+    n_feat: 128
+    cnn: se_res
+    rnn: lstm
+    pooling: asp
+
+audio:
+  trim_silence: true
+
+data:
+  val_limit: 8000
+  extra:
+    - {manifest: in_the_wild_xd, cache: in_the_wild, train_split: train, val_split: dev}
+    - {manifest: deep_voice_xd, cache: deep_voice, train_split: train, val_split: dev}
+    - {manifest: speech_dataset_xd, cache: speech_dataset, train_split: train, val_split: dev, repeat: 3}
+  test_sets:
+    - asvspoof2019_la:eval
+    - in_the_wild_xd:test
+    - deep_voice_xd:test
+    - speech_dataset_xd:test
+
+augment:
+  rawboost: {p: 0.6, algos: [lnl, isd]}
+  codec:    {p: 0.3, types: [mp3, opus, telephone]}
+  resample: {p: 0.15, rates: [8000, 11025, 12000]}
+  gain:     {p: 0.5, min_db: -6, max_db: 6}
+
+train:
+  init_from: runs/e7b_wavlm_crnn_itw_s42/best.pt
+  batch_size: 8
+  grad_accum: 4             # effective batch 32
+  eval_batch_size: 32
+  lr: 5.0e-5                # back end (E7b: 1e-4)
+  ssl_lr: 5.0e-6            # pretrained transformer (E7b: 1e-5)
+  max_epochs: 6
+  early_stop_patience: 3

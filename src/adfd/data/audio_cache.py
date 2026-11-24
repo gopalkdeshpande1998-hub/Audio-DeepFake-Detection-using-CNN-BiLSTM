@@ -92,7 +92,7 @@ class AudioCache:
         self.data_file, index_file, meta_file = cache_files(cache_dir, dataset)
         if not self.data_file.exists():
             raise FileNotFoundError(
-                f"No audio cache for {dataset!r} at {self.data_file}. Run scripts/cache_audio.py first."
+                f"No audio cache for {dataset!r} at {self.data_file}. Run scripts/data/cache_audio.py first."
             )
         idx = np.load(index_file)
         self.index = {rid: i for i, rid in enumerate(idx["recording_ids"])}

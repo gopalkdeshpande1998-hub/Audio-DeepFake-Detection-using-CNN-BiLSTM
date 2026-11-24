@@ -1,6 +1,6 @@
 # Error analysis of the merged detector (P4.6)
 
-Produced by `scripts/error_analysis.py` from the stored per-utterance scores; decision: FAKE if merged P(fake) >= 0.5. In-the-Wild is contaminated for VoiceGuard v2 (trained on most of it).
+Produced by `scripts/evaluation/error_analysis.py` from the stored per-utterance scores; decision: FAKE if merged P(fake) >= 0.5. In-the-Wild is contaminated for VoiceGuard v2 (trained on most of it).
 
 ## ASVspoof eval
 

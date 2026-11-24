@@ -260,7 +260,7 @@ def trust_html(t: dict) -> str:
     body = (f"<div style='font-size:.85rem;margin:8px 0 4px'>How often verdicts like this were right on held-out "
             f"test data ({basis}, {t['level']} confidence):</div>"
             + bars) if bars else ("<div style='font-size:.85rem;margin-top:6px'>Run <code>python "
-                                  "scripts/error_analysis.py</code> to add held-out accuracy here.</div>")
+                                  "scripts/evaluation/error_analysis.py</code> to add held-out accuracy here.</div>")
     return (f"<div class='adfd-trust'><div style='font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;"
             f"opacity:.75'>How far to trust it</div><div class='lvl' style='color:{col}'>{t['level'].capitalize()} "
             f"confidence</div><div style='font-size:.92rem'>{html.escape(advice)}</div>{body}</div>")
@@ -285,7 +285,7 @@ def trust_panel_html(t: dict) -> str:
     body = (f"<div style='font-size:.8rem;color:#8b98ad;margin:12px 0 6px'>How often verdicts like this were right "
             f"on held-out test data ({esc(basis)}):</div>{bars}"
             if bars else "<div style='font-size:.8rem;color:#8b98ad;margin-top:10px'>No held-out accuracy table on "
-                         "this machine. Run <code>python scripts/error_analysis.py</code> to add it.</div>")
+                         "this machine. Run <code>python scripts/evaluation/error_analysis.py</code> to add it.</div>")
     return (f"<div class='vg-panel' style='height:100%'><div style='display:flex;align-items:center;gap:10px;"
             f"justify-content:space-between'><div style='display:flex;align-items:center;gap:10px;font-weight:600'>"
             f"<span style='color:{col}'>{icon('gauge', 18)}</span>How far to trust it</div>"

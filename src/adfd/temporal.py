@@ -1,4 +1,4 @@
-"""Temporal (segment-level) inference with the frame-head model (configs/t1_wavlm_crnn_temporal.yaml).
+"""Temporal (segment-level) inference with the frame-head model (configs/experiments/t1_wavlm_crnn_temporal.yaml).
 
     ta = TemporalAnalyzer("runs/t1_wavlm_crnn_temporal_s42", device="cuda")
     out = ta.analyze(x)        # x: float32 mono 16 kHz, any length

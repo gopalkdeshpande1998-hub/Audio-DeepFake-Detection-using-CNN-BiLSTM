@@ -1,6 +1,6 @@
 # Merged detector, two-way REAL / FAKE decision
 
-Produced by `scripts/fit_ensemble_binary.py`. Weights and calibration come from the tuning sets only (ASVspoof dev + degraded dev, DEEP-VOICE non-test persons). Decision: FAKE if merged P(fake) >= 0.5.
+Produced by `scripts/ensemble/fit_ensemble_binary.py`. Weights and calibration come from the tuning sets only (ASVspoof dev + degraded dev, DEEP-VOICE non-test persons). Decision: FAKE if merged P(fake) >= 0.5.
 
 Weights (E7a, VoiceGuard improved, VoiceGuard v2): 0.45, 0.35, 0.20 (each constrained to 0.2–0.45); member log-odds clipped to ±4.0; calibration P = sigmoid(0.601·s + 0.120), i.e. FAKE when s ≥ -0.20. Constraint: two members that agree at full confidence always beat the third (margin 0.2).
 

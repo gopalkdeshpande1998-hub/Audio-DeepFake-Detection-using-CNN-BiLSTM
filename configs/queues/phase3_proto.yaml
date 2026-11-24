@@ -3,7 +3,7 @@
 # The full 3-seed queues (phase3_p31_p32.yaml, phase3_p33_final.yaml) are kept for the later upgrade;
 # these shortened runs must be deleted first, since the queue skips finished run folders.
 - train:
-    config: configs/e6b_crnn_seres_asp.yaml
+    config: configs/experiments/e6b_crnn_seres_asp.yaml
     seed: 42
     max_epochs: 15
 - evaluate:
@@ -38,7 +38,7 @@
     - asvspoof2019_la_robust_white_5db:test
     - asvspoof2019_la_robust_pink_10db:test
 - train:
-    config: configs/e5b_rawnet2.yaml
+    config: configs/experiments/e5b_rawnet2.yaml
     seed: 42
     max_epochs: 12
 - evaluate:
@@ -73,7 +73,7 @@
     - asvspoof2019_la_robust_white_5db:test
     - asvspoof2019_la_robust_pink_10db:test
 - train:
-    config: configs/e7a_wavlm_crnn.yaml
+    config: configs/experiments/e7a_wavlm_crnn.yaml
     seed: 42
     max_epochs: 2
 - evaluate:
@@ -94,14 +94,14 @@
     - asvspoof2019_la_robustdev_white_5db:test
     - asvspoof2019_la_robustdev_pink_10db:test
 - train:
-    config: configs/e5c_aasist.yaml
+    config: configs/experiments/e5c_aasist.yaml
     seed: 42
     max_epochs: 3
 - evaluate:
     run: e5c_aasist_s42
 - script:
-  - scripts/fuse_scores.py
+  - scripts/ensemble/fuse_scores.py
 - script:
-  - scripts/efficiency.py
+  - scripts/evaluation/efficiency.py
 - script:
-  - scripts/make_tables_p3.py
+  - scripts/evaluation/make_tables_p3.py

@@ -168,3 +168,5 @@ cython_debug/
 data/manifests/*.csv
 runs/
 explanations/
+.vscode/
+runs/logs/

@@ -2,10 +2,10 @@
 # to match seed 42 (stopped manually at epoch 22), then robustness on the eval subset.
 - evaluate: {run: e4c_rawboost_codec_s42, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
 - evaluate: {run: e4a_rawboost_s42, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
-- train:    {config: configs/e4c_rawboost_codec.yaml, seed: 43, stop_after: 22}
+- train:    {config: configs/experiments/e4c_rawboost_codec.yaml, seed: 43, stop_after: 22}
 - evaluate: {run: e4c_rawboost_codec_s43}
 - evaluate: {run: e4c_rawboost_codec_s43, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
-- train:    {config: configs/e4c_rawboost_codec.yaml, seed: 44, stop_after: 22}
+- train:    {config: configs/experiments/e4c_rawboost_codec.yaml, seed: 44, stop_after: 22}
 - evaluate: {run: e4c_rawboost_codec_s44}
 - evaluate: {run: e4c_rawboost_codec_s44, tag: robust, sets: [asvspoof2019_la_robust_clean:test, asvspoof2019_la_robust_mp3_51k:test, asvspoof2019_la_robust_mp3_19k:test, asvspoof2019_la_robust_opus_84k:test, asvspoof2019_la_robust_opus_10k:test, asvspoof2019_la_robust_telephone:test, asvspoof2019_la_robust_white_20db:test, asvspoof2019_la_robust_white_10db:test, asvspoof2019_la_robust_white_5db:test, asvspoof2019_la_robust_pink_10db:test]}
-- script:   [scripts/make_tables.py]
+- script:   [scripts/evaluation/make_tables.py]

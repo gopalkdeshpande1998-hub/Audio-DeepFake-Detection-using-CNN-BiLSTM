@@ -1,7 +1,7 @@
 # Audio Deepfake Detection (v2)
 
 Detects synthetic or converted speech in an audio recording and explains its answer.
-Version 2 rebuilds the original CNN-BiLSTM project (paper in `Research_Paper/`) as a
+Version 2 rebuilds the original CNN-BiLSTM project (paper in `docs/paper/`) as a
 leak-free, cross-dataset research pipeline in PyTorch, with a web app and a REST API.
 
 **What you get for any audio file**
@@ -127,25 +127,33 @@ Key findings so far:
    [ASVspoof 2019 LA](https://datashare.ed.ac.uk/handle/10283/3336),
    [In-the-Wild](https://deepfake-total.com/in_the_wild),
    [DEEP-VOICE](https://www.kaggle.com/datasets/birdy654/deep-voice-deepfake-voice-recognition).
-2. Prepare: `python scripts/build_manifests.py`, `python scripts/cache_audio.py`, `python scripts/compute_silence.py`,
-   `python scripts/build_robustness_sets.py --split eval` (and `--split dev`).
-3. Train and score: `python -m adfd.train --config configs/e4a_rawboost.yaml --seed 42`, then
-   `python -m adfd.evaluate --run runs/<run>`; or run a whole queue: `python scripts/run_queue.py configs/queues/<queue>.yaml`.
-4. Reliability for the app: `python scripts/fit_reliability.py --run runs/<run>` (calibration, thresholds, OOD).
-5. Tables: `python scripts/make_tables.py`, `python scripts/make_tables_p3.py`; efficiency: `python scripts/efficiency.py`.
-6. Error analysis and the app's trust table: `python scripts/error_analysis.py` (reads the stored scores, about 1 min).
+2. Prepare: `python scripts/data/build_manifests.py`, `python scripts/data/cache_audio.py`, `python scripts/data/compute_silence.py`,
+   `python scripts/data/build_robustness_sets.py --split eval` (and `--split dev`).
+3. Train and score: `python -m adfd.train --config configs/experiments/e4a_rawboost.yaml --seed 42`, then
+   `python -m adfd.evaluate --run runs/<run>`; or run a whole queue: `python scripts/train/run_queue.py configs/queues/<queue>.yaml`.
+4. Reliability for the app: `python scripts/evaluation/fit_reliability.py --run runs/<run>` (calibration, thresholds, OOD).
+5. Tables: `python scripts/evaluation/make_tables.py`, `python scripts/evaluation/make_tables_p3.py`; efficiency: `python scripts/evaluation/efficiency.py`.
+6. Error analysis and the app's trust table: `python scripts/evaluation/error_analysis.py` (reads the stored scores, about 1 min).
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `src/adfd/` | data pipeline, front ends, models, training, evaluation, calibration, OOD, inference, trust lookup |
 | `app.py`, `ui/`, `api/` | Streamlit app (entry, pages, detector views, theme) and FastAPI service |
-| `configs/` | one YAML per experiment, plus run queues |
-| `scripts/` | data preparation, analysis, tables, export |
+| `src/adfd/` | data pipeline, front ends, models, training, evaluation, calibration, OOD, inference, trust lookup, segment model |
+| `configs/` | `base.yaml` (shared defaults), `paths.yaml` / `paths.macos.yaml` (where the data lives) |
+| `configs/experiments/` | one YAML per experiment (E1-E8, T1 segment model) |
+| `configs/queues/` | run queues for `scripts/train/run_queue.py` |
+| `scripts/data/` | manifests, audio cache, silence bounds, robustness sets, PartialSpoof, data splits |
+| `scripts/train/` | `run_queue.py` (training runs one after another) |
+| `scripts/evaluation/` | reliability, error analysis, segment-model evaluation, tables, figures, efficiency, ONNX export |
+| `scripts/checks/` | shortcut and data checks (length, loudness, shortcut control) |
+| `scripts/ensemble/` | the retired three-model ensemble (research record only) |
 | `experiments/` | metrics, tables and figures for every run (small files, in git) |
 | `tests/` | pytest suite (CPU; dataset tests skip when the data is missing) |
-| `legacy/` | the v1 notebooks, TensorFlow app and weights; their reported numbers are superseded |
+| `docs/` | model card, plans, website guide; `docs/paper/` the original paper |
+| `legacy/` | the v1 notebooks, TensorFlow app, weights (`legacy/savedmodels/`) and results (`legacy/results/`); their reported numbers are superseded |
+| `data/`, `runs/`, `.cache/` | generated manifests and splits; trained checkpoints and logs (`runs/logs/`); audio and model caches (not in git) |
 
 ## Acknowledgments
 

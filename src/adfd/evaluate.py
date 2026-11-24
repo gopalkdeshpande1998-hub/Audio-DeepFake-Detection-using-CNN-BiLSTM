@@ -173,7 +173,7 @@ def main() -> None:
         cache = AudioCache(paths.cache_dir, cache_name)
         bounds = load_silence(paths.cache_dir, cache_name) if trim else None
         if trim and bounds is None and not name.startswith("deep_voice"):
-            raise FileNotFoundError(f"silence bounds for {name} missing: run scripts/compute_silence.py")
+            raise FileNotFoundError(f"silence bounds for {name} missing: run scripts/data/compute_silence.py")
         loader = make_loader(CropDataset(df, cache, crop, False, cfg["audio"]["pad_mode"], sr, speech_bounds=bounds,
                                          normalize=norm),
                              args.batch_size or cfg["train"].get("eval_batch_size", 64), False, workers)
@@ -214,7 +214,7 @@ def main() -> None:
 
     text = json.dumps(clean(results), indent=2)
     (run_dir / f"metrics{suffix}.json").write_text(text, encoding="utf-8")
-    out = REPO_ROOT / "experiments" / f"{run_dir.name}{suffix}"  # not "results": same folder as v1 Results/ on Windows
+    out = REPO_ROOT / "experiments" / f"{run_dir.name}{suffix}"  # v1 results are in legacy/results/
     out.mkdir(parents=True, exist_ok=True)
     (out / "metrics.json").write_text(text, encoding="utf-8")
     for f in ("history.json", "train_summary.json", "run_info.json"):

@@ -90,7 +90,7 @@ api/                    # FastAPI service
 tests/                  # pytest
 docs/                   # this plan, model card, dataset notes
 experiments/            # per-run metrics and summaries, aggregated tables, figures (small; tracked in git)
-                        # (not "results/": on Windows that is the same folder as the v1 Results/)
+                        # (the v1 results are in legacy/results/)
 legacy/                 # original notebooks + TF model, kept for reference
 ```
 
@@ -101,7 +101,7 @@ legacy/                 # original notebooks + TF model, kept for reference
 - [ ] Install `ffmpeg`, needed for codec augmentation and for decoding MP3 and video input.
 
 ### 0.C Data manifests (built once)
-- [ ] `scripts/build_manifests.py` writes one CSV per dataset with columns `path, label (0 real / 1 fake), dataset, split, speaker, attack, duration_s, sample_rate`.
+- [ ] `scripts/data/build_manifests.py` writes one CSV per dataset with columns `path, label (0 real / 1 fake), dataset, split, speaker, attack, duration_s, sample_rate`.
   - ASVspoof: parse the 3 protocol files and **ignore files not listed in them**.
   - In-the-Wild: parse `meta.csv` (`bona-fide` → 0, `spoof` → 1).
   - DEEP-VOICE: list the recordings, then create **4-second windows with 2-second overlap** as rows (`path, start_s, end_s, recording_id, source_speaker, target_speaker`).
@@ -111,7 +111,7 @@ legacy/                 # original notebooks + TF model, kept for reference
 - [ ] One seed controls Python, NumPy and torch. Save each run's config, git commit, package versions and the manifest hash next to its results.
 - [ ] Log metrics to TensorBoard. Write per-utterance scores to `runs/<run_id>/scores_<testset>.csv` and metrics to `experiments/<run_id>/` so tables can be rebuilt without retraining.
 
-**Done when:** `python scripts/build_manifests.py` produces 3 validated manifests, and `pytest` passes the manifest checks.
+**Done when:** `python scripts/data/build_manifests.py` produces 3 validated manifests, and `pytest` passes the manifest checks.
 
 ---
 
@@ -159,8 +159,8 @@ Every experiment below uses the P1 training and evaluation code. Change one fact
 
 ### P2.2 Shortcut checks
 - [x] **Silence shortcut:** train and test with leading and trailing silence trimmed by a voice-activity detector, and compare with untrimmed audio. Also run a "silence-only" classifier as a control. If trimming changes cross-dataset EER a lot, the model was using silence.
-- [x] **Length shortcut:** use the same fixed-length crops for every dataset (already enforced in P1.2) and report EER per duration bin and the score–duration correlation (`scripts/length_check.py`).
-- [x] **Loudness/normalisation:** a loudness-only control classifier, plus every headline model re-scored with RMS-normalised test crops (`scripts/loudness_check.py`, `evaluate.py --normalize rms`). Normalisation is available for training too (`audio.normalize`).
+- [x] **Length shortcut:** use the same fixed-length crops for every dataset (already enforced in P1.2) and report EER per duration bin and the score–duration correlation (`scripts/checks/length_check.py`).
+- [x] **Loudness/normalisation:** a loudness-only control classifier, plus every headline model re-scored with RMS-normalised test crops (`scripts/checks/loudness_check.py`, `evaluate.py --normalize rms`). Normalisation is available for training too (`audio.normalize`).
 
 ### P2.3 Data augmentation (training only)
 - [x] **RawBoost** (needs no extra data): linear/non-linear convolutive noise plus impulsive and stationary noise.
@@ -175,9 +175,9 @@ Every experiment below uses the P1 training and evaluation code. Change one fact
 - [x] Run each headline model with **3 seeds** and report mean ± std.
 - [x] Bootstrap 95% confidence intervals on EER for the cross-dataset sets.
 
-**Done when:** `experiments/tables/` holds the feature ablation, the shortcut-check table, the augmentation ablation and the robustness curves, each produced by `scripts/make_tables.py`.
+**Done when:** `experiments/tables/` holds the feature ablation, the shortcut-check table, the augmentation ablation and the robustness curves, each produced by `scripts/evaluation/make_tables.py`.
 
-**Status (2026-11-21): done.** Every row in every table has 3 seeds (42, 43, 44). Full tables: `experiments/tables/phase2.md` (`python scripts/make_tables.py`); robustness figures: `experiments/tables/robustness_eval.png` and `robustness_dev.png`. All EER in %.
+**Status (2026-11-21): done.** Every row in every table has 3 seeds (42, 43, 44). Full tables: `experiments/tables/phase2.md` (`python scripts/evaluation/make_tables.py`); robustness figures: `experiments/tables/robustness_eval.png` and `robustness_dev.png`. All EER in %.
 
 | Model (CNN-BiLSTM) | dev | eval | eval min t-DCF | In-the-Wild | DEEP-VOICE (recording) | degraded eval, mean of 10 |
 |---|---|---|---|---|---|---|
@@ -237,13 +237,13 @@ Findings:
 
 **Done when:** one main table lists every model's EER on the three test sets, its min t-DCF on ASVspoof, its size and its speed, with the best model chosen for the app.
 
-**Status (2026-11-21): prototype run.** To reach a full working prototype quickly (user decision), Phase 3 was cut to about 5 h: `configs/queues/phase3_proto.yaml` trains **seed 42 only** with shortened schedules (E6b 15, RawNet2 12, WavLM 2, AASIST 3 epochs; LCNN s42 finished its full schedule), then fusion, efficiency and `experiments/tables/phase3.md` (n = 1 rows). E6a, E6c and the other SSL variants are not run yet. **Upgrade later:** delete the shortened run folders and run `phase3_p31_p32.yaml` and `phase3_p33_final.yaml` (3 seeds, full schedules). ONNX: `scripts/export_onnx.py` exports the back end (the TorchScript exporter cannot export the complex STFT of the spectral front ends); FP32 matches PyTorch (max diff 3e-4), INT8 dynamic quantization is smaller but distorts the logits and is slower, so it is not used. Decisions:
+**Status (2026-11-21): prototype run.** To reach a full working prototype quickly (user decision), Phase 3 was cut to about 5 h: `configs/queues/phase3_proto.yaml` trains **seed 42 only** with shortened schedules (E6b 15, RawNet2 12, WavLM 2, AASIST 3 epochs; LCNN s42 finished its full schedule), then fusion, efficiency and `experiments/tables/phase3.md` (n = 1 rows). E6a, E6c and the other SSL variants are not run yet. **Upgrade later:** delete the shortened run folders and run `phase3_p31_p32.yaml` and `phase3_p33_final.yaml` (3 seeds, full schedules). ONNX: `scripts/evaluation/export_onnx.py` exports the back end (the TorchScript exporter cannot export the complex STFT of the spectral front ends); FP32 matches PyTorch (max diff 3e-4), INT8 dynamic quantization is smaller but distorts the logits and is slower, so it is not used. Decisions:
 - **Protocol:** every Phase 3 model trains under the Phase 2 result: silence-trimmed audio and the selected augmentation (E4a: RawBoost + gain), 3 seeds, the same scoring sets as Phase 2 (dev, eval, In-the-Wild, DEEP-VOICE, degraded dev and eval subsets). E4a is the reference row.
 - **Models:** `src/adfd/models/lcnn.py` (E5a, 270k params), `rawnet2.py` (E5b, 17.6M), `aasist.py` (E5c, 297,705 params, the paper's size; also accepts SSL feature maps), `crnn.py` (E6a SE-residual CNN + time-major BiLSTM; E6b + attentive statistics pooling; E6c light CNN + BiGRU + ASP), `src/adfd/features/ssl.py` (WavLM / wav2vec 2.0 / XLS-R front end, learned layer weights, fine-tuned or frozen).
 - **AASIST on 4 GB:** batch 12 × 2 accumulation (effective 24, as in the paper) and a 20-epoch cosine schedule instead of 100 epochs (about 20 min per epoch). The paper-reproduction run (untrimmed, no augmentation) was skipped by choice; the port matches the reference parameter count exactly.
 - **P3.3 cut to an 8 h budget (user decision):** one SSL model, **E7a = WavLM-Base+ (fine-tuned, CNN encoder frozen, gradient checkpointing) + the E6b back end (SSL-CNN-BiLSTM-Att)**, 3 seeds, 3 epochs, batch 8 × 4, SSL LR 1e-5, back-end LR 1e-4; peak VRAM 3.2 GB. Not run: wav2vec2-base, XLS-R-300M (frozen) and WavLM + AASIST; the code supports all three (`frontend: {name: ssl, model: ..., mode: frozen}`, `aasist` with `input: features`). Large models would run frozen on the fly rather than from a feature cache, so augmentation still applies.
-- **P3.4:** `scripts/fuse_scores.py`: per-seed logistic regression on dev scores of the best spectrogram model (by degraded-dev EER), AASIST and E7a, plus every pair.
-- **P3.5:** `scripts/efficiency.py` (parameters, checkpoint size, GPU and CPU speed); `scripts/make_tables_p3.py` builds the main table and picks the app model on dev data only (lowest degraded-dev EER). ONNX export follows once the app model is known (needs the `onnx` and `onnxruntime` packages).
+- **P3.4:** `scripts/ensemble/fuse_scores.py`: per-seed logistic regression on dev scores of the best spectrogram model (by degraded-dev EER), AASIST and E7a, plus every pair.
+- **P3.5:** `scripts/evaluation/efficiency.py` (parameters, checkpoint size, GPU and CPU speed); `scripts/evaluation/make_tables_p3.py` builds the main table and picks the app model on dev data only (lowest degraded-dev EER). ONNX export follows once the app model is known (needs the `onnx` and `onnxruntime` packages).
 
 ---
 
@@ -259,11 +259,11 @@ Findings:
 **Done when:** `explain.py` produces a timeline, a heatmap and a calibrated verdict for any audio file, and the calibration and out-of-distribution results are in `experiments/tables/`.
 
 **Status (2026-11-23): prototype done** (P4.1–P4.4, P4.6 from scores; P4.5 partly).
-- `scripts/error_analysis.py` → `experiments/error_analysis/error_analysis.{md,json}`: merged-detector errors per attack, duration, In-the-Wild speaker and DEEP-VOICE recording, worst false accepts/rejects, and held-out accuracy by confidence band and member agreement (ASVspoof eval: 47.8% within 10 points of the line, 99.1% at ≥ 90% confidence; 94.6% when all three members agree). `src/adfd/trust.py` looks this up for every verdict (app trust panel, API `trust` field). Hardest attacks for the merged decision: A10 (70.9% of fakes called REAL) and A18 (51.6%); the WavLM member alone has A18 at 1.8% EER, so the VoiceGuard members cost accuracy on ASVspoof.
+- `scripts/evaluation/error_analysis.py` → `experiments/error_analysis/error_analysis.{md,json}`: merged-detector errors per attack, duration, In-the-Wild speaker and DEEP-VOICE recording, worst false accepts/rejects, and held-out accuracy by confidence band and member agreement (ASVspoof eval: 47.8% within 10 points of the line, 99.1% at ≥ 90% confidence; 94.6% when all three members agree). `src/adfd/trust.py` looks this up for every verdict (app trust panel, API `trust` field). Hardest attacks for the merged decision: A10 (70.9% of fakes called REAL) and A18 (51.6%); the WavLM member alone has A18 at 1.8% EER, so the VoiceGuard members cost accuracy on ASVspoof.
 - `src/adfd/calibration.py`: Platt scaling with balanced classes, fitted on clean dev scores plus the 10 degraded dev conditions when available (clean dev alone is almost separable and gives over-confident probabilities); ECE and reliability diagrams; Real / Uncertain / Fake thresholds with at most 5% of each dev class on the wrong side.
 - `src/adfd/ood.py`: one-sided signal checks (level, silence ratio, spectral flatness, tonality, voicing, syllabic rhythm) with limits from bona fide dev speech, plus a Mahalanobis check on the penultimate-layer embedding. E4a: flags all 8 synthetic non-speech inputs (tones that score P(fake) = 1.00, noise, hum, chord, clicks, silence) and 2.5–7.5% of real or fake test speech.
 - `src/adfd/inference.py` (`Analyzer`): whole-file analysis with 4 s windows, 1 s hop, mean logit, timeline, suspicious segments, saliency. `python -m adfd.explain <file>` writes verdict.json, timeline.png and heatmap.png.
-- `scripts/fit_reliability.py --run runs/<run>` writes `<run>/reliability.json` and `experiments/reliability/<run>.{md,json,png}`. E4a ECE: ASVspoof eval 22.4 → 14.7%, In-the-Wild 57.7 → 31.7%. Fitted for E1, E2a, E4a, E4c and E5a so far.
+- `scripts/evaluation/fit_reliability.py --run runs/<run>` writes `<run>/reliability.json` and `experiments/reliability/<run>.{md,json,png}`. E4a ECE: ASVspoof eval 22.4 → 14.7%, In-the-Wild 57.7 → 31.7%. Fitted for E1, E2a, E4a, E4c and E5a so far.
 
 ---
 
@@ -288,7 +288,7 @@ Rebuild the Streamlit app on the PyTorch model. With TensorFlow gone, upgrade St
 
 **Status (2026-11-21): prototype done.** `app.py` (Streamlit 1.67, PyTorch, CPU inference) has every Must and Should feature: calibrated three-way verdict, OOD warning, timeline with playable suspicious segments, spectrogram + saliency heatmap, model selector and an all-models comparison with an agreement count, batch mode (files or ZIP → CSV), HTML report; plus demo samples (DEEP-VOICE `DEMONSTRATION`, read from the dataset folder, not shipped). Checked in the browser on both demonstration clips; the server log shows no warnings. Open: microphone mode and video input (Could). The v1 TensorFlow app is in `legacy/app_v1_tensorflow.py`.
 
-**Merged detector (2026-11-22).** Two external CNN-BiLSTM log-mel checkpoints (VoiceGuard improved, VoiceGuard v2; `src/adfd/models/voiceguard.py`) were merged with E7a into `src/adfd/ensemble.py`, now the app/API default. Scores: `scripts/score_voiceguard.py`; fusion and decision rule: `scripts/fit_ensemble.py` → `experiments/ensemble/ensemble.md` (tuned on ASVspoof dev + degraded dev only). **VoiceGuard v2 was trained on ~79% of In-the-Wild**, so In-the-Wild is no longer a clean test for it or for the merged detector. The VoiceGuard models are near chance on ASVspoof and get ≈ 0 fusion weight; they act through an agreement gate (Fake needs ≥ 2 of 3 models) and a veto (no Real while any model has P(fake) ≥ 0.95). This cuts real → Fake from 0.11 / 6.74 / 4.67% (E7a alone, at 0.5) to 0.03 / 1.72 / 0.00% (ASVspoof eval / In-the-Wild / DEEP-VOICE), at the cost of more Uncertain answers. Voice conversion (DEEP-VOICE, RVC) remains mostly missed: about half of fake windows are still called Real. Explanations: `src/adfd/forensics.py` (Real/Uncertain/Fake regions over time, mel-spectrogram saliency per band, model-free acoustic measurements against 1,700 real reference clips, `scripts/fit_forensics.py`). Microphone and video input (PyAV) added to the app.
+**Merged detector (2026-11-22).** Two external CNN-BiLSTM log-mel checkpoints (VoiceGuard improved, VoiceGuard v2; `src/adfd/models/voiceguard.py`) were merged with E7a into `src/adfd/ensemble.py`, now the app/API default. Scores: `scripts/ensemble/score_voiceguard.py`; fusion and decision rule: `scripts/ensemble/fit_ensemble.py` → `experiments/ensemble/ensemble.md` (tuned on ASVspoof dev + degraded dev only). **VoiceGuard v2 was trained on ~79% of In-the-Wild**, so In-the-Wild is no longer a clean test for it or for the merged detector. The VoiceGuard models are near chance on ASVspoof and get ≈ 0 fusion weight; they act through an agreement gate (Fake needs ≥ 2 of 3 models) and a veto (no Real while any model has P(fake) ≥ 0.95). This cuts real → Fake from 0.11 / 6.74 / 4.67% (E7a alone, at 0.5) to 0.03 / 1.72 / 0.00% (ASVspoof eval / In-the-Wild / DEEP-VOICE), at the cost of more Uncertain answers. Voice conversion (DEEP-VOICE, RVC) remains mostly missed: about half of fake windows are still called Real. Explanations: `src/adfd/forensics.py` (Real/Uncertain/Fake regions over time, mel-spectrogram saliency per band, model-free acoustic measurements against 1,700 real reference clips, `scripts/evaluation/fit_forensics.py`). Microphone and video input (PyAV) added to the app.
 
 ---
 

@@ -82,7 +82,7 @@ DIRECTION = {"level_dbfs": "low", "speech_ratio": "low", "flatness": "high", "to
 FLOOR = {"level_dbfs": -50.0, "speech_ratio": 0.15, "flatness": 0.25, "tonality": 0.9, "voiced_ratio": 0.03,
          "syllabic_mod": 0.08}
 # (low, high) limits; None = no limit on that side. Used when no fitted ranges are available
-# (scripts/fit_reliability.py writes fitted ones next to each model).
+# (scripts/evaluation/fit_reliability.py writes fitted ones next to each model).
 DEFAULT_RANGES = {k: ((FLOOR[k], None) if d == "low" else (None, FLOOR[k])) for k, d in DIRECTION.items()}
 REASONS = {"level_dbfs": "the audio is almost silent", "speech_ratio": "most of the audio is silence",
            "flatness": "it sounds like noise rather than speech", "tonality": "it sounds like a steady tone or hum",

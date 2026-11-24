@@ -87,7 +87,7 @@ Step 5  MODEL-FREE ACOUSTIC MEASUREMENTS  (display only)
 
 Step 6  TRUST LOOKUP
         The app looks up the "confidence band" of this verdict (distance of P(fake) from
-        50%) in a table built by scripts/error_analysis.py from E7a's stored scores on
+        50%) in a table built by scripts/evaluation/error_analysis.py from E7a's stored scores on
         held-out test sets, and reports how often verdicts in that band were right.
 
             Band        P(fake) range              Trust level

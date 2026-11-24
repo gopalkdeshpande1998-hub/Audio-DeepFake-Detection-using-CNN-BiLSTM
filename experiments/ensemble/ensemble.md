@@ -1,6 +1,6 @@
 # Merged detector: E7a + VoiceGuard improved + VoiceGuard v2
 
-All numbers below are produced by `scripts/fit_ensemble.py`. Tuning data: ASVspoof 2019 LA dev (clean + 10 degraded conditions). Test sets never set any weight or threshold.
+All numbers below are produced by `scripts/ensemble/fit_ensemble.py`. Tuning data: ASVspoof 2019 LA dev (clean + 10 degraded conditions). Test sets never set any weight or threshold.
 
 **Contamination warning:** VoiceGuard v2 was trained on about 79% of In-the-Wild (speaker split; the split files are not available). Its In-the-Wild numbers, and those of any fusion that includes it, are **not test results**. ASVspoof eval and DEEP-VOICE are clean for all three members (as far as is known: the training data of VoiceGuard improved is not recorded).
 

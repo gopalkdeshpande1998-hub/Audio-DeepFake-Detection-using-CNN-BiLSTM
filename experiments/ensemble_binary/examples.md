@@ -1,6 +1,6 @@
 # Merged detector: end-to-end examples (CPU)
 
-Produced by `scripts/check_ensemble_examples.py`. A handful of clips, so the accuracy here is anecdotal; the dataset-level numbers are in `ensemble.md`.
+Produced by `scripts/ensemble/check_ensemble_examples.py`. A handful of clips, so the accuracy here is anecdotal; the dataset-level numbers are in `ensemble.md`.
 
 Structural checks failed in 0 of 22 cases. Verdict correct in 73% of cases.
 

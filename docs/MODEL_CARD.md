@@ -11,7 +11,7 @@
   two-way REAL / SYNTHETIC verdict at 50%, the confidence (its probability for its own call, not an accuracy), a
   timeline from 4 s windows (its training crop) every 0.5 s, flagged segments with acoustic evidence, and a
   **trust lookup**: the held-out accuracy of E7a verdicts in the same confidence band
-  (`scripts/error_analysis.py`, `experiments/error_analysis_e7a/`, `src/adfd/trust.py`).
+  (`scripts/evaluation/error_analysis.py`, `experiments/error_analysis_e7a/`, `src/adfd/trust.py`).
 - **Framework:** PyTorch 2.11. Code: `src/adfd/`. Version 0.1.0 (prototype). Runs on CPU at about 16× real time (E7a).
 
 ## Intended use
