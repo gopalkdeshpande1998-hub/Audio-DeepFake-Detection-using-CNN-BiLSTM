@@ -160,3 +160,77 @@ Key findings so far:
 Original CNN-BiLSTM project and paper by [Vivek Shinde](https://github.com/VivekShinde7).
 AASIST and RawNet2 follow their authors' open-source implementations (credited in the code).
 Thanks to the ASVspoof, In-the-Wild and DEEP-VOICE dataset authors.
+
+## Clone and run on another computer
+
+The code is on GitHub; the trained models are not (they are in `runs/`, which git ignores, and each `best.pt`
+is about 385 MB, over GitHub's 100 MB file limit). Copy them across separately.
+
+### 1. On the machine that has the models (Windows)
+
+Zip the two model folders the app needs (about 800 MB):
+
+```powershell
+Compress-Archive -Path runs\e7a_wavlm_crnn_s42, runs\t1_wavlm_crnn_temporal_s42 -DestinationPath voiceguard_models.zip
+```
+
+Send `voiceguard_models.zip` by USB drive, Google Drive or WeTransfer.
+
+### 2a. On the new machine: macOS
+
+Install the tools once (Homebrew from [brew.sh](https://brew.sh) if it is missing):
+
+```bash
+xcode-select --install
+brew install python@3.11 git
+```
+
+Get the code and set up Python 3.11:
+
+```bash
+git clone https://github.com/gopalkdeshpande1998-hub/Audio-DeepFake-Detection-using-CNN-BiLSTM.git
+cd Audio-DeepFake-Detection-using-CNN-BiLSTM
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+```
+
+Put the models in place (copy `voiceguard_models.zip` into the project folder first):
+
+```bash
+mkdir -p runs && unzip voiceguard_models.zip -d runs
+```
+
+Check that `runs/e7a_wavlm_crnn_s42/best.pt` and `runs/t1_wavlm_crnn_temporal_s42/best.pt` exist, then start the app:
+
+```bash
+export ADFD_PATHS=configs/paths.macos.yaml
+streamlit run app.py
+```
+
+It opens at http://localhost:8501. Next time: `cd` into the folder, `source .venv/bin/activate`, the `export` line
+and `streamlit run app.py`.
+
+### 2b. On the new machine: Windows
+
+```powershell
+git clone https://github.com/gopalkdeshpande1998-hub/Audio-DeepFake-Detection-using-CNN-BiLSTM.git
+cd Audio-DeepFake-Detection-using-CNN-BiLSTM
+python -m venv .venv-torch
+.venv-torch\Scripts\pip install -r requirements.txt
+.venv-torch\Scripts\pip install -e .
+Expand-Archive voiceguard_models.zip -DestinationPath runs
+.venv-torch\Scripts\streamlit run app.py
+```
+
+(With an NVIDIA GPU, install `requirements-train.txt` instead of `requirements.txt` for the CUDA build of PyTorch.)
+
+### Notes
+
+- Use `requirements.txt` on a Mac, never `requirements-train.txt`: its CUDA builds of PyTorch exist only for
+  Windows and Linux.
+- The first run needs internet: it downloads WavLM-Base+ (about 380 MB) once into `.cache/`.
+- On an Apple silicon Mac the sidebar should show "Running on: Apple GPU (MPS)"; an Intel Mac runs on the CPU
+  (slower, same results). If the Apple GPU gives an error, run `export ADFD_DEVICE=cpu` before starting the app.
+- The datasets (ASVspoof 2019, PartialSpoof) are only needed for training and evaluation, not to use the app.
