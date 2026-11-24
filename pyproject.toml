@@ -13,6 +13,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]          # the app (ui/, api/) and tests/ import from the repo root; plain `pytest` needs it
 addopts = "-q"
 markers = [
     "datasets: needs the real datasets on disk (skipped when they are missing)",
