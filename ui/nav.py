@@ -5,25 +5,21 @@ from __future__ import annotations
 import streamlit as st
 
 PAGES: dict = {}
-SECTIONS = {"Use": ["overview", "detect", "compare", "batch", "history"],
-            "Research": ["results", "errors"],
-            "About": ["card", "help"]}
+SECTIONS = {"Use": ["detect", "compare", "batch", "history"],
+            "Research": ["results", "errors"]}
 
 
 def build() -> dict:
     from ui import pages
 
-    spec = {"overview": (pages.overview, "Overview", "home", "overview"),
-            "detect": (pages.detect, "Detect", "graphic_eq", "detect"),
+    spec = {"detect": (pages.detect, "Detect", "graphic_eq", "detect"),
             "compare": (pages.compare, "Compare A/B", "compare_arrows", "compare"),
             "batch": (pages.batch, "Batch", "library_music", "batch"),
             "history": (pages.history, "History", "history", "history"),
             "results": (pages.results, "Results", "table_chart", "results"),
-            "errors": (pages.errors, "Error analysis", "troubleshoot", "errors"),
-            "card": (pages.model_card, "Model card", "description", "model-card"),
-            "help": (pages.help_page, "Help", "help", "help")}
+            "errors": (pages.errors, "Error analysis", "troubleshoot", "errors")}
     PAGES.clear()
-    PAGES.update({k: st.Page(f, title=t, icon=f":material/{i}:", url_path=u, default=(k == "overview"))
+    PAGES.update({k: st.Page(f, title=t, icon=f":material/{i}:", url_path=u, default=(k == "detect"))
                   for k, (f, t, i, u) in spec.items()})
     return PAGES
 

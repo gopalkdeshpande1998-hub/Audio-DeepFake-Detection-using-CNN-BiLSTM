@@ -23,7 +23,6 @@ import streamlit as st
 from adfd import registry, trust
 from adfd.explain import plot_forensic, plot_heatmap, plot_score_line, plot_timeline
 from adfd.inference import SR, load_audio
-from adfd.paths import load_paths
 from adfd.segments import SEVERITY_TEXT, fmt_ts
 from ui import lab, signal, theme
 from ui.icons import icon
@@ -134,20 +133,6 @@ def fig_png(fig) -> bytes:
     fig.savefig(buf, format="png", dpi=130, facecolor=fig.get_facecolor())
     plt.close(fig)
     return buf.getvalue()
-
-
-def demo_files() -> dict[str, Path]:
-    """DEEP-VOICE demonstration clips, if the dataset is on this machine (never shipped with the repo)."""
-    try:
-        root = load_paths().dataset("deep_voice")
-    except Exception:
-        return {}
-    for base in [root, *root.parents[:3]]:
-        for d in base.rglob("DEMONSTRATION"):
-            files = sorted(p for p in d.glob("*") if p.suffix.lower().lstrip(".") in AUDIO_TYPES)
-            if files:
-                return {p.name: p for p in files}
-    return {}
 
 
 # ---------------------------------------------------------------------------------------

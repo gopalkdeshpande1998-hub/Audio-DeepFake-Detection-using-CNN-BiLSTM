@@ -45,15 +45,14 @@ def test_error_analysis_file_shape():
         assert {"overall", "reliability", "false_accepts", "false_rejects", "by_duration"} <= set(s)
 
 
-@pytest.mark.parametrize("page", ["overview", "results", "errors", "card", "help", "history"])
+@pytest.mark.parametrize("page", ["results", "errors", "history"])
 def test_research_pages_render(page):
     st_testing = pytest.importorskip("streamlit.testing.v1")
-    fn = {"card": "model_card", "help": "help_page"}.get(page, page)
     script = f"""
 from ui import nav, pages, theme
 theme.inject()
 nav.build()
-pages.{fn}()
+pages.{page}()
 """
     at = st_testing.AppTest.from_string(script, default_timeout=60).run()
     assert not at.exception, at.exception
@@ -119,3 +118,11 @@ pages.compare()
         assert kept in text, kept
     for gone in ("Zero-crossing rate", "Spectral flatness", "MFCC"):
         assert gone not in text, gone
+
+
+def test_navigation_has_no_overview_or_about():
+    from ui import nav
+
+    assert "About" not in nav.SECTIONS
+    assert not {"overview", "card", "help"} & {k for keys in nav.SECTIONS.values() for k in keys}
+    assert nav.SECTIONS["Use"][0] == "detect"

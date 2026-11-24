@@ -1,15 +1,13 @@
-"""Cached readers for the result files in experiments/ and docs/ (no PyTorch import)."""
+"""Cached readers for the result files in experiments/ (no PyTorch import)."""
 
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
-EXP = ROOT / "experiments"
 
 
 @st.cache_data(show_spinner=False)
@@ -18,27 +16,6 @@ def read_json(rel: str) -> dict | None:
         return json.loads((ROOT / rel).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-
-
-@st.cache_data(show_spinner=False)
-def read_text(rel: str) -> str | None:
-    try:
-        return (ROOT / rel).read_text(encoding="utf-8")
-    except OSError:
-        return None
-
-
-def exists(rel: str) -> bool:
-    return (ROOT / rel).exists()
-
-
-def path(rel: str) -> Path:
-    return ROOT / rel
-
-
-def strip_title(md: str) -> str:
-    """Drop the first '# ' heading so the page's own heading is the only h1."""
-    return re.sub(r"\A\s*# [^\n]*\n", "", md, count=1)
 
 
 def error_analysis() -> dict | None:

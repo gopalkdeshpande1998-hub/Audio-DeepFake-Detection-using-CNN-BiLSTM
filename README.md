@@ -12,8 +12,8 @@ leak-free, cross-dataset research pipeline in PyTorch, with a web app and a REST
 - the **spectrogram with a saliency heatmap** of what moved the score;
 - every model's opinion side by side, batch scoring to CSV, and an HTML report.
 - a **trust panel**: how often verdicts with the same confidence and model agreement were right on held-out data;
-- a full app, not only the detector: overview, batch, session history, results,
-  error analysis, model card and help (`ui/`; research pages never load PyTorch).
+- a full app, not only the detector: compare A/B, batch, session history, results and
+  error analysis (`ui/`; research pages never load PyTorch).
 
 > **Honest limits.** Models are trained on ASVspoof 2019 LA (English, studio quality, 2019-era
 > attacks). The app's default, a fine-tuned WavLM-Base+ model, reaches 10.7% EER on real-world

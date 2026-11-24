@@ -108,15 +108,10 @@ per minute on a laptop CPU; plus ~15 s the first time while the model loads.
 -------------------------------------------------------------------------------------
 3. PAGES AND FEATURES
 -------------------------------------------------------------------------------------
-The sidebar has three sections.
+The sidebar has two sections. The app opens on Detect.
 
 USE
-  Overview      Landing page. Four headline stat cards, the 5-step workflow
-                (Upload -> Preview -> Analyze -> Results -> Explore), shortcut cards to
-                every tool, and the 5 most recent analyses of this session.
-
-  Detect        The main tool. Choose input: upload a file, record with the microphone,
-                or pick a DEEP-VOICE demo clip (if the dataset is on this machine).
+  Detect        The main tool. Upload an audio or video file (up to 50 MB).
                 A stepper shows progress through the steps. You first get a PREVIEW
                 (file card + Spectrogram Lab) and press "Analyze recording". A real
                 progress bar runs; then the full result appears (section 4).
@@ -139,15 +134,11 @@ USE
                 with stat cards (analyses / SYNTHETIC / REAL / near the 50% line),
                 a table, CSV download and "Clear history". Lost on reload.
 
-RESEARCH  (reads experiments/ and docs/ only; never loads PyTorch, so it opens fast)
+RESEARCH  (reads experiments/ only; never loads PyTorch, so it opens fast)
   Results         Test results on 100 real + 100 fake ASVspoof 2019 eval clips: accuracy, F1,
                   precision, recall, mistakes per 100 and missed fakes by system, as bar
                   charts, plus the large held-out test figures.
   Error analysis  Where E7a goes wrong on held-out data and when to trust a verdict.
-
-ABOUT
-  Model card    docs/MODEL_CARD.md: intended use, data, results, known failures, misuse.
-  Help          Quick start, FAQ, commands to run it yourself, troubleshooting.
 
 
 -------------------------------------------------------------------------------------
@@ -435,14 +426,6 @@ The result is shown top to bottom in this order.
 -------------------------------------------------------------------------------------
 6. GRAPHS ON THE RESEARCH PAGES
 -------------------------------------------------------------------------------------
-6.1  OVERVIEW STAT CARDS (landing page)
-     Accuracy on unseen attacks (ASVspoof 2019 LA eval, 71,237 clips): 83.3%
-     EER on internet audio (In-the-Wild, E7a): 10.7%  (older models: 36-72%)
-     Right at very high confidence (ASVspoof eval, P >= 90% or <= 10%)
-     Real recordings called SYNTHETIC (ASVspoof eval): 0.1%
-     (The page reads these from the error-analysis file; if that file is missing it
-     shows built-in fallback numbers.)
-
 6.2  RESULTS PAGE (100 real + 100 fake ASVspoof 2019 eval clips, never used in training)
      Three methods are compared, each with a fixed colour:
         blue    App verdict (E7a)            - the verdict the app shows today

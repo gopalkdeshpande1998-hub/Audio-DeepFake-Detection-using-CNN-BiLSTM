@@ -3,14 +3,13 @@
     streamlit run app.py
 
 Pages
-  Use       Overview · Detect (one recording) · Compare A/B · Batch (many files or a ZIP) · History (this session)
+  Use       Detect (one recording, the start page) · Compare A/B · Batch (many files or a ZIP) · History (this session)
   Research  Results · Error analysis
-  About     Model card · Help
 
 The detector is one model, WavLM + CNN-BiLSTM-Att (E7a), through adfd.single: one REAL / SYNTHETIC
 verdict from its calibrated probability at 50%, a trust lookup from its held-out error analysis
 (adfd.trust), a time-local timeline with playable flagged segments, a forensic view and an
-HTML report. The research pages read experiments/ and docs/ only and never load PyTorch.
+HTML report. The research pages read experiments/ only and never load PyTorch.
 Page code: ui/pages.py; detector views: ui/detector.py; theme: ui/theme.py.
 """
 
