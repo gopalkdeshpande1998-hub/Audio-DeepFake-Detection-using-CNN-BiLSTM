@@ -1,0 +1,554 @@
+=====================================================================================
+ VOICEGUARD - AUDIO DEEPFAKE DETECTION WEBSITE
+ How it works, what every page does, and how to read every graph
+=====================================================================================
+
+Run it:      streamlit run app.py          (opens http://localhost:8501)
+REST API:    uvicorn api.main:app --port 8000   (POST a file to /predict)
+
+CONTENTS
+  1. What the website is
+  2. How it works (the pipeline from file to verdict)
+  3. Pages and features
+  4. Graphs and visual panels on the Detect page, one by one
+  5. Graphs on the Compare A/B page
+  6. Graphs on the Results and Error analysis pages
+  7. How to read a result: a worked checklist
+  8. Limitations
+
+
+-------------------------------------------------------------------------------------
+1. WHAT THE WEBSITE IS
+-------------------------------------------------------------------------------------
+VoiceGuard is a local "audio forensics workstation" built with Streamlit. You give it a
+voice recording and it answers three questions:
+
+  a) IS IT REAL OR SYNTHETIC?   A two-way verdict, REAL or SYNTHETIC (AI-generated or
+                                voice-converted speech).
+  b) WHERE?                     Which seconds of the recording look synthetic.
+  c) HOW FAR CAN I TRUST IT?    How often verdicts like this one were right on held-out
+                                test data that the model never saw during training.
+
+Everything runs on your own computer (GPU if available, otherwise CPU). No audio is
+uploaded anywhere; files stay in memory for the browser session only.
+
+The detector is ONE model, "E7a":
+  WavLM-Base+ (a large pretrained speech model, fine-tuned, with learned layer weights)
+  -> SE-ResNet CNN -> BiLSTM -> attentive statistics pooling -> P(fake).
+  About 96.2 million parameters. Trained on ASVspoof 2019 LA train; thresholds and
+  calibration were chosen on ASVspoof 2019 LA dev only.
+(An older 3-model ensemble was retired on 2026-11-23 and is kept only as a research record.)
+
+
+-------------------------------------------------------------------------------------
+2. HOW IT WORKS (PIPELINE)
+-------------------------------------------------------------------------------------
+Step 1  INPUT AND DECODING
+        Audio (WAV, FLAC, MP3, OGG, M4A, AIFF, WebM, Opus) or video (MP4, MOV, MKV, AVI,
+        WebM - the audio track is used), up to 50 MB. Everything is converted to
+        16 kHz mono. Files longer than 10 minutes are cut to their first 10 minutes.
+        Clips under 0.25 s or pure silence are rejected; clips under 2 s get a warning.
+
+Step 2  SPEECH CHECKS (out-of-distribution, "OOD")
+        The app checks that the input looks like speech (not music, tones, noise, long
+        silence or very quiet audio). If it fails, the verdict is still shown but with a
+        warning "This doesn't look like normal speech" - the verdict is much less reliable.
+
+Step 3  WHOLE-FILE SCORE  (this decides the verdict)
+        The speech region is cut into 4-second windows (E7a's training crop) every 1 s.
+        Each window gets a logit (raw score); the file score is the MEAN window logit.
+        That score passes through E7a's calibration (fitted on ASVspoof dev) to give a
+        calibrated probability P(fake).
+            P(fake) >= 50%  ->  SYNTHETIC
+            P(fake) <  50%  ->  REAL
+            P(real) = 1 - P(fake)
+            Confidence = max(P(fake), P(real))   (the model's belief in its own call,
+                                                  NOT a measured accuracy)
+
+Step 4  TIME-LOCAL ANALYSIS  (display only - never changes the verdict)
+        4-second windows are slid across the whole recording every 0.5 s (the hop grows
+        for long files so that at most 120 windows are scored). Windows without enough
+        speech energy are skipped ("No speech"). Each timeline step receives the mean
+        log-odds of the speech windows covering its centre, converted back to a
+        percentage. Consecutive steps at or above 50% are merged into FLAGGED SEGMENTS
+        (S1, S2, ...), each with a severity:
+            High   = mean synthetic probability >= 85%
+            Medium = 70-85%
+            Low    = 50-70%
+        Because windows are 4 s long, segment boundaries are accurate to about +/- 2 s.
+
+Step 5  MODEL-FREE ACOUSTIC MEASUREMENTS  (display only)
+        Signal-processing measurements of the whole file (energy above 4 kHz, effective
+        bandwidth, spectral flux, high-band noisiness, pitch variation, pitch jitter,
+        pause noise floor) are compared against 1,700 real reference recordings
+        (ASVspoof train/dev bona fide, clean and degraded with codecs, noise, telephone).
+        Values below the 5th or above the 95th percentile are reported as "unusual".
+        These never change the verdict; they help a human understand the audio.
+
+Step 6  TRUST LOOKUP
+        The app looks up the "confidence band" of this verdict (distance of P(fake) from
+        50%) in a table built by scripts/error_analysis.py from E7a's stored scores on
+        held-out test sets, and reports how often verdicts in that band were right.
+
+            Band        P(fake) range              Trust level
+            0           40-60%                     very low
+            1           30-40% or 60-70%           low
+            2           20-30% or 70-80%           medium
+            3           10-20% or 80-90%           high
+            4           <=10% or >=90%             very high
+
+Step 7  EXPLANATION AND REPORT
+        Plain-language reasoning lines, per-segment evidence and a downloadable HTML
+        report are generated.
+
+Typical speed: seconds per minute of audio on the GPU (RTX 3050), about 40 s to 3 min
+per minute on a laptop CPU; plus ~15 s the first time while the model loads.
+
+
+-------------------------------------------------------------------------------------
+3. PAGES AND FEATURES
+-------------------------------------------------------------------------------------
+The sidebar has three sections.
+
+USE
+  Overview      Landing page. Four headline stat cards, the 5-step workflow
+                (Upload -> Preview -> Analyze -> Results -> Explore), shortcut cards to
+                every tool, and the 5 most recent analyses of this session.
+
+  Detect        The main tool. Choose input: upload a file, record with the microphone,
+                or pick a DEEP-VOICE demo clip (if the dataset is on this machine).
+                A stepper shows progress through the steps. You first get a PREVIEW
+                (file card + Spectrogram Lab) and press "Analyze recording". A real
+                progress bar runs; then the full result appears (section 4).
+                Sidebar: "Use the GPU" toggle, the device in use, and the limitations.
+                If the GPU runs out of memory the app automatically falls back to CPU.
+                "Download report (HTML)" saves a self-contained report.
+
+  Compare A/B   Load a known/trusted voice (A, cyan) and a suspected recording (B,
+                amber). Both are drawn on one time axis with linked or independent
+                playback, measured the same way, and optionally run through the
+                detector. Buttons: Swap A <-> B, Reset, Replace file.
+
+  Batch         Upload many audio files and/or ZIP archives. Each file becomes one row:
+                verdict, synthetic %, real %, confidence %, trust level, duration,
+                whether it was cut to 10 min, OOD flag and reasons, flagged segments.
+                Summary stat cards (files / called SYNTHETIC / called REAL / errors) and
+                a "Download CSV" button.
+
+  History       Every analysis made in this browser tab (Detect, Compare), newest first,
+                with stat cards (analyses / SYNTHETIC / REAL / near the 50% line),
+                a table, CSV download and "Clear history". Lost on reload.
+
+RESEARCH  (reads experiments/ and docs/ only; never loads PyTorch, so it opens fast)
+  Results         EER comparison of every model on every test set, plus tabs:
+                  Main comparison, Retired ensemble, Robustness, Calibration,
+                  Frequency bands, Speed.
+  Error analysis  Where E7a goes wrong on held-out data and when to trust a verdict.
+
+ABOUT
+  Model card    docs/MODEL_CARD.md: intended use, data, results, known failures, misuse.
+  Help          Quick start, FAQ, commands to run it yourself, troubleshooting.
+
+
+-------------------------------------------------------------------------------------
+4. GRAPHS AND PANELS ON THE DETECT PAGE
+-------------------------------------------------------------------------------------
+The result is shown top to bottom in this order.
+
+4.1  FINAL VERDICT PANEL
+     What it shows:  A large ring gauge (confidence %), the word REAL (green) or
+                     SYNTHETIC (red), a sentence with both probabilities, a
+                     REAL/SYNTHETIC split meter, and a facts column (model, confidence,
+                     held-out trust chip, analysis time, duration).
+     The split meter: a horizontal bar, green part = P(real), red part = P(fake), with a
+                     marker at the 50% decision line. The side that is larger wins.
+     How to read it: The ring is the model's confidence in its OWN call. A 95% ring on
+                     REAL means P(fake) = 5%. Confidence is not accuracy - check the
+                     trust chip and the Reliability panel next.
+
+4.2  AI MODEL VERDICT CARD (left)
+     A smaller ring showing the SYNTHETIC probability, two horizontal bars
+     ("REAL speech probability" and "SYNTHETIC speech probability"), and a stats row:
+     classification, confidence, decision rule (SYNTHETIC at >= 50%), and how many
+     4-s windows were scored. A sentence explains which side of the 50% line the score
+     fell on. Footer shows the device (GPU name or CPU).
+
+4.3  RELIABILITY PANEL - "How far to trust it" (right)
+     What it shows:  The trust level (very low ... very high), an advice sentence, and
+                     one bar per held-out test set:
+                       - "Studio TTS, unseen attacks" (ASVspoof 2019 LA eval)
+                       - "Internet audio" (In-the-Wild)
+                     Each bar = accuracy (%) of E7a verdicts in the SAME confidence band
+                     on that set, with the number of clips n.
+     Colours:        green >= 90%, amber 70-90%, red < 70%.
+     How to read it: This is the most honest number on the page. Measured values:
+
+        Confidence band       ASVspoof eval accuracy   In-the-Wild accuracy
+        very low (50+/-10%)   47.3%  (n=1,499)          52.1%  (n=909)
+        low                   48.3%  (n=1,676)          53.3%  (n=1,067)
+        medium                47.7%  (n=1,996)          58.6%  (n=1,263)
+        high                  52.8%  (n=2,989)          67.9%  (n=2,055)
+        very high (>=90/<=10) 87.7%  (n=63,077)         94.6%  (n=26,485)
+
+     Analysis: only "very high" verdicts are dependable. Below 90% confidence the
+     model is close to a coin flip on studio TTS, and only somewhat better on internet
+     audio. If any set's accuracy is under 50%, the panel adds a warning that verdicts
+     like this were usually WRONG on that kind of audio.
+
+4.4  SPECTROGRAM LAB WITH SEGMENT ANALYSIS (interactive)
+     What it shows:  A custom player with the waveform (top) and spectrogram (bottom) of the whole
+                     recording on ONE shared time axis, plus the segment-level authenticity layer:
+                       - The recording is split into equal segments (1 s for clips up to a minute,
+                         longer for long files, at most 60). Each segment gets the mean log-odds of
+                         the model's local scores whose centre falls inside it (E7a, 4-s windows
+                         every 0.5 s, calibrated):
+                             REAL       local synthetic score below 40%      green
+                             UNCERTAIN  40-60%, too close to call             amber
+                             FAKE       60% or more                           red
+                             NO SPEECH  no speech, not scored                 grey
+                       - SEGM. strip above the views: one coloured cell per segment.
+                       - The waveform is coloured by its segment, on a faint matching background.
+                       - The spectrogram carries a transparent green / amber / red overlay (the
+                         frequency pattern stays readable) with a coloured edge on top.
+                       - White vertical lines where the classification changes; faint lines
+                         between segments of the same class. Time markers (0s, 2s, ...) below.
+                       - Hover anywhere: time, frequency, level and the segment's label and
+                         confidence.
+     SEGMENT ANALYSIS CARD (under the views; this replaces the old Temporal-patterns bar strip)
+                     - Status chip: "Mixed: real + fake", "Fake segments", "Uncertain segments"
+                       or "All segments real".
+                     - Authenticity timeline: adjacent coloured blocks [REAL][REAL][FAKE][REAL]
+                       on the recording's own time scale. Hover = start/end, label, confidence.
+                       CLICK = jump to that segment and play it.
+                     - Stats: % of the speech that is REAL and FAKE, seconds analysed of the total,
+                       and the number of REAL / FAKE / UNCERTAIN segments.
+                     - Segment breakdown list: "2.0-3.0 s  FAKE  96%" for every segment; clickable.
+                     - While audio plays, the current segment is outlined in the strip, the
+                       timeline and the list.
+                     Confidence = the model's calibrated probability for the segment's side
+                     (max of P(fake), P(real)); for UNCERTAIN the synthetic % is shown. It is not an
+                     accuracy.
+     Honest limits:  Each segment's score comes from 4-s windows, so it also "hears" about 2 s
+                     on either side: short fake inserts are smoothed and boundaries are approximate
+                     (about +/-2 s). Clips that fit in one analysis window (about 4 s or less) get
+                     NO segment labels - the card says "Segment-level analysis is unavailable" and
+                     the file verdict applies to the whole clip. Nothing is ever derived from the
+                     waveform amplitude.
+     Controls:       Play/Pause (Space), Zoom in/out/reset (+, -, 0), pan (arrow keys),
+                     toggle Wave / Spectrum, frequency range (0-8 kHz full, 0-4 kHz
+                     speech, 4-8 kHz high band, 0-1 kHz pitch), volume, playback speed.
+                     Drag to select a region -> Play / Zoom / Clear the selection.
+     How to read the spectrogram: x = time, y = frequency (low at bottom, up to 8 kHz),
+                     brightness = energy. Natural speech shows clear harmonics (horizontal
+                     stripes) during voiced sounds, formant bands, broadband bursts for
+                     consonants, and some background noise in pauses. Things worth a
+                     second look inside red segments: a hard ceiling where energy stops abruptly
+                     (band-limited vocoder, resampling or a codec), unusually smooth / blurred
+                     harmonics, buzzy or metallic high-band texture, perfectly black silent
+                     pauses, or a sudden change of texture at a boundary line (possible splice).
+                     None of these alone proves synthesis.
+     Compare A/B:    both lanes get the same overlay after the detector runs (no card there).
+
+4.5  EXPLAINABILITY CENTER - "Why was this audio flagged?"
+     The waveform and spectrogram that used to sit here now live in the lab above, with the
+     segment layer, so there is a single timeline on the page.
+
+     d) MODEL PREDICTION SUMMARY (right panel)
+        Final verdict, model, synthetic probability, confidence, flagged time
+        ("x s of y s"), most-relied frequency band (only for spectrogram models; "-" for
+        E7a), number of unusual measurements (out of 6), speech check passed/warning.
+        "Read the full reasoning" expands the plain-language explanation.
+
+     e) FREQUENCY ANALYSIS - average spectrum (LTAS, Long-Term Average Spectrum)
+        x = frequency 0-8 kHz, y = average level in dB relative to the maximum
+        (0 to -90 dB). Cyan filled curve. Amber dashed line at 4 kHz marks the start of
+        the "high band".
+        Reading: normal wideband speech has most energy below ~1 kHz, then falls off
+        smoothly but still has measurable energy up to 7-8 kHz. Warning signs:
+          - a cliff / brick-wall drop at 4 kHz, 5.5 kHz etc. -> band-limited vocoder,
+            telephone channel, low-rate codec or upsampled audio;
+          - a raised or flat noisy plateau above 4 kHz -> some neural vocoders add
+            high-band hiss;
+          - narrow spikes -> hum or tonal artefacts.
+        Remember microphones, rooms and MP3 compression also change this curve.
+
+     f) EVIDENCE BY FREQUENCY BAND (bar chart, shown only when the result has band
+        saliency - spectrogram-input models. E7a reads WavLM features which have no
+        frequency axis, so with the current model this chart is normally hidden.)
+        For each band: cyan bar = share of model evidence, grey bar = share of mel
+        bands. A cyan bar much longer than its grey bar means the model relied on that
+        band more than its size would suggest.
+
+     g) FEATURE ANALYSIS CARDS (six cards)
+        Each card has a severity tag, a value, a sentence and a PERCENTILE GAUGE: a
+        0-100 strip with the green zone between the 5th and 95th percentile of real
+        reference speech and a dot for this file.
+            Typical  (green) = inside 5th-95th percentile
+            Unusual  (amber) = below 5th or above 95th
+            Rare     (red)   = below 1st or above 99th
+        "Details" expands an explanation and a secondary measurement.
+
+        1. Spectral irregularities - spectral flux (frame-to-frame spectral change over
+           32-ms frames). Low = over-smoothed spectra (typical of TTS acoustic models);
+           high = abrupt jumps (possible splicing). Secondary: noisiness of 4-8 kHz band.
+        2. Frequency characteristics - effective bandwidth in kHz (highest frequency
+           within 50 dB of the peak). Low bandwidth = resampling, phone channel or
+           low-rate vocoder.
+        3. Temporal patterns - the segment authenticity timeline: REAL % and FAKE %, the
+           block strip [REAL][FAKE]... (same segments as the lab), counts per class, and the
+           full segment breakdown under "Details". Pitch variation and pitch jitter (flat
+           intonation is common in synthetic speech) moved into "Details". Short clips show
+           "Segment-level analysis unavailable".
+        4. Energy distribution - % of speech energy above 4 kHz. Low = band-limited
+           vocoder or heavy compression; high = added high-band hiss. Secondary: pause
+           noise floor vs speech (reference only - MP3, noise suppression and editing
+           also silence pauses, so it is never used in the explanation).
+        5. Audio consistency - % of scored time at >= 50%, the range of local scores,
+           and a MINI HISTOGRAM of timeline steps by synthetic score (10 bins, 0% left to
+           100% right; green bins < 50%, red bins >= 50%).
+              Consistent (green)     = no step crosses 50%
+              Mixed (amber)          = some steps cross 50%
+              Mostly flagged (red)   = half or more cross 50%
+           Reading: a histogram piled at the left = consistently real; piled at the right
+           = consistently synthetic; two humps = a recording that may be partly real and
+           partly synthetic (e.g. spliced) - listen to the red segments.
+        6. Model confidence - the confidence for the chosen class, plus a MINI BAR
+           STRIP of the model's own 4-s file-level windows (hop 1 s) whose mean logit
+           produced the file score. Tags: "Far from the line" (high/very high trust),
+           "Moderate", "Near the line" (low/very low). Many bars on both sides of 50% =
+           the file score is an average of disagreeing windows, so be careful.
+
+4.6  SYNTHETIC PROBABILITY OVER TIME (main timeline chart, interactive)
+     Axes:     x = time (s); y = synthetic score 0-100%, with the 50 tick labelled
+               "50 > threshold".
+     Layers:   - Background zones: red "SYNTHETIC zone" (60-100%), amber "near the line"
+                 (40-60%), green "REAL zone" (0-40%).
+               - Grey dashed horizontal line at 50% = the decision threshold.
+               - Blue smooth line = local synthetic probability over time; it breaks
+                 (gaps) where there is no speech.
+               - Dots on the line use the segment classes: green < 40%, amber 40-60%,
+                 red >= 60%.
+               - Flagged segments: faint red rectangles, dashed red edges, labels S1, S2...
+               - Hover anywhere: a vertical cursor and tooltip with time span, local
+                 result and synthetic %.
+     Resolution: one point every 0.5 s (longer for long files), each point covering a
+               4-s window - so peaks are smoothed and boundaries are approximate (+/-2 s).
+     How to read it:
+               - Line flat and low in the green zone -> consistently real-looking.
+               - Line flat and high in the red zone -> consistently synthetic-looking.
+               - Line hovering in the amber band -> the model is unsure in that region.
+               - Line jumping from green to red and back -> partial manipulation is
+                 possible (e.g. a synthetic sentence inserted into real speech), or the
+                 model reacts to a change of noise/channel. Listen to that part.
+               - The file verdict uses the whole-file windows of the speech region, so a
+                 file can be SYNTHETIC with no single region above 50%, or REAL with a
+                 few flagged regions.
+     If the clip fits in one window (very short), the chart has a single value and a
+     note asks for a longer recording.
+
+4.7  FLAGGED SEGMENTS
+     A table: segment, start, end, duration, synthetic score (shown as a progress bar),
+     peak %, severity, main evidence. Below it one expander per segment with:
+       - an AUDIO PLAYER for exactly that segment (listen to it!),
+       - "Model evidence" - why the model flagged it,
+       - "Acoustic measurements" - model-free comparisons of the segment against the rest
+         of the recording and the reference (e.g. loudness, brightness, pitch), stated as
+         "possible readings, not proof".
+     If nothing crosses 50% the panel says so; if the verdict is SYNTHETIC with no
+     segments, the evidence is spread over the whole file.
+
+4.8  ADVANCED FORENSICS (expanders)
+     a) Why: full explanation - all reasoning lines in plain language.
+
+     b) Forensic view: spectrogram and saliency (static 3-panel figure)
+        Top    - waveform coloured by local analysis (red suspected fake, green real,
+                 grey no speech).
+        Middle - 128-band log-mel spectrogram (frequency on a mel scale, so low
+                 frequencies get more room) with a region bar on top showing the
+                 Real/Fake/No-speech regions.
+        Bottom - local synthetic probability over time together with the model's own
+                 4-s file-level windows, against the 50% line.
+        Note: E7a has no frequency-band saliency (WavLM features have no frequency axis).
+
+     c) Whole-file acoustic measurements compared with real speech (table)
+        Measurement, value, unit, percentile among real speech, reading
+        (normal / unusual (low) / unusual (high) / n/a). Same data as the feature cards.
+
+     d) Inside the model: Grad-CAM, attention over time, WavLM layers
+        (turn on "Compute"; works on the DECISIVE window = the most fake window if the
+        verdict is SYNTHETIC, the most real window if REAL)
+        - GRAD-CAM HEATMAP: x = time frames, y = the model's 128 learned features (NOT
+          frequency). Bright areas pushed the score towards SYNTHETIC. Bright vertical
+          columns = specific moments that drove the decision.
+        - ATTENTION OVER TIME: line plot of the attention-pooling weight across the
+          window; dashed line = uniform weight. Peaks above the line are the moments the
+          model weighted most when summarising the window; a flat curve means it used the
+          whole window evenly.
+        - WAVLM LAYER WEIGHTS: bar chart of how much the detector mixes each WavLM layer
+          (0 = convolutional encoder output, higher = deeper transformer layers); dashed
+          line = uniform weight. Lower layers carry acoustic/signal detail, higher layers
+          more phonetic/linguistic information. This is a property of the trained model,
+          the same for every file.
+        These show where the model looked, not proof of manipulation.
+
+4.9  DOWNLOADABLE HTML REPORT
+     Self-contained page with: verdict box and split meter, trust panel, synthetic-
+     probability-over-time image, flagged-segment table with evidence, full reasoning,
+     the forensic-view figure, the measurement table, and the limitations text.
+
+
+-------------------------------------------------------------------------------------
+5. GRAPHS ON THE COMPARE A/B PAGE
+-------------------------------------------------------------------------------------
+5.1  SIDE-BY-SIDE SIGNAL VIEW
+     The Spectrogram Lab with two lanes (A cyan, B amber) on one time axis. "Linked"
+     plays, seeks and selects both together; "Independent" lets each lane play alone
+     (per-lane play buttons). After the detector runs, each lane gets its local-score
+     strip and flagged segments. Reading: compare harmonic structure, bandwidth ceiling,
+     background noise and pause texture of the trusted voice against the suspect.
+
+5.2  MODEL VERDICT CARDS (A and B)
+     For each recording: ring of synthetic %, REAL and SYNTHETIC bars, verdict chip,
+     confidence and held-out trust level. Run with "Run the detector on A and B".
+     Results are shared with Detect and History.
+
+5.3  FEATURE COMPARISON CARDS (six cards, A bar vs B bar)
+     RMS energy (dBFS)       - average loudness (bar scaled -60..0 dBFS).
+     Spectral centroid (Hz)  - "brightness", centre of mass of the spectrum.
+     Spectral roll-off (Hz)  - frequency below which 85% of energy lies.
+     Zero-crossing rate      - how often the waveform crosses zero: noisiness.
+     Spectral flatness (0-1) - noise-like (1) vs tonal (0).
+     Crest factor (dB)       - peak above average level: dynamics / compression.
+     Each card shows the difference ("B - A: +3.1 dB" or "B vs A: +12%").
+     Reading: large differences in centroid/roll-off often mean different bandwidth or
+     processing; much lower crest factor suggests heavy compression or limiting. But
+     microphones, rooms and codecs also cause these - they are not evidence on their own.
+
+5.4  MFCC PROFILE (line chart)
+     x = MFCC coefficient 0-12, y = mean value over the recording; one line per
+     recording (A cyan, B amber). MFCCs summarise the spectral envelope (timbre).
+     Coefficient 0 tracks overall level; 1-3 the broad spectral tilt; higher ones finer
+     detail. Reading: two lines that track closely = similar timbre/channel; large gaps
+     at low coefficients = different tilt (mic, channel, codec or a different voice
+     model); differences only at high coefficients are usually minor.
+
+5.5  COMPARISON SUMMARY
+     Auto-generated sentences: duration difference, loudness difference, centroid and
+     roll-off difference in %, whether the detector gives the same verdict to both, and a
+     reminder that recording conditions also cause differences. "Exact values" gives the
+     raw numbers.
+
+
+-------------------------------------------------------------------------------------
+6. GRAPHS ON THE RESEARCH PAGES
+-------------------------------------------------------------------------------------
+6.1  OVERVIEW STAT CARDS (landing page)
+     Accuracy on unseen attacks (ASVspoof 2019 LA eval, 71,237 clips): 83.3%
+     EER on internet audio (In-the-Wild, E7a): 10.7%  (older models: 36-72%)
+     Right at very high confidence (ASVspoof eval, P >= 90% or <= 10%)
+     Real recordings called SYNTHETIC (ASVspoof eval): 0.1%
+     (The page reads these from the error-analysis file; if that file is missing it
+     shows built-in fallback numbers.)
+
+6.2  RESULTS > MAIN COMPARISON - grouped horizontal bar chart
+     y = model, x = EER % (Equal Error Rate: the operating point where the share of
+     fakes accepted equals the share of reals rejected; LOWER IS BETTER). One coloured
+     bar per test set: ASVspoof eval (cyan), In-the-Wild (green), DEEP-VOICE per
+     recording (amber), degraded eval (grey). Bars are means over seeds (tooltip shows
+     the seed count). Models are sorted best-first.
+     Key result (from the model card):
+        Model                                  ASVspoof eval  In-the-Wild  DEEP-VOICE
+        v1 CNN-BiLSTM, MFCC                    7.97           47.3         52.4
+        E4a CNN-BiLSTM, LFCC + RawBoost        14.38          47.4         50.3
+        E7a WavLM-Base+ + CNN-BiLSTM-Att       6.22           10.67        12.50
+     Analysis: models trained from scratch on handcrafted features (MFCC, LFCC) do
+     well on studio ASVspoof audio but are near chance (~50% EER) on real internet audio
+     and voice conversion - they learned dataset shortcuts. The self-supervised WavLM
+     front-end generalises far better, which is why E7a is the app's model.
+     Tables for Phase 2 (features, shortcuts, augmentation) are in an expander.
+
+6.3  RESULTS > RETIRED ENSEMBLE - tables of the old 3-model ensemble (record only).
+
+6.4  RESULTS > ROBUSTNESS - images of EER under degradations (MP3 and Opus at two bit
+     rates, telephone band, white noise 20/10/5 dB, pink noise) on eval and dev. A line
+     or bar that rises sharply for a condition = the model is fragile to that channel.
+
+6.5  RESULTS > CALIBRATION - reliability diagram per model (select a model).
+     x = predicted probability (binned), y = observed fraction of fakes. The diagonal is
+     perfect calibration. Points below the diagonal = over-confident towards fake; above
+     = under-confident. ECE (expected calibration error) for E7a: ASVspoof eval
+     14.0% -> 12.2% after calibration; In-the-Wild 7.3% -> 5.0%.
+
+6.6  RESULTS > FREQUENCY BANDS - per-attack frequency-band analysis image: which
+     frequency bands carry the evidence for each attack type (from spectrogram models).
+
+6.7  RESULTS > SPEED - efficiency table (parameters, time per second of audio).
+     E7a runs at about 16x real time on CPU.
+
+6.8  ERROR ANALYSIS PAGE
+     Choose a test set (ASVspoof eval, In-the-Wild). Stat cards: clips, accuracy, real
+     called SYNTHETIC (false rejects), fakes called REAL (false accepts).
+
+        Set             Clips    Accuracy   Real->SYNTHETIC   Fake->REAL
+        ASVspoof eval   71,237   83.3%      0.1%              18.6%
+        In-the-Wild     31,779   88.9%      6.7%              18.6%
+
+     a) "WHEN TO TRUST A VERDICT" - bar chart
+        x = confidence band (very low ... very high), y = accuracy 0-100%.
+        This is the table the Detect page's trust panel looks up (numbers in 4.3).
+        Analysis: the model is very good when it is very sure, and the vast majority of
+        clips fall in the very-high band (63,077 of 71,237 on ASVspoof eval). Everything
+        below that is close to 50% on studio audio - the calibrated probability is not a
+        reliable accuracy below 90%.
+
+     b) "PER ATTACK (ASVspoof A07-A19)" - red bar chart + table
+        x = attack ID, y = % of that attack's fakes called REAL; table adds the EER per
+        attack and n. Tall bars = attacks the model misses. A10 is hard for every model
+        in this project. Note EER ranks scores against all bona fide eval clips, while
+        "fakes called REAL" uses the app's 50% line - they can disagree.
+
+     c) BY CLIP DURATION (table) - accuracy per duration bucket. Short clips are usually
+        less accurate - there is less evidence.
+
+     d) HARDEST SPEAKERS (table, top 15) - speakers with the most errors; shows the model
+        is not equally good for every voice.
+
+     e) PER RECORDING (table, when available) - per-recording P(fake) as a progress bar.
+
+     f) WORST MISTAKES (two tabs) - fakes called REAL with the lowest P(fake) (false
+        accepts) and real clips called FAKE with the highest P(fake) (false rejects).
+        Useful for listening to what fools the model.
+
+
+-------------------------------------------------------------------------------------
+7. HOW TO READ A RESULT - CHECKLIST
+-------------------------------------------------------------------------------------
+  1. Verdict and split meter: REAL or SYNTHETIC, and how far from 50%.
+  2. Trust panel: is it "very high"? If not, treat the verdict as a weak hint.
+  3. Speech-check warning? If yes, the verdict is much less reliable.
+  4. Timeline: is the line consistently on one side, or does it cross the line?
+  5. Flagged segments: LISTEN to every one. Check its severity and evidence.
+  6. Spectrogram Lab / LTAS: look for bandwidth cliffs, smoothed harmonics, odd
+     high-band texture, silent pauses, texture changes at segment edges.
+  7. Feature cards: count "Unusual"/"Rare" tags, remembering codecs and microphones
+     cause many of them too.
+  8. If you have a known-real sample of the same speaker, use Compare A/B.
+  9. Never use one verdict as the only evidence about a real person.
+
+
+-------------------------------------------------------------------------------------
+8. LIMITATIONS
+-------------------------------------------------------------------------------------
+  - Research prototype and screening aid, not proof. Every verdict can be wrong.
+  - Trained on English studio speech from 2019 (ASVspoof 2019 LA, attacks A01-A06).
+  - Misses about 1 in 5 fakes on both ASVspoof eval and In-the-Wild, and about 3 in 4
+    modern voice-conversion fakes (DEEP-VOICE windows, e.g. RVC-style conversion).
+  - Calls 0.1% of real ASVspoof studio recordings and 6.7% of real In-the-Wild clips
+    SYNTHETIC.
+  - Heavily processed audio (strong compression, noise suppression, phone lines) can
+    shift the score either way.
+  - Flagged regions are model-flagged suspicions; acoustic measurements are
+    descriptions, not proof of manipulation.
+  - Not for legal, journalistic, financial or personal-safety decisions on its own, and
+    not for surveillance or judging individuals.
+=====================================================================================

@@ -4,6 +4,12 @@ One self-contained HTML component (iframe) holding one lane (Detect) or two lane
 audio element; the toolbar zooms, pans, switches views and frequency ranges, sets volume and speed; dragging selects
 a region (played, zoomed to, mirrored on every lane), hovering reads out time, frequency and level. Every number comes
 from ui.signal (the decoded audio) and, when given, the detector's own per-step scores and flagged segments.
+
+Segment-level authenticity layer (after an analysis): the model's timeline steps are grouped into equal blocks by
+adfd.timeline.segment_blocks (REAL < 40% <= UNCERTAIN < 60% <= FAKE, from E7a's calibrated 4-s window scores). The
+same blocks shade the waveform and the spectrogram, colour the strip above them, draw the boundary lines and fill the
+Segment analysis card under a single-lane lab; clicking a block plays it, the block under the playhead is highlighted.
+When the clip fits in one analysis window there are no blocks and the card says segment analysis is unavailable.
 """
 
 from __future__ import annotations
@@ -13,10 +19,35 @@ import json
 import numpy as np
 import streamlit.components.v1 as components
 
+from adfd.timeline import segment_blocks
 from ui import signal
 from ui.theme import AMBER, CYAN, GREEN, RED
 
 TONES = {"main": CYAN, "A": CYAN, "B": AMBER}
+CARD_H = {True: 286, False: 128}         # segment card height (available / unavailable)
+
+
+def blocks_of(res: dict) -> dict:
+    """Segment-level blocks of one analysis result.
+
+    With res["temporal"] (the segment model, adfd.temporal): its own regions, one prediction per 0.16 s
+    (source "temporal"). Without it: equal blocks from the whole-clip model's sliding windows (source "sliding",
+    adfd.timeline.segment_blocks), which the card labels as an approximation.
+    """
+    tm = res.get("temporal")
+    if tm and tm.get("regions"):
+        speech = tm["analysed_s"] > 0
+        return {"available": speech, "source": "temporal", "model": tm["model"],
+                "reason": None if speech else "No speech was found in the recording, so nothing was labelled.",
+                "block_s": tm["frame_s"], "window_s": 4.0, "step_s": tm["frame_s"],
+                "uncertain": [tm["thresholds"]["t_lo"], tm["thresholds"]["t_hi"]], "duration_s": tm["duration_s"],
+                "blocks": [{"start_s": r["start_s"], "end_s": r["end_s"], "label": r["label"], "p_fake": r["p_fake"],
+                            "confidence": r["confidence"]} for r in tm["regions"]],
+                "seconds": tm["seconds"], "pct_of_speech": tm["pct_of_speech"], "analysed_s": tm["analysed_s"],
+                "counts": tm["counts"]}
+    sb = segment_blocks(res.get("per_second") or [], res["duration_s"], res.get("step_s") or res["duration_s"],
+                        res.get("local_window_s", 4.0), bool(res.get("time_resolved")))
+    return {**sb, "source": "sliding"}
 
 
 def lane(x: np.ndarray, sr: int, title: str, tone: str = "main", res: dict | None = None) -> dict:
@@ -25,6 +56,14 @@ def lane(x: np.ndarray, sr: int, title: str, tone: str = "main", res: dict | Non
     if res is not None and res.get("per_second"):
         d["steps"] = [[w["start_s"], w["end_s"], w["p_fake"]] for w in res["per_second"]]
         d["segs"] = [[s["start_s"], s["end_s"], f"S{i}", s["p_fake"]] for i, s in enumerate(res.get("segments", []), 1)]
+        sb = blocks_of(res)
+        d["seg"] = {k: sb.get(k) for k in ("available", "reason", "block_s", "window_s", "step_s", "uncertain",
+                                           "pct_of_speech", "counts", "analysed_s", "duration_s", "source",
+                                           "seconds")}
+        d["seg"]["verdict"] = "SYNTHETIC" if res["verdict"] == "Fake" else "REAL"
+        d["seg"]["p_fake"] = res["p_fake"]
+        if sb["available"]:
+            d["blocks"] = [[b["start_s"], b["end_s"], b["label"], b["p_fake"], b["confidence"]] for b in sb["blocks"]]
     return d
 
 
@@ -32,9 +71,12 @@ def render(lanes: list[dict], key: str, view_h: int | None = None) -> None:
     """Draw the lab. Height is fixed per lane count so the page never jumps when views change."""
     n = len(lanes)
     view_h = view_h or (330 if n == 1 else 220)
-    has_strip = any("steps" in ln for ln in lanes)
-    height = 64 + n * (view_h + 58 + (12 if has_strip else 0)) + 72
-    cfg = {"lanes": lanes, "viewH": view_h, "heat": signal.HEAT_STOPS, "key": key,
+    has_strip = any("blocks" in ln for ln in lanes)
+    card = n == 1 and "seg" in lanes[0]
+    height = 64 + n * (view_h + 58 + (14 if has_strip else 0)) + 72
+    if card:
+        height += CARD_H[bool(lanes[0]["seg"]["available"])] + 10
+    cfg = {"lanes": lanes, "viewH": view_h, "heat": signal.HEAT_STOPS, "key": key, "card": card,
            "colors": {"real": GREEN, "syn": RED, "amber": AMBER, "cyan": CYAN}}
     payload = json.dumps(cfg).replace("</", "<\\/")
     components.html(TEMPLATE.replace("__CFG__", payload), height=height, scrolling=False)
@@ -90,6 +132,53 @@ svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-l
 .sel{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .sel b{color:var(--cyan);font:500 12px "JetBrains Mono",monospace}
 .hint{font-size:11px;color:var(--dim)}
+/* segment analysis card */
+.card{flex:none;margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;overflow:auto}
+.chd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ctt{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px}
+.ctt .ib{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:var(--cyan);background:rgba(34,211,238,.12)}
+.cst{font:600 10.5px Inter;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:999px;color:var(--c);
+  background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent);
+  display:inline-flex;align-items:center;gap:6px}
+.cst::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+.clg{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--mute)}
+.clg span{display:inline-flex;align-items:center;gap:5px}.clg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.cgr{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;margin-top:12px}
+.bar{position:relative;height:30px;border-radius:7px;background:#070b14;overflow:hidden}
+.blk{position:absolute;top:0;bottom:0;border-right:1px solid #0d1524;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;font:700 9.5px Inter;letter-spacing:.05em;color:rgba(5,12,22,.85);overflow:hidden;white-space:nowrap;
+  transition:filter .12s ease,box-shadow .12s ease}
+.blk:hover{filter:brightness(1.18)}
+.blk.on{box-shadow:inset 0 0 0 2px #fff;filter:brightness(1.15)}
+.blk.ns{color:var(--dim);cursor:default}
+.bax{position:relative;height:16px;font:500 10px "JetBrains Mono",monospace;color:var(--dim)}
+.bax span{position:absolute;top:3px;transform:translateX(-50%)}
+.bax span::before{content:"";position:absolute;left:50%;top:-4px;width:1px;height:3px;background:var(--line2)}
+.sts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.sts>div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.sts .k{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+.sts .v{font:600 15px Inter;margin-top:2px;font-variant-numeric:tabular-nums}
+.sts .v small{font-size:10.5px;font-weight:500;color:var(--mute);margin-left:3px}
+.cnote{font-size:11px;color:var(--dim);line-height:1.45;margin-top:8px}
+.lst{display:flex;flex-direction:column;min-height:0}
+.lst .lh2{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);
+  padding:0 8px 5px;border-bottom:1px solid var(--line)}
+.rows{position:relative;overflow:auto;max-height:186px}
+.rw{display:grid;grid-template-columns:12px minmax(0,1fr) auto 46px;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;
+  font:500 11.5px "JetBrains Mono",monospace;cursor:pointer;border-left:2px solid transparent}
+.rw:hover{background:var(--raise)}
+.rw.on{background:rgba(255,255,255,.06);border-left-color:#fff}
+.rw .sw{width:10px;height:10px;border-radius:3px}
+.rw .lb{font:700 10px Inter;letter-spacing:.06em}
+.rw .cf{text-align:right;color:var(--text)}
+.rw.ns{cursor:default;color:var(--dim)}
+.btip{position:fixed;pointer-events:none;z-index:9;display:none;background:rgba(8,12,22,.96);border:1px solid var(--line2);
+  border-radius:6px;padding:6px 9px;font:500 11.5px "JetBrains Mono",monospace;white-space:nowrap}
+.btip i{font-style:normal;color:var(--mute)}
+.unav{display:flex;gap:12px;align-items:flex-start;margin-top:10px;padding:12px;border:1px dashed var(--line2);border-radius:10px;
+  font-size:12.5px;color:var(--mute);line-height:1.5}
+.unav b{color:var(--text)}
+@media (max-width:700px){.cgr{grid-template-columns:1fr}.sts{grid-template-columns:repeat(2,minmax(0,1fr))}.clg{margin-left:0}}
 @media (max-width:620px){.hide-sm{display:none!important}input[type=range]{width:60px}.lt{max-width:60%}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body>
@@ -126,7 +215,9 @@ svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-l
   <div class="mini" id="mini" title="Overview: click or drag to move the view"><canvas id="minic"></canvas></div>
   <div class="sel" id="sel"><span class="hint">Drag across the view to select a region · click to seek · Ctrl + wheel to zoom</span></div>
  </div>
+ <div class="card" id="card" style="display:none"></div>
 </div>
+<div class="btip" id="btip"></div>
 <script id="cfg" type="application/json">__CFG__</script>
 <script>
 (function(){
@@ -160,11 +251,23 @@ const b64u = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const fmt = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - 60 * m; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
 const fmtHz = f => f >= 1000 ? (f/1000).toFixed(f % 1000 ? 1 : 0) + ' kHz' : Math.round(f) + ' Hz';
 const pcol = p => p == null ? '#475569' : (p >= 0.5 ? C.colors.syn : C.colors.real);
+// segment-level authenticity blocks: [start, end, label, p_fake, confidence] from adfd.timeline.segment_blocks
+const BC = {'REAL': C.colors.real, 'FAKE': C.colors.syn, 'UNCERTAIN': C.colors.amber, 'NO SPEECH': '#475569'};
+const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`;
+const blockAt = (d, t) => { if (!d.blocks) return -1; for (let i = 0; i < d.blocks.length; i++){ const b = d.blocks[i];
+  if (t >= b[0] && (t < b[1] || (i === d.blocks.length - 1 && t <= b[1]))) return i; } return -1; };
+const fs = t => (Math.round(t * 10) / 10).toFixed(1);
+const blockConf = b => b[2] === 'NO SPEECH' ? '–' : b[2] === 'UNCERTAIN' ? Math.round(b[3] * 100) + '% syn.' : Math.round(b[4] * 100) + '%';
+const blockTip = b => `<i>time</i> ${fs(b[0])}–${fs(b[1])} s<br><span style="color:${BC[b[2]]};font-weight:700">${b[2]}</span>` +
+  (b[2] === 'NO SPEECH' ? '<br><i>not scored (no speech)</i>' : b[2] === 'UNCERTAIN'
+    ? `<br><i>synthetic score</i> ${Math.round(b[3] * 100)}% <i>(40–60%)</i>`
+    : `<br><i>confidence</i> ${Math.round(b[4] * 100)}% <i>${b[2] === 'FAKE' ? 'synthetic' : 'real'}</i>`);
+let curBlock = -2;
 
 const lanesEl = $('lanes');
 const LS = C.lanes.map((d, i) => {
   const el = document.createElement('div'); el.className = 'lane';
-  const stripH = d.steps ? 12 : 0;
+  const stripH = d.blocks ? 14 : 0;
   el.innerHTML = `<div class="lh">${C.lanes.length > 1 ? `<span class="tag" style="background:${d.tone}">${d.tag}</span>` : ''}
     <span class="lt" title="${d.title.replace(/"/g,'&quot;')}">${d.title.replace(/</g,'&lt;')}</span>
     ${C.lanes.length > 1 ? `<button class="lp" aria-label="Play ${d.tag} only" title="Play this recording only">${IC.play}</button>` : ''}
@@ -194,7 +297,8 @@ function size(){
   // fit the lanes into the space the (possibly wrapped) toolbar and footer leave
   const ws = $('ws'), tb = document.querySelector('.tb'), ft = document.querySelector('.foot'), n = LS.length;
   const strips = LS.reduce((a, o) => a + o.stripH, 0);
-  const free = ws.clientHeight - 22 - tb.offsetHeight - 8 - ft.offsetHeight - 6 - n * 46 - (n - 1) * 6 - strips - 4;
+  const cd = $('card'), cardH = cd.style.display === 'none' ? 0 : cd.offsetHeight + 10;
+  const free = ws.clientHeight - 22 - tb.offsetHeight - 8 - ft.offsetHeight - 6 - n * 46 - (n - 1) * 6 - strips - 4 - cardH;
   VH = Math.max(100, Math.min(C.viewH + 40, Math.floor(free / n)));
   LS.forEach(o => {
     const w = o.view.clientWidth, h = VH + o.stripH;
@@ -219,11 +323,13 @@ function draw(o){
   c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
   c.fillStyle = '#070b14'; c.fillRect(0, 0, W, H);
   const g = layout(o), d = o.d;
-  // local-score strip
-  if (d.steps){ for (const [a, b, p] of d.steps){ if (b < v0 || a > v1) continue;
-      const x0 = Math.max(L, tx(a, W)), x1 = Math.min(W, tx(b, W)); c.fillStyle = pcol(p); c.globalAlpha = p == null ? .5 : .85;
-      c.fillRect(x0, 2, Math.max(1, x1 - x0), 7); }
-    c.globalAlpha = 1; c.fillStyle = '#5d6b82'; c.font = '9.5px Inter'; c.textBaseline = 'middle'; c.fillText('LOCAL', 6, 6); }
+  // segment strip (one cell per authenticity block)
+  const vis = d.blocks ? d.blocks.map((b, i) => [b, i]).filter(([b]) => !(b[1] < v0 || b[0] > v1)) : [];
+  const ab = o === LS[0] ? curBlock : -1;
+  for (const [b, i] of vis){ const x0 = Math.max(L, tx(b[0], W)), x1 = Math.min(W, tx(b[1], W));
+    c.fillStyle = BC[b[2]]; c.globalAlpha = b[2] === 'NO SPEECH' ? .45 : .9; c.fillRect(x0, 2, Math.max(1, x1 - x0 - 1), 9);
+    if (i === ab){ c.globalAlpha = 1; c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.strokeRect(x0 + .75, 1.25, Math.max(1, x1 - x0 - 2.5), 10.5); c.lineWidth = 1; } }
+  c.globalAlpha = 1;
   // spectrogram
   if (g.sh > 0){
     const fmax = o.spec.fmax, rows = o.spec.rows, cols = o.spec.cols;
@@ -232,6 +338,10 @@ function draw(o){
     const visEnd = Math.min(c1, cols);
     if (visEnd > c0){ c.imageSmoothingEnabled = (c1 - c0) < (W - L); c.imageSmoothingQuality = 'high';
       c.drawImage(o.off, c0, r0, visEnd - c0, r1 - r0, L, g.sy, (tx(Math.min(v1, d.dur), W) - L), g.sh); }
+    // transparent authenticity shading: keeps the frequency pattern readable underneath
+    for (const [b] of vis){ if (b[2] === 'NO SPEECH') continue; const x0 = Math.max(L, tx(b[0], W)), x1 = Math.min(W, tx(b[1], W));
+      c.fillStyle = rgba(BC[b[2]], .17); c.fillRect(x0, g.sy, x1 - x0, g.sh);
+      c.fillStyle = rgba(BC[b[2]], .85); c.fillRect(x0, g.sy, x1 - x0, 2); }
     // frequency grid and labels
     const span = fHi - fLo, st = span <= 1000 ? 200 : span <= 4000 ? 1000 : 2000;
     c.font = '10px "JetBrains Mono",monospace'; c.textBaseline = 'middle'; c.textAlign = 'right';
@@ -244,6 +354,8 @@ function draw(o){
   // waveform
   if (g.wh > 0){
     const mid = g.wy + g.wh / 2, amp = (g.wh / 2 - 4) / d.peaks.peak, n = o.mn.length, pos = o.audio.currentTime;
+    for (const [b] of vis){ if (b[2] === 'NO SPEECH') continue; const x0 = Math.max(L, tx(b[0], W)), x1 = Math.min(W, tx(b[1], W));
+      c.fillStyle = rgba(BC[b[2]], .09); c.fillRect(x0, g.wy, x1 - x0, g.wh); }
     c.strokeStyle = 'rgba(230,235,242,.07)'; c.beginPath(); c.moveTo(L, mid); c.lineTo(W, mid); c.stroke();
     for (let x = L; x < W; x++){
       const ta = xt(x, W), tb = xt(x + 1, W); if (ta > d.dur) break;
@@ -251,15 +363,21 @@ function draw(o){
       i0 = Math.max(0, i0); i1 = Math.min(n, i1); let lo = 0, hi = 0;
       for (let i = i0; i < i1; i++){ if (o.mn[i] < lo) lo = o.mn[i]; if (o.mx[i] > hi) hi = o.mx[i]; }
       let col = d.tone;
-      if (d.steps){ const tm = (ta + tb) / 2; let p = null; for (const s of d.steps) if (tm >= s[0] && tm < s[1]) { p = s[2]; break; } col = pcol(p); }
+      if (d.blocks){ const k = blockAt(d, (ta + tb) / 2); col = k < 0 ? '#475569' : BC[d.blocks[k][2]]; }
       c.fillStyle = col; c.globalAlpha = ta <= pos ? 1 : .62;
       c.fillRect(x, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
     }
     c.globalAlpha = 1;
     c.fillStyle = '#5d6b82'; c.font = '9.5px Inter'; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText('AMP', 6, g.wy + 4);
   }
-  // flagged segments
-  if (d.segs) for (const [a, b, nm, p] of d.segs){ if (b < v0 || a > v1) continue;
+  // segment boundaries: solid where the classification changes, faint between blocks of the same class
+  for (const [b, i] of vis){ if (i === 0) continue; const x = Math.round(tx(b[0], W)) + .5; if (x < L || x > W) continue;
+    const change = d.blocks[i - 1][2] !== b[2];
+    if (!change && (tx(b[1], W) - tx(b[0], W)) < 10) continue;
+    c.strokeStyle = change ? 'rgba(255,255,255,.75)' : 'rgba(230,235,242,.16)'; c.lineWidth = change ? 1.5 : 1;
+    c.beginPath(); c.moveTo(x, o.stripH); c.lineTo(x, H); c.stroke(); c.lineWidth = 1; }
+  // flagged segments (50% line) - drawn only when there is no block layer, which already shows the same evidence
+  if (d.segs && !d.blocks) for (const [a, b, nm, p] of d.segs){ if (b < v0 || a > v1) continue;
     const x0 = Math.max(L, tx(a, W)), x1 = Math.min(W, tx(b, W));
     c.fillStyle = 'rgba(248,113,113,.10)'; c.fillRect(x0, o.stripH, x1 - x0, H - o.stripH);
     c.strokeStyle = 'rgba(248,113,113,.75)'; c.setLineDash([3, 3]); c.beginPath();
@@ -279,6 +397,7 @@ function draw(o){
   if (ph >= L && ph <= W){ c.strokeStyle = '#ffffff'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(ph, 0); c.lineTo(ph, H); c.stroke(); c.lineWidth = 1;
     c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(ph - 5, 0); c.lineTo(ph + 5, 0); c.lineTo(ph, 6); c.fill(); }
   c.fillStyle = '#111827'; c.fillRect(0, 0, L - 2, o.stripH);
+  if (o.stripH){ c.fillStyle = '#5d6b82'; c.font = '9.5px Inter'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('SEGM.', 6, 7); }
   // time axis
   const a = o.ax.getContext('2d'); a.setTransform(DPR, 0, 0, DPR, 0, 0); a.clearRect(0, 0, W, 22);
   const step = niceStep(v1 - v0, W - L); a.font = '10px "JetBrains Mono",monospace'; a.fillStyle = '#8b98ad'; a.textAlign = 'center'; a.textBaseline = 'top';
@@ -356,7 +475,9 @@ LS.forEach((o, i) => {
     } else if (p.x >= L && g.wh > 0 && p.y >= g.wy && p.y <= g.wy + g.wh && t <= o.d.dur){
       const n = o.mn.length, k = Math.min(n - 1, Math.floor(t / o.d.dur * n)); const a = Math.max(Math.abs(o.mn[k]), Math.abs(o.mx[k]));
       line = `<br><i>peak</i> ${(20 * Math.log10(a + 1e-9)).toFixed(1)} dBFS`; }
-    if (o.d.steps && t <= o.d.dur){ const s = o.d.steps.find(s => t >= s[0] && t < s[1]);
+    if (o.d.blocks && t <= o.d.dur){ const k = blockAt(o.d, t);
+      if (k >= 0) line += '<br>' + blockTip(o.d.blocks[k]).replace('<i>time</i>', '<i>segment</i>'); }
+    else if (o.d.steps && t <= o.d.dur){ const s = o.d.steps.find(s => t >= s[0] && t < s[1]);
       if (s) line += `<br><i>local</i> ${s[2] == null ? 'no speech' : (s[2] >= .5 ? '<span style="color:#f87171">' : '<span style="color:#34d399">') + (s[2] == null ? '' : Math.round(s[2] * 100) + '% synthetic</span>')}`; }
     if (o.d.segs){ const s = o.d.segs.find(s => t >= s[0] && t <= s[1]); if (s) line += `<br><span style="color:#f87171">flagged ${s[2]}</span>`; }
     hover = p.x >= L ? {o, x: p.x, y: p.y, t, f} : null;
@@ -377,6 +498,75 @@ LS.forEach((o, i) => {
   m.addEventListener('pointerdown', e => { drag = true; m.setPointerCapture(e.pointerId); go(e); });
   m.addEventListener('pointermove', e => { if (drag) go(e); });
   m.addEventListener('pointerup', () => drag = false); })();
+
+// ---- segment analysis card (single lane, after an analysis) ----
+function playBlock(i){ const o = LS[0], b = o.d.blocks[i]; if (!b || b[2] === 'NO SPEECH') return;
+  LS.forEach(q => q.audio.pause()); active = 0; o.audio.currentTime = b[0];
+  const span = v1 - v0; if (b[0] < v0 || b[1] > v1){ v0 = Math.max(0, Math.min(b[0] - span * .1, DUR - span)); v1 = v0 + span; }
+  playEnd = b[1]; o.audio.play().catch(() => {}); dirty = true; }
+function buildCard(){
+  const d = LS[0].d, s = d.seg, el = $('card'); if (!C.card || !s) return;
+  el.style.display = ''; el.style.height = (s.available ? 286 : 128) + 'px';
+  const legend = `<div class="clg">${['REAL', 'FAKE', 'UNCERTAIN', 'NO SPEECH'].map(k => `<span><i style="background:${BC[k]}"></i>${k}</span>`).join('')}</div>`;
+  const icon = '<svg viewBox="0 0 24 24"><path d="M3 12h3l3-8 4 16 3-8h5"/></svg>';
+  if (!s.available){
+    el.innerHTML = `<div class="chd"><div class="ctt"><span class="ib">${icon}</span>Segment analysis</div>
+      <span class="cst" style="--c:#8b98ad">Unavailable</span>${legend}</div>
+      <div class="unav"><div><b>Segment-level analysis is unavailable for this recording.</b> ${s.reason} The file verdict
+      (${s.verdict}, ${(100 * s.p_fake).toFixed(1)}% synthetic) applies to the whole clip. Upload a recording longer than
+      about ${(Math.max(4, s.window_s) * 1.5).toFixed(0)} s to see which parts are real or fake.</div></div>`;
+    return; }
+  const B = d.blocks, n = s.counts, P = s.pct_of_speech, sec = s.seconds || {REAL: P.REAL / 100 * s.analysed_s, FAKE: P.FAKE / 100 * s.analysed_s};
+  const [stTxt, stCol] = n.FAKE && n.REAL ? ['Mixed: real + fake', C.colors.syn] : n.FAKE ? ['Fake segments', C.colors.syn]
+    : n.UNCERTAIN ? ['Uncertain segments', C.colors.amber] : ['All segments real', C.colors.real];
+  const blocks = B.map((b, i) => { const l = b[0] / s.duration_s * 100, w = (b[1] - b[0]) / s.duration_s * 100;
+    const ns = b[2] === 'NO SPEECH';
+    return `<div class="blk${ns ? ' ns' : ''}" data-i="${i}" style="left:${l}%;width:${w}%;background:${ns ? 'rgba(71,85,105,.45)' : BC[b[2]]}"
+      role="button" data-l="${ns ? '' : b[2] === 'UNCERTAIN' ? '?' : b[2]}" aria-label="${fs(b[0])} to ${fs(b[1])} seconds, ${b[2]}"></div>`; }).join('');
+  const rows = B.map((b, i) => `<div class="rw${b[2] === 'NO SPEECH' ? ' ns' : ''}" data-i="${i}"><span class="sw" style="background:${BC[b[2]]}"></span>
+      <span>${fs(b[0])}–${fs(b[1])} s</span><span class="lb" style="color:${BC[b[2]]}">${b[2]}</span><span class="cf">${blockConf(b)}</span></div>`).join('');
+  const stat = (k, v, u, col) => `<div><div class="k">${k}</div><div class="v" style="color:${col || 'var(--text)'}">${v}<small>${u}</small></div></div>`;
+  el.innerHTML = `<div class="chd"><div class="ctt"><span class="ib">${icon}</span>Segment analysis</div>
+      <span class="cst" style="--c:${stCol}">${stTxt}</span>${legend}</div>
+    <div class="cgr"><div>
+      <div class="bar" id="sbar">${blocks}</div><div class="bax" id="sbax"></div>
+      <div class="sts">${stat('Real audio', P.REAL.toFixed(0), '% · ' + fs(sec.REAL) + ' s', C.colors.real)}${stat('Fake audio', P.FAKE.toFixed(0), '% · ' + fs(sec.FAKE) + ' s', C.colors.syn)}
+        ${stat('Analysed', fs(s.analysed_s), 's of ' + fs(s.duration_s) + ' s')}
+        ${stat('Segments', `<span style="color:${C.colors.real}">${n.REAL}</span> · <span style="color:${C.colors.syn}">${n.FAKE}</span> · <span style="color:${C.colors.amber}">${n.UNCERTAIN}</span>`, 'R · F · U')}</div>
+      <div class="cnote">${s.source === 'temporal'
+        ? `Segment model: one prediction every 0.16 s, trained on recordings with time-stamped real/fake labels (PartialSpoof).
+           REAL below ${Math.round(s.uncertain[0] * 100)}%, UNCERTAIN ${Math.round(s.uncertain[0] * 100)}–${Math.round(s.uncertain[1] * 100)}%, FAKE ${Math.round(s.uncertain[1] * 100)}% or more (calibrated on held-out speakers)${n['NO SPEECH'] ? '; grey parts have no speech and are never called fake' : ''}.`
+        : `Approximation: the segment model is not installed, so these ${fs(s.block_s)}-s segments come from the whole-clip model's ${s.window_s.toFixed(0)}-s windows (every ${s.step_s.toFixed(1)} s);
+           each also hears about ${(s.window_s / 2).toFixed(0)} s on each side, so short fake inserts are smoothed. REAL below 40%, UNCERTAIN 40–60%, FAKE 60% or more${n['NO SPEECH'] ? '; grey parts have no speech' : ''}.`}
+        Click a segment to play it.</div>
+    </div><div class="lst"><div class="lh2"><span>Segment breakdown</span><span>confidence</span></div><div class="rows" id="srows">${rows}</div></div></div>`;
+  const tip = $('btip');
+  const over = (e, i) => { tip.innerHTML = blockTip(B[i]); tip.style.display = 'block';
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(e.clientX + 12, window.innerWidth - tw - 6) + 'px'; tip.style.top = Math.max(4, e.clientY - th - 10) + 'px'; };
+  el.querySelectorAll('.blk,.rw').forEach(b => { const i = +b.dataset.i;
+    b.addEventListener('pointermove', e => over(e, i)); b.addEventListener('pointerleave', () => tip.style.display = 'none');
+    b.addEventListener('click', () => playBlock(i)); });
+  axisCard(); }
+function axisCard(){ const ax = $('sbax'); if (!ax) return; const s = LS[0].d.seg, w = ax.clientWidth || 300;
+  // a block shows its word only when it is wide enough to read
+  $('card').querySelectorAll('.blk').forEach(b => { const l = b.dataset.l, need = l === '?' ? 10 : 34;
+    b.textContent = b.offsetWidth >= need ? l : ''; });
+  const step = niceStep(s.duration_s, w * .9); let h = '';
+  for (let t = 0; t <= s.duration_s + 1e-9; t += step){ const l = t / s.duration_s * 100;
+    h += `<span style="left:${Math.min(Math.max(l, 2), 97)}%">${step < 1 ? t.toFixed(1) : (t >= 60 ? fmt(t).replace(/\.0$/, '') : t.toFixed(0))}s</span>`; }
+  ax.innerHTML = h; }
+function markBlock(){ const o = LS[0]; if (!o.d.blocks) return;
+  const playing = !o.audio.paused, t = o.audio.currentTime;
+  const k = (playing || t > 0) ? blockAt(o.d, t) : -1; if (k === curBlock) return; curBlock = k; dirty = true;
+  const card = $('card'); card.querySelectorAll('.on').forEach(e => e.classList.remove('on'));
+  if (k < 0) return; card.querySelectorAll(`[data-i="${k}"]`).forEach(e => e.classList.add('on'));
+  const rws = $('srows'), r = rws && rws.querySelector(`.rw[data-i="${k}"]`);
+  if (r && (r.offsetTop < rws.scrollTop || r.offsetTop + r.offsetHeight > rws.scrollTop + rws.clientHeight))
+    rws.scrollTop = r.offsetTop - rws.clientHeight / 2; }
+buildCard();
+setInterval(markBlock, 120);
+window.addEventListener('resize', axisCard);
 
 $('play').onclick = () => toggle();
 $('zin').onclick = () => zoom(.5); $('zout').onclick = () => zoom(2);

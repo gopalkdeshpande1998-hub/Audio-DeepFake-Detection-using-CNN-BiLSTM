@@ -32,18 +32,16 @@ def _model_picker(det) -> str | None:
 
     models = registry.available()
     if not models:
-        st.error("No trained models found in `runs/`. Train one first or copy the run folders in (see Help).",
+        st.error("The detection model is missing: `runs/e7a_wavlm_crnn_s42/best.pt` was not found (see Help).",
                  icon="🛑")
         return None
-    names = list(models)
-    default = registry.default_run().name
-    if st.session_state.get("run") not in names:
-        st.session_state["run"] = default if default in names else names[0]
+    run = registry.MODEL
     with st.sidebar:
         st.markdown("**Detector**")
-        run = st.selectbox("Model", names, key="run", format_func=lambda r: models[r], label_visibility="collapsed",
-                           help="The merged detector (default) combines three models. The others are single models "
-                                "from the research runs, for comparison.")
+        st.markdown(f"<div class='vg-panel' style='padding:10px 12px;font-size:.85rem'><div style='font-weight:600'>"
+                    f"{html.escape(models[run])}</div><div style='color:#8b98ad;font-size:.75rem;margin-top:2px'>"
+                    "Sole detection model · WavLM-Base+ features + CNN-BiLSTM with attention</div></div>",
+                    unsafe_allow_html=True)
         if det.gpu_available():
             use_gpu = st.toggle("Use the GPU", value=det.default_device().startswith("cuda"), key="use_gpu",
                                 help="About 5–10× faster than the CPU. Turn off if another GPU job is running.")
@@ -83,22 +81,23 @@ def _toast() -> None:
 
 WORKFLOW = [("upload", "Upload", "Drop audio or video, record with the microphone, or pick a demo clip."),
             ("audio-waveform", "Preview", "Listen and inspect the waveform and spectrogram before analysing."),
-            ("cpu", "Analyze", "Three models score the file on this computer; the bar shows real progress."),
-            ("shield-check", "Results", "REAL or SYNTHETIC, model agreement and held-out trust."),
+            ("cpu", "Analyze", "WavLM + CNN-BiLSTM-Att scores the file on this computer; the bar shows real "
+                               "progress."),
+            ("shield-check", "Results", "REAL or SYNTHETIC, both probabilities, confidence and held-out trust."),
             ("search", "Explore", "Spectrogram lab, explainability center, flagged segments, report.")]
 
 
 def _recent_html(hist: list[dict]) -> str:
     rows = []
     for h in hist[:5]:
-        fake = h["verdict"] == "FAKE"
-        kind, word = ("syn", "SYNTHETIC") if fake else ("real", "REAL")
+        word = {"FAKE": "SYNTHETIC"}.get(h["verdict"], h["verdict"])
+        kind = "syn" if word == "SYNTHETIC" else "real"
         rows.append(f"<div style='display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;"
                     f"padding:11px 0;border-bottom:1px solid #1f2a3c'><div style='min-width:0'><div style='font-weight:"
                     f"500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>{html.escape(h['file'])}</div>"
                     f"<div style='font-size:.75rem;color:#5d6b82'>{html.escape(h['time'])} · {h['duration_s']} s · "
-                    f"{html.escape(str(h['models_agreeing']))} agreeing · {html.escape(str(h['confidence']))} "
-                    f"confidence</div></div><span class='vg-num' style='font-size:.85rem;color:#8b98ad'>"
+                    f"{h.get('confidence_pct', '–')}% confidence · {html.escape(str(h.get('trust', '–')))} "
+                    f"held-out trust</div></div><span class='vg-num' style='font-size:.85rem;color:#8b98ad'>"
                     f"{h['fake_pct']:.1f}% syn.</span>{theme.chip(word, kind)}</div>")
     return "<div class='vg-panel' style='padding:6px 20px'>" + "".join(rows) + "</div>"
 
@@ -106,8 +105,9 @@ def _recent_html(hist: list[dict]) -> str:
 def overview() -> None:
     hero("VoiceGuard · audio forensics workstation",
          "Check whether a voice recording is real or synthetic",
-         "Three detectors score your recording, point to the seconds that sound generated, and say how often "
-         "verdicts like theirs were right on held-out test data. Everything runs on this computer.", "shield-check")
+         "One model, WavLM + CNN-BiLSTM-Att, scores your recording, points to the seconds that sound generated, "
+         "and says how often calls like its own were right on held-out test data. Everything runs on this computer.",
+         "shield-check")
     _toast()
     with st.container(horizontal=True, gap="small"):
         st.page_link(nav.get("detect"), label="Analyze a recording", icon=":material/graphic_eq:")
@@ -118,12 +118,12 @@ def overview() -> None:
     asv = _ea_set("ASVspoof eval")
     vh = asv["reliability"]["by_confidence"].get("very high (≥90% / ≤10%)") if asv else None
     row([stat(_pct(asv["overall"]["accuracy_pct"]) if asv else "81.4%", "Accuracy, unseen attacks",
-              "71,237 clips · ASVspoof 2019 LA eval, ensemble", ico="shield-check"),
+              "71,237 clips · ASVspoof 2019 LA eval, E7a", ico="shield-check"),
          stat("10.7%", "EER on internet audio", "In-the-Wild, WavLM model alone (was 36–72%)", CYAN, "waves"),
          stat(_pct(vh["accuracy_pct"]) if vh else "99.1%", "Right at very high confidence",
               "held-out ASVspoof eval, P ≥ 90% or ≤ 10%", GREEN, "gauge"),
          stat(_pct(asv["overall"]["real_called_fake_pct"]) if asv else "11.2%", "Real recordings called SYNTHETIC",
-              "ASVspoof 2019 LA eval, ensemble", RED, "alert")])
+              "ASVspoof 2019 LA eval, E7a", RED, "alert")])
 
     section("Analysis workflow", "Five steps from a file to an explained verdict.", "activity")
     cols = st.columns(5, gap="small")
@@ -136,8 +136,8 @@ def overview() -> None:
     left, right = st.container(), st.container()
     with left:
         section("Workstation", "Every tool in the app.", "layers")
-        items = [("detect", "Three-model verdict", "REAL or SYNTHETIC from three detectors, their agreement and "
-                  "held-out trust.", "layers"),
+        items = [("detect", "AI model verdict", "REAL or SYNTHETIC from WavLM + CNN-BiLSTM-Att, with both "
+                  "probabilities and held-out trust.", "cpu"),
                  ("detect", "Spectrogram lab", "Zoom, select, play regions and read time, frequency and level.",
                   "audio-waveform"),
                  ("detect", "Explainability center", "Why a file was flagged: model evidence beside model-free "
@@ -172,19 +172,13 @@ def detect() -> None:
     det = _detector()
     run = _model_picker(det)
     hero("Forensic analysis", "Analyze a recording",
-         "Upload, preview the waveform, analyze with three models, then explore the evidence behind the verdict.",
+         "Upload, preview the waveform, analyze with WavLM + CNN-BiLSTM-Att, then explore the evidence behind the "
+         "verdict.",
          "audio-waveform")
     _toast()
     step_ph = st.empty()
     if run is None:
         return
-    from adfd import registry
-
-    compare = False
-    if run != registry.ENSEMBLE:
-        with st.sidebar:
-            compare = st.toggle("Compare all single models", value=False,
-                                help="Score the file with every single model and count how many agree.")
     n = st.session_state.get("input_n", 0)
     demos = det.demo_files()
     options = ["Upload audio or video", "Record with microphone"] + (["Demo clip"] if demos else [])
@@ -222,7 +216,7 @@ def detect() -> None:
             theme.empty("No recording loaded", f"{how} You can preview it before anything is analysed.",
                         "mic" if src == "Record with microphone" else "upload")
         return
-    det.analyse_one(got[0], got[1], run, compare, step_ph=step_ph)
+    det.analyse_one(got[0], got[1], run, step_ph=step_ph)
 
 
 def compare() -> None:
@@ -240,8 +234,8 @@ def batch() -> None:
     det = _detector()
     run = _model_picker(det)
     hero("Batch scoring", "Score many files",
-         "Upload audio files or ZIP archives; each file gets one row with its verdict, confidence, every model's "
-         "score and its flagged segments, ready to download as CSV.", "table")
+         "Upload audio files or ZIP archives; each file gets one row with its verdict, both probabilities, "
+         "confidence and flagged segments, ready to download as CSV.", "table")
     if run is None:
         return
     ups = st.file_uploader("Audio files or ZIP archives", type=det.AUDIO_TYPES + ["zip"], accept_multiple_files=True)
@@ -256,12 +250,13 @@ def batch() -> None:
     df = st.session_state.get("batch_result")
     if df is not None:
         ok = df[df["verdict"] != "ERROR"]
-        row([stat(str(len(df)), "files"), stat(str((ok["verdict"] == "FAKE").sum()), "called FAKE", color=RED),
+        row([stat(str(len(df)), "files"), stat(str((ok["verdict"] == "SYNTHETIC").sum()), "called SYNTHETIC",
+                                               color=RED),
              stat(str((ok["verdict"] == "REAL").sum()), "called REAL", color=GREEN),
              stat(str((df["verdict"] == "ERROR").sum()), "could not be analysed", color=AMBER)])
         st.markdown("")
         st.dataframe(df, hide_index=True, width="stretch", column_config={
-            "fake_pct": st.column_config.ProgressColumn("fake %", min_value=0, max_value=100, format="%.1f%%")})
+            "fake_pct": st.column_config.ProgressColumn("synthetic %", min_value=0, max_value=100, format="%.1f%%")})
         st.download_button("Download CSV", df.to_csv(index=False).encode(), file_name="deepfake_batch_results.csv",
                            mime="text/csv", icon=":material/download:", on_click="ignore")
 
@@ -275,12 +270,14 @@ def history() -> None:
         st.page_link(nav.get("detect"), label="Analyse a recording", icon=":material/graphic_eq:")
         return
     df = pd.DataFrame(hist).drop(columns=["key"])
-    row([stat(str(len(df)), "analyses"), stat(str((df["verdict"] == "FAKE").sum()), "called FAKE", color=RED),
-         stat(str((df["verdict"] == "REAL").sum()), "called REAL", color=GREEN),
-         stat(str(df["confidence"].isin(["very low", "low"]).sum()), "with low confidence", color=AMBER)])
+    dcol = df["verdict"].replace({"FAKE": "SYNTHETIC"})
+    low = df["trust"].isin(["very low", "low"]).sum() if "trust" in df else 0
+    row([stat(str(len(df)), "analyses"), stat(str((dcol == "SYNTHETIC").sum()), "called SYNTHETIC", color=RED),
+         stat(str((dcol == "REAL").sum()), "called REAL", color=GREEN),
+         stat(str(low), "near the 50% line", color=AMBER)])
     st.markdown("")
     st.dataframe(df, hide_index=True, width="stretch", column_config={
-        "fake_pct": st.column_config.ProgressColumn("fake %", min_value=0, max_value=100, format="%.1f%%")})
+        "fake_pct": st.column_config.ProgressColumn("synthetic %", min_value=0, max_value=100, format="%.1f%%")})
     c1, c2, _ = st.columns([1, 1, 3])
     c1.download_button("Download CSV", df.to_csv(index=False).encode(), file_name="deepfake_session_history.csv",
                        mime="text/csv", icon=":material/download:", on_click="ignore")
@@ -319,7 +316,7 @@ def results() -> None:
          "Equal error rate (EER, lower is better) of every model on the three held-out test sets. Models, "
          "thresholds and calibration were chosen on ASVspoof dev data only.", "chart")
     df = _p3_frame()
-    t1, t2, t3, t4, t6, t5 = st.tabs(["Main comparison", "Merged detector", "Robustness", "Calibration",
+    t1, t2, t3, t4, t6, t5 = st.tabs(["Main comparison", "Retired ensemble", "Robustness", "Calibration",
                                       "Frequency bands", "Speed"])
     with t1:
         if df is not None and len(df):
@@ -336,6 +333,9 @@ def results() -> None:
         with st.expander("Phase 2 tables: features, shortcuts, augmentation (3 seeds each)"):
             _md_file("experiments/tables/phase2.md")
     with t2:
+        theme.note("Research record only. The three-model ensemble (E7a + VoiceGuard improved + VoiceGuard v2) "
+                   "was retired on 2026-11-23; the app and the API now run E7a alone.", "info")
+        st.markdown("")
         _md_file("experiments/ensemble_binary/ensemble.md")
     with t3:
         st.markdown("EER on ASVspoof audio degraded by codecs, noise and the telephone band.")
@@ -362,56 +362,44 @@ def results() -> None:
 def errors() -> None:
     import altair as alt
 
-    hero("Research", "Error analysis", "Where the ensemble goes wrong on held-out data, and when to trust a "
-         "verdict.", "search")
+    hero("Research", "Error analysis", "Where WavLM + CNN-BiLSTM-Att goes wrong on held-out data, and when to "
+         "trust a verdict.", "search")
     ea = data.error_analysis()
     if not ea:
         st.info("Run `python scripts/error_analysis.py` to build this page (it reads the stored scores; about 1 min).")
         return
-    st.markdown("Where the merged detector goes wrong on held-out data, at its REAL/FAKE line of 50%. Built from "
-                "the stored per-clip scores of all three models by `scripts/error_analysis.py`.")
+    st.markdown("Where the app's model, WavLM + CNN-BiLSTM-Att (E7a), goes wrong on held-out data at its "
+                "REAL/SYNTHETIC line of 50%. Built from its stored per-clip scores by `scripts/error_analysis.py`.")
     names = list(ea["sets"])
     name = st.segmented_control("Test set", names, default=names[0], key="ea_set") or names[0]
     d = ea["sets"][name]
     o = d["overall"]
     row([stat(f"{o['n']:,}", "clips" if "windows" not in name else "4-s windows"),
          stat(_pct(o["accuracy_pct"]), "accuracy"),
-         stat(_pct(o["real_called_fake_pct"]), "real called FAKE", color=RED),
+         stat(_pct(o["real_called_fake_pct"]), "real called SYNTHETIC", color=RED),
          stat(_pct(o["fake_called_real_pct"]), "fakes called REAL", color=AMBER)])
-    if name.startswith("In-the-Wild"):
-        st.caption("In-the-Wild is not a clean test: VoiceGuard v2 was trained on most of it.")
 
     st.markdown("#### When to trust a verdict")
-    c1, c2 = st.columns(2, gap="large")
     conf = pd.DataFrame([{"confidence": k, **v} for k, v in d["reliability"]["by_confidence"].items()])
-    agr = pd.DataFrame([{"models agreeing": f"{k} of 3", **v} for k, v in d["reliability"]["by_agreement"].items()])
-    with c1:
+    with st.container():
         st.altair_chart(alt.Chart(conf).mark_bar(color=BLUE).encode(
-            x=alt.X("confidence:N", sort=None, title="confidence of the merged probability",
+            x=alt.X("confidence:N", sort=None, title="confidence of the model probability",
                     axis=alt.Axis(labelAngle=-20)),
             y=alt.Y("accuracy_pct:Q", title="accuracy (%)", scale=alt.Scale(domain=[0, 100])),
             tooltip=["confidence", alt.Tooltip("accuracy_pct:Q", format=".1f"), "n"]).properties(height=260),
-            width="stretch")
-    with c2:
-        st.altair_chart(alt.Chart(agr).mark_bar(color="#34d399").encode(
-            x=alt.X("models agreeing:N", title="models sharing the final verdict"),
-            y=alt.Y("accuracy_pct:Q", title="accuracy (%)", scale=alt.Scale(domain=[0, 100])),
-            tooltip=["models agreeing", alt.Tooltip("accuracy_pct:Q", format=".1f"), "n"]).properties(height=260),
             width="stretch")
     st.caption("The Detect page looks up this table for every verdict and shows it under the verdict.")
 
     if "by_attack" in d:
         st.markdown("#### Per attack (ASVspoof A07–A19)")
         att = pd.DataFrame([{"attack": a, "fakes called REAL %": v["fake_called_real_pct"],
-                             "merged EER %": v["merged_eer_pct"], "WavLM model EER %": v["e7a_eer_pct"], "n": v["n"]}
-                            for a, v in d["by_attack"].items()])
+                             "EER %": v["merged_eer_pct"], "n": v["n"]} for a, v in d["by_attack"].items()])
         st.altair_chart(alt.Chart(att).mark_bar(color=RED).encode(
             x=alt.X("attack:N", title=None), y=alt.Y("fakes called REAL %:Q", scale=alt.Scale(domain=[0, 100])),
             tooltip=list(att.columns)).properties(height=240), width="stretch")
         st.dataframe(att, hide_index=True, width="stretch")
-        st.caption("The WavLM model alone separates most attacks well (low EER) while the merged decision misses "
-                   "more of them: the two VoiceGuard members are near chance on ASVspoof and pull the score toward "
-                   "REAL. A10 is hard for every model.")
+        st.caption("EER ranks the model's scores against all bona fide eval recordings; 'fakes called REAL' uses the "
+                   "app's 50% line. A10 is hard for every model in this project.")
     st.markdown("#### By clip duration")
     st.dataframe(pd.DataFrame([{"duration": k, **v} for k, v in d["by_duration"].items()]), hide_index=True,
                  width="stretch")
@@ -455,5 +443,5 @@ def help_page() -> None:
     st.markdown("- **No trained models found:** the `runs/` folders (`best.pt`, `reliability.json`) are not in git; "
                 "copy them in or train (README).\n"
                 "- **Could not read the file:** convert it to WAV or FLAC; for video, MP4 works best.\n"
-                "- **Very slow:** the first analysis loads three models (~15 s); a hot laptop CPU can be 5× slower.\n"
+                "- **Very slow:** the first analysis loads the model (~10 s); a hot laptop CPU can be 5× slower.\n"
                 "- **Trust panel says to run a script:** run `python scripts/error_analysis.py` once.")

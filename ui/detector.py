@@ -25,7 +25,7 @@ from adfd.explain import plot_forensic, plot_heatmap, plot_score_line, plot_time
 from adfd.inference import SR, load_audio
 from adfd.paths import load_paths
 from adfd.segments import SEVERITY_TEXT, fmt_ts
-from ui import lab, signal
+from ui import lab, signal, theme
 from ui.icons import icon
 from ui.theme import (AMBER, BLUE, CYAN, GREEN, GREY, RED, VERDICT_COLOR, VERDICT_WORD, bar, chip, esc, file_card,
                       fmt_dur, fmt_size, loader_html, note, results_skeleton, ring, section, stepper_html, verdict_chip,
@@ -39,12 +39,11 @@ MAX_MB = 50
 MAX_SECONDS = 600                                  # longer files: the first 10 minutes are analysed
 DECISION = 50.0                                    # % : FAKE at or above, REAL below
 BORDER = 10.0                                      # amber band +-10 around the line: visual reference only
-LABEL_COLOR = {"Real": GREEN, "Fake": RED, "No speech": GREY}
-LIMITS = ("Research prototype. The final verdict is always REAL or FAKE: the weighted combination of three models, "
-          "decided at 50%. Every verdict can be wrong. On held-out tests about 1 in 9 real studio recordings "
-          "(ASVspoof) are called FAKE, 1 in 5 ASVspoof fakes and most voice-conversion fakes (DEEP-VOICE) are "
-          "called REAL; see the Error analysis page. Flagged regions are model-flagged suspicions, not proof of "
-          "manipulation. Never use one verdict as evidence on its own.")
+LIMITS = ("Research prototype. The final verdict is always REAL or SYNTHETIC, decided by one model (WavLM + "
+          "CNN-BiLSTM-Att, E7a) at 50%. Every verdict can be wrong. On held-out tests it calls 0.1% of real ASVspoof "
+          "studio recordings and 6.7% of real In-the-Wild clips SYNTHETIC, but misses about 1 in 5 fakes on both, and "
+          "about 3 in 4 voice-conversion fakes (DEEP-VOICE windows); see the Error analysis page. Flagged regions are "
+          "model-flagged suspicions, not proof of manipulation. Never use one verdict as evidence on its own.")
 
 
 def gpu_available() -> bool:
@@ -151,33 +150,28 @@ def demo_files() -> dict[str, Path]:
 
 
 # ---------------------------------------------------------------------------------------
-# verdict, meter, members
+# verdict and the model card
 # ---------------------------------------------------------------------------------------
-def consensus(res: dict) -> tuple[int, int, str]:
-    """(models sharing the final verdict, number of models, status word)."""
-    ms = res.get("members") or []
-    agree = sum(m["vote"] == res["verdict"] for m in ms)
-    status = "Unanimous" if agree == len(ms) else "Majority" if 2 * agree > len(ms) else "Split"
-    return agree, len(ms), status
+def model_label(res: dict) -> str:
+    return res.get("model_label") or registry.LABELS.get(res.get("model"), res.get("model", "model"))
+
+
+def confidence_pct(res: dict) -> float:
+    """The model's probability for its own call (not an accuracy)."""
+    return 100 * max(res["p_fake"], 1 - res["p_fake"])
 
 
 def verdict_html(res: dict, source: str, elapsed: float | None = None, t: dict | None = None) -> str:
-    """The large final-verdict panel: word, probability ring, agreement, trust, timing and the REAL/SYNTHETIC meter."""
+    """The large final-verdict panel: REAL / SYNTHETIC from the one model, its confidence, trust and timing."""
     fake = res["verdict"] == "Fake"
     c = VERDICT_COLOR[res["verdict"]]
     tint = "rgba(248,113,113,.10)" if fake else "rgba(52,211,153,.09)"
     word = VERDICT_WORD[res["verdict"]]
     p_syn = 100 * res["p_fake"]
-    p_ver = p_syn if fake else 100 - p_syn
-    meaning = ("Likely synthetic or voice-converted speech." if fake else "Likely genuine (bona fide) speech.")
-    facts = []
-    if res.get("members"):
-        agree, n, status = consensus(res)
-        pips = "".join(f"<i style='--c:{VERDICT_COLOR[m['vote']]};--d:{.15 * i:.2f}s'></i>"
-                       for i, m in enumerate(res["members"]))
-        facts.append(("Model agreement", f"{agree}/{n} <span class='vg-pips'>{pips}</span>"))
-        facts.append(("Consensus", chip(status, "real" if status == "Unanimous" else "amber",
-                                        "check" if status == "Unanimous" else "alert")))
+    conf = confidence_pct(res)
+    meaning = "Likely synthetic or voice-converted speech." if fake else "Likely genuine (bona fide) speech."
+    facts = [("Model", f"<span style='font-size:.9rem'>{esc(model_label(res))}</span>"),
+             ("Confidence", f"{conf:.1f}%")]
     if t:
         lvl = t["level"]
         kind = "real" if lvl in ("high", "very high") else "amber" if lvl == "medium" else "syn"
@@ -188,10 +182,10 @@ def verdict_html(res: dict, source: str, elapsed: float | None = None, t: dict |
     fx = "".join(f"<div><div class='fk'>{esc(k)}</div><div class='fv'>{v}</div></div>" for k, v in facts)
     ic = icon("shield-alert" if fake else "shield-check", 14)
     return (f"<div class='vg-verdict' style='--c:{c};--tint:{tint}'>"
-            f"{ring(p_ver, c, 132, 'probability', 10)}"
+            f"{ring(conf, c, 132, 'confidence', 10)}"
             f"<div><div class='k'><span style='color:{c}'>{ic}</span>Final verdict · {esc(source)}</div>"
-            f"<div class='w'>{word}</div><div class='d'>{meaning} The ensemble gives this recording a synthetic score "
-            f"of <b>{p_syn:.1f}%</b>; it is called SYNTHETIC at {DECISION:.0f}% or more.</div>"
+            f"<div class='w'>{word}</div><div class='d'>{meaning} Synthetic probability <b>{p_syn:.1f}%</b>, real "
+            f"probability <b>{100 - p_syn:.1f}%</b>; classified SYNTHETIC at {DECISION:.0f}% or more.</div>"
             f"{meter_html(res['p_fake'])}</div>"
             f"<div class='vg-facts'>{fx}</div></div>")
 
@@ -206,73 +200,46 @@ def meter_html(p_fake: float) -> str:
             f"<div class='mid' title='Decision line, 50%'></div></div></div>")
 
 
-def member_cards(res: dict) -> None:
-    """One card per ensemble member: ring, REAL / SYNTHETIC bars, its own call and whether it sides with the verdict."""
-    ms = res["members"]
-    cols = st.columns(len(ms), gap="medium")
-    for i, (c, m) in enumerate(zip(cols, ms)):
-        p = 100 * m["p_fake"]
-        col = VERDICT_COLOR[m["vote"]]
-        agrees = m["vote"] == res["verdict"]
-        d = f"{.08 + .1 * i:.2f}s"
-        status = (f"<span class='st' style='color:{GREEN}'><span class='vg-dot'></span>Agrees with verdict</span>"
-                  if agrees else f"<span class='st' style='color:{AMBER}'><span class='vg-dot'></span>Dissents</span>")
-        bars = "".join(f"<div class='vg-mbar'><div class='l'><span>{lb}</span><b>{v:.1f}%</b></div>"
-                       f"<div class='t'><div style='--w:{v:.1f}%;--c:{cc};--d:{d}'></div></div></div>"
-                       for lb, v, cc in (("REAL", 100 - p, GREEN), ("SYNTHETIC", p, RED)))
-        with c:
-            st.markdown(
-                f"<div class='vg-model' style='--d:{d}'><div class='top'><div><div class='nm'>{esc(m['label'])}</div>"
-                f"<div class='sub'>Weight {100 * m['weight']:.0f}% in the ensemble · {len(m.get('timeline') or [])} "
-                f"window(s) scored</div></div>{verdict_chip(m['vote'])}</div>"
-                f"<div class='mid'>{ring(p, col, 76, 'synthetic', 7, small=True)}<div class='bars'>{bars}</div></div>"
-                f"<div class='foot'>{status}<span>Own call at 50%</span></div></div>", unsafe_allow_html=True)
-
-
-def comparison_html(res: dict) -> str:
-    """REAL vs SYNTHETIC share of every model and of the ensemble, on one 100% scale with the 50% line."""
-    rows = [(m["label"], f"weight {100 * m['weight']:.0f}%", m["p_fake"], False) for m in res["members"]]
-    rows.append(("Ensemble", "final verdict", res["p_fake"], True))
-    out = ["<div class='vg-legend2' style='margin-bottom:14px'>"
-           f"<span><i style='background:{GREEN}'></i>REAL score</span>"
-           f"<span><i style='background:{RED}'></i>SYNTHETIC score</span>"
-           "<span><i style='background:transparent;border-left:2px dashed #cbd5e1;border-radius:0'></i>"
-           "50% decision line</span></div><div class='vg-cmp'>"]
-    for i, (nm, sub, p, ens) in enumerate(rows):
-        f, r = 100 * p, 100 - 100 * p
-        d = f"{.1 * i:.1f}s"
-        lab_r = f"{r:.0f}%" if r >= 9 else ""
-        lab_f = f"{f:.0f}%" if f >= 9 else ""
-        out.append(f"<div class='row{' ens' if ens else ''}'><div class='nm'>{esc(nm)}<span>{esc(sub)}</span></div>"
-                   f"<div class='bar'><div class='seg r' style='--w:{r:.2f}%;--d:{d}' "
-                   f"data-tip='{esc(nm)} · REAL {r:.1f}%'>{lab_r}</div>"
-                   f"<div class='seg f' style='--w:{f:.2f}%;--d:{d}' data-tip='{esc(nm)} · SYNTHETIC {f:.1f}%'>"
-                   f"{lab_f}</div><div class='thr'></div></div></div>")
-    out.append("<div class='axis'><span></span><div><span>0%</span><span>25%</span><span>50%</span><span>75%</span>"
-               "<span>100%</span></div></div></div>")
-    return "".join(out)
-
-
-def models_panel(res: dict) -> None:
-    agree, n, status = consensus(res)
-    section("Three-model AI verdict", "Each model scores the whole file on its own; the ensemble weighs all three.",
-            "layers", f"{agree} of {n} models agree · {status.lower()}")
-    member_cards(res)
-    if status != "Unanimous":
-        diss = [m for m in res["members"] if m["vote"] != res["verdict"]]
-        names = "; ".join(f"<b style='color:inherit'>{esc(m['label'])}</b> calls it {VERDICT_WORD[m['vote']]} on its own "
-                          f"({100 * m['p_fake']:.0f}% synthetic)" for m in diss)
-        st.markdown(warn_html("The models disagree on this recording",
-                              f"{names}, while the ensemble says {VERDICT_WORD[res['verdict']]}. On held-out data, "
-                              "verdicts where the models disagree were right less often; check the trust panel and "
-                              "listen to the flagged regions before relying on it."), unsafe_allow_html=True)
+def model_card_html(res: dict, status: str | None = None) -> str:
+    """The single-model result card: name, verdict, REAL / SYNTHETIC probabilities, confidence, status."""
+    fake = res["verdict"] == "Fake"
+    col = VERDICT_COLOR[res["verdict"]]
+    p = 100 * res["p_fake"]
+    conf = confidence_pct(res)
+    word = VERDICT_WORD[res["verdict"]]
+    n_win = len(res.get("model_windows") or [])
+    status = status or f"Loaded · {device_label()}"
+    cal = "calibrated on ASVspoof 2019 dev" if res.get("calibrated", True) else "uncalibrated"
+    bars = "".join(f"<div class='vg-mbar'><div class='l'><span>{lb}</span><b>{v:.1f}%</b></div>"
+                   f"<div class='t'><div style='--w:{v:.1f}%;--c:{cc};--d:.1s'></div></div></div>"
+                   for lb, v, cc in (("REAL speech probability", 100 - p, GREEN),
+                                     ("SYNTHETIC speech probability", p, RED)))
+    side = "at or above" if fake else "below"
+    expl = (f"The model gives this recording a {p:.1f}% synthetic probability, {side} the {DECISION:.0f}% decision "
+            f"line, so it is classified {word}. The {conf:.1f}% confidence is the model's probability for its own "
+            "call, not a measured accuracy; see the reliability panel for how often calls like this were right.")
+    stats = [("Classification", verdict_chip(res["verdict"])), ("Confidence", f"{conf:.1f}%"),
+             ("Decision rule", f"SYNTHETIC at ≥ {DECISION:.0f}%"),
+             ("Windows scored", f"{n_win} × {res.get('local_window_s', 4):.0f} s" if n_win else "–")]
+    st_html = "".join(f"<div><div style='font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;"
+                      f"color:#5d6b82'>{esc(k)}</div><div style='font-weight:600;margin-top:4px' class='vg-num'>{v}"
+                      f"</div></div>" for k, v in stats)
+    return (f"<div class='vg-model' style='border-top:2px solid {col}'><div class='top'><div><div class='nm' "
+            f"style='font-size:1.02rem'>{esc(model_label(res))}</div><div class='sub'>WavLM-Base+ speech features · "
+            f"CNN-BiLSTM with attention · {cal}</div></div>{verdict_chip(res['verdict'])}</div>"
+            f"<div class='mid'>{ring(p, col, 92, 'synthetic', 8, small=True)}<div class='bars'>{bars}</div></div>"
+            f"<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;"
+            f"padding:12px 0;border-top:1px solid #1f2a3c'>{st_html}</div>"
+            f"<div style='font-size:.84rem;color:#8b98ad;line-height:1.55;margin-bottom:12px'>{esc(expl)}</div>"
+            f"<div class='foot'><span class='st' style='color:{GREEN}'><span class='vg-dot'></span>{esc(status)}"
+            f"</span><span>Sole detection model</span></div></div>")
 
 
 TRUST_SETS = {"ASVspoof eval": "Studio TTS, unseen attacks", "In-the-Wild": "Internet audio (partly seen by one model)"}
 
 
 def trust_of(res: dict) -> dict:
-    return trust.assess(res["p_fake"], [m["p_fake"] for m in res.get("members", [])] or [res["p_fake"]])
+    return trust.assess(res["p_fake"], [res["p_fake"]])
 
 
 def trust_html(t: dict) -> str:
@@ -290,7 +257,7 @@ def trust_html(t: dict) -> str:
         advice += " But on " + ", ".join(f"{n[0].lower() + n[1:]} ({a:.0f}% right)" for n, a in weak) + (
             " verdicts like this were usually wrong, so if the recording could be of that kind, do not rely on it.")
     body = (f"<div style='font-size:.85rem;margin:8px 0 4px'>How often verdicts like this were right on held-out "
-            f"test data ({basis}: {t['agree']} of {t['n_members']} models agreeing, {t['level']} confidence):</div>"
+            f"test data ({basis}, {t['level']} confidence):</div>"
             + bars) if bars else ("<div style='font-size:.85rem;margin-top:6px'>Run <code>python "
                                   "scripts/error_analysis.py</code> to add held-out accuracy here.</div>")
     return (f"<div class='adfd-trust'><div style='font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;"
@@ -315,7 +282,7 @@ def trust_panel_html(t: dict) -> str:
         advice += " But on " + ", ".join(f"{n[0].lower() + n[1:]} ({a:.0f}% right)" for n, a in weak) + (
             " verdicts like this were usually wrong, so if the recording could be of that kind, do not rely on it.")
     body = (f"<div style='font-size:.8rem;color:#8b98ad;margin:12px 0 6px'>How often verdicts like this were right "
-            f"on held-out test data ({esc(basis)}; {t['agree']} of {t['n_members']} models agreeing):</div>{bars}"
+            f"on held-out test data ({esc(basis)}):</div>{bars}"
             if bars else "<div style='font-size:.8rem;color:#8b98ad;margin-top:10px'>No held-out accuracy table on "
                          "this machine. Run <code>python scripts/error_analysis.py</code> to add it.</div>")
     return (f"<div class='vg-panel' style='height:100%'><div style='display:flex;align-items:center;gap:10px;"
@@ -326,63 +293,18 @@ def trust_panel_html(t: dict) -> str:
             f"{body}</div>")
 
 
-def legend_html() -> str:
-    items = [(GREEN, "REAL: local synthetic score below 50%"),
-             (RED, "SYNTHETIC: local synthetic score 50% or more (suspected region)"),
-             (AMBER, f"amber band ({DECISION - BORDER:.0f}–{DECISION + BORDER:.0f}%): close to the line, shown for "
-                     "reference only; still classified by the 50% line"),
-             (GREY, "no speech: not scored")]
-    return "<div class='adfd-legend'>" + "".join(
-        f"<span><span class='sw' style='background:{c}'></span>{html.escape(t)}</span>" for c, t in items) + "</div>"
-
-
 # ---------------------------------------------------------------------------------------
 # time charts (Altair: tooltips and hover)
 # ---------------------------------------------------------------------------------------
 def step_label(p) -> str:
-    return "No speech" if p is None else ("Fake" if 100 * p >= DECISION else "Real")
+    """The segment classes of the lab and the Temporal patterns card (adfd.timeline.block_label)."""
+    from adfd.timeline import block_label
+
+    return block_label(p)
 
 
-def waveform_chart(x: np.ndarray, res: dict):
-    """Waveform envelope over the whole recording, each slice coloured by the local analysis."""
-    import altair as alt
-
-    n = len(x)
-    nb = int(min(1600, max(200, n // 64)))
-    edges = np.linspace(0, n, nb + 1).astype(int)
-    lo = np.array([x[a:b].min() if b > a else 0.0 for a, b in zip(edges[:-1], edges[1:])])
-    hi = np.array([x[a:b].max() if b > a else 0.0 for a, b in zip(edges[:-1], edges[1:])])
-    t0, t1 = edges[:-1] / SR, edges[1:] / SR
-    ps = res["per_second"]
-    starts = np.array([w["start_s"] for w in ps])
-    idx = np.clip(np.searchsorted(starts, (t0 + t1) / 2, side="right") - 1, 0, len(ps) - 1)
-    p = [ps[i]["p_fake"] for i in idx]
-    df = pd.DataFrame({"t0": t0, "t1": t1, "lo": lo, "hi": hi, "label": [step_label(q) for q in p],
-                       "time": [fmt_ts((a + b) / 2) for a, b in zip(t0, t1)],
-                       "fake_pct": [None if q is None else round(100 * q, 1) for q in p]})
-    peak = float(max(np.abs(x).max(), 1e-3))
-    dur = n / SR
-    xs = alt.X("t0:Q", title="time (s)", scale=alt.Scale(domain=[0, dur], nice=False))
-    ys = alt.Y("lo:Q", title="amplitude", scale=alt.Scale(domain=[-peak, peak]), axis=alt.Axis(labels=False))
-    layers = []
-    seg = pd.DataFrame([{"a": s["start_s"], "b": s["end_s"], "name": f"S{i}",
-                         "span": f"{fmt_ts(s['start_s'])}–{fmt_ts(s['end_s'])}", "sev": s["severity"],
-                         "p": round(100 * s["p_fake"], 1)} for i, s in enumerate(res.get("segments", []), 1)])
-    if len(seg):
-        layers.append(alt.Chart(seg).mark_rect(color=RED, opacity=0.08).encode(
-            x="a:Q", x2="b:Q", tooltip=[alt.Tooltip("name:N", title="segment"), alt.Tooltip("span:N", title="time"),
-                                         alt.Tooltip("p:Q", title="mean synthetic %"), alt.Tooltip("sev:N", title="severity")]))
-    layers.append(alt.Chart(df).mark_bar(binSpacing=0).encode(
-        x=xs, x2="t1:Q", y=ys, y2="hi:Q",
-        color=alt.Color("label:N", scale=alt.Scale(domain=list(LABEL_COLOR), range=list(LABEL_COLOR.values())),
-                        legend=None),
-        tooltip=[alt.Tooltip("time:N", title="time"), alt.Tooltip("label:N", title="local analysis"),
-                 alt.Tooltip("fake_pct:Q", title="local synthetic %")]))
-    return alt.layer(*layers).properties(height=170)
-
-
-def timeline_chart(res: dict, show_members: bool):
-    """Merged fake probability (%) over time from the local windows, on REAL / FAKE zones."""
+def timeline_chart(res: dict):
+    """The model's synthetic probability (%) over time from the local windows, on REAL / SYNTHETIC zones."""
     import altair as alt
 
     ps = res["per_second"]
@@ -392,10 +314,8 @@ def timeline_chart(res: dict, show_members: bool):
         if w["p_fake"] is None:
             run += 1
         rows.append({"t": (w["start_s"] + w["end_s"]) / 2, "time": f"{fmt_ts(w['start_s'])}–{fmt_ts(w['end_s'])}",
-                     "merged": None if w["p_fake"] is None else 100 * w["p_fake"], "run": run,
-                     "here": step_label(w["p_fake"]),
-                     **{m["label"]: (None if m["per_second"][i] is None else 100 * m["per_second"][i])
-                        for m in res["members"]}})
+                     "score": None if w["p_fake"] is None else 100 * w["p_fake"], "run": run,
+                     "here": step_label(w["p_fake"])})
     df = pd.DataFrame(rows)
     xs = alt.X("t:Q", title="time (s)", scale=alt.Scale(domain=[0, max(dur, 1e-3)], nice=False))
     ysc = alt.Scale(domain=[0, 100], nice=False)
@@ -428,25 +348,15 @@ def timeline_chart(res: dict, show_members: bool):
     thr = pd.DataFrame({"y": [DECISION], "t": [max(dur, 1e-3)], "txt": [f"decision threshold {DECISION:.0f}%"]})
     layers.append(alt.Chart(thr).mark_rule(strokeDash=[6, 4], strokeWidth=1.5, color="#94a3b8").encode(
         y=alt.Y("y:Q", scale=ysc, axis=y_axis, title="synthetic score (%)")))
-    if show_members:
-        names = [m["label"] for m in res["members"]]
-        long = df.melt(id_vars=["t", "run"], value_vars=names, var_name="model", value_name="pct")
-        layers.append(alt.Chart(long).mark_line(strokeWidth=1.4, opacity=0.9).encode(
-            x=xs, y=alt.Y("pct:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"), detail="run:N",
-            color=alt.Color("model:N", scale=alt.Scale(domain=names, range=["#e2e8f0", "#fbbf24", "#94a3b8"]),
-                            legend=alt.Legend(title="each model on its own", orient="bottom")),
-            strokeDash=alt.StrokeDash("model:N", scale=alt.Scale(domain=names, range=[[6, 3], [2, 2], [8, 3, 2, 3]]),
-                                      legend=None)))
-    merged = df.dropna(subset=["merged"])
-    layers.append(alt.Chart(merged).mark_line(strokeWidth=2.6, color=BLUE, interpolate="monotone").encode(
-        x=xs, y=alt.Y("merged:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"), detail="run:N"))
-    layers.append(alt.Chart(merged).mark_point(filled=True, size=36, opacity=1).encode(
-        x=xs, y=alt.Y("merged:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"),
-        color=alt.Color("here:N", scale=alt.Scale(domain=["Real", "Fake"], range=[GREEN, RED]), legend=None)))
+    scored = df.dropna(subset=["score"])
+    layers.append(alt.Chart(scored).mark_line(strokeWidth=2.6, color=BLUE, interpolate="monotone").encode(
+        x=xs, y=alt.Y("score:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"), detail="run:N"))
+    layers.append(alt.Chart(scored).mark_point(filled=True, size=36, opacity=1).encode(
+        x=xs, y=alt.Y("score:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"),
+        color=alt.Color("here:N", scale=alt.Scale(domain=["REAL", "UNCERTAIN", "FAKE"], range=[GREEN, AMBER, RED]), legend=None)))
     hover = alt.selection_point(fields=["t"], nearest=True, on="pointerover", empty=False, clear="pointerout")
     tips = [alt.Tooltip("time:N", title="time"), alt.Tooltip("here:N", title="local result"),
-            alt.Tooltip("merged:Q", title="ensemble synthetic %", format=".1f")]
-    tips += [alt.Tooltip(f"{m['label']}:Q", title=f"{m['label']} %", format=".0f") for m in res["members"]]
+            alt.Tooltip("score:Q", title="synthetic %", format=".1f")]
     layers.append(alt.Chart(df).mark_rule(strokeWidth=14, color="#000", opacity=0).encode(
         x=xs, tooltip=tips).add_params(hover))
     layers.append(alt.Chart(df).mark_rule(color="#94a3b8", strokeWidth=1).encode(x=xs).transform_filter(hover))
@@ -477,7 +387,7 @@ def segments_panel(x: np.ndarray, res: dict) -> None:
     if not segs:
         msg = "No part of the recording reaches 50% in the local analysis."
         if res["verdict"] == "Fake":
-            msg += (" The SYNTHETIC verdict comes from evidence spread over the whole file (each model's full-length "
+            msg += (" The SYNTHETIC verdict comes from evidence spread over the whole file (the model's full-length "
                     "windows), not from one region.")
         note(esc(msg), "check" if res["verdict"] == "Real" else "info")
         return
@@ -489,7 +399,7 @@ def segments_panel(x: np.ndarray, res: dict) -> None:
         "fake probability (%)": st.column_config.ProgressColumn("synthetic score (%)", min_value=0, max_value=100,
                                                                 format="%.1f%%"),
         "main evidence": st.column_config.TextColumn(width="large")})
-    st.caption(f"Severity by the segment's mean ensemble synthetic score ({SEVERITY_TEXT}). Timestamps come from "
+    st.caption(f"Severity by the segment's mean synthetic probability ({SEVERITY_TEXT}). Timestamps come from "
                f"{res['local_window_s']:.0f}-s analysis windows every {res['step_s']:.1f} s, so boundaries are "
                f"accurate to about ±{res['local_window_s'] / 2:.0f} s.")
     for i, s in enumerate(segs, 1):
@@ -629,6 +539,75 @@ def _secondary(meas: dict, P: dict, k: str, nm: str, unit: str) -> str:
     return f"{nm}: <b>{v:.3f} {unit}</b>" + (f" (percentile {P[k]:.0f})" if P.get(k) is not None else "")
 
 
+BLOCK_COLOR = {"REAL": GREEN, "FAKE": RED, "UNCERTAIN": AMBER, "NO SPEECH": GREY}
+
+
+def block_strip_html(sb: dict) -> str:
+    """Adjacent blocks on the recording's own time scale, one per segment (hover: time, label, confidence)."""
+    dur = sb["duration_s"]
+    cells = []
+    for b in sb["blocks"]:
+        lab_, p = b["label"], b["p_fake"]
+        tip = (f"{b['start_s']:.1f}–{b['end_s']:.1f} s · {lab_}" + ("" if p is None else
+               f" · {100 * p:.0f}% synthetic" if lab_ == "UNCERTAIN" else f" · {100 * b['confidence']:.0f}% confidence"))
+        wide = (b["end_s"] - b["start_s"]) / dur >= 0.09                     # room for a word in the card
+        txt = "" if lab_ == "NO SPEECH" or not wide else ("?" if lab_ == "UNCERTAIN" else lab_)
+        cells.append(f"<i style='left:{100 * b['start_s'] / dur:.3f}%;width:{100 * (b['end_s'] - b['start_s']) / dur:.3f}%;"
+                     f"--c:{BLOCK_COLOR[lab_]}' title='{esc(tip)}'>{txt}</i>")
+    ticks = "".join(f"<span style='left:{min(max(100 * t / dur, 3), 97):.2f}%'>{t:g}s</span>"
+                    for t in _nice_ticks(dur))
+    return f"<div class='vg-seg'>{''.join(cells)}</div><div class='vg-seg-ax'>{ticks}</div>"
+
+
+def _nice_ticks(dur: float, n: int = 5) -> list[float]:
+    raw = dur / n
+    p = 10 ** np.floor(np.log10(max(raw, 1e-3)))
+    step = next(m * p for m in (1, 2, 5, 10) if m * p >= raw)
+    return [round(float(t), 3) for t in np.arange(0, dur + 1e-9, step)]
+
+
+def segment_card(res: dict, meas: dict, P: dict, d: int) -> str:
+    """Temporal patterns card: the segment-level REAL / FAKE / UNCERTAIN timeline (pitch figures in the details)."""
+    from ui.lab import blocks_of
+
+    sb = blocks_of(res)
+    k = "pitch_variation_st"
+    pitch = ("Pitch variation: " + (f"<b>{meas[k]:.2f} semitones</b>" if meas.get(k) is not None and
+                                    np.isfinite(meas[k]) else "not available") + "<br>"
+             + esc(_cue_text(k, meas.get(k), P.get(k))) + "<br>"
+             + _secondary(meas, P, "pitch_jitter_st", "Frame-to-frame pitch jitter", "semitones")
+             + "<br>Flat intonation is common in synthetic or converted speech.")
+    if not sb["available"]:
+        return _xcard("Temporal patterns", "clock", ("Unavailable", GREY),
+                      "<div class='val na'>Segment-level analysis unavailable</div>", sb["reason"], "",
+                      "No segment labels are shown because the model produced a single score for this clip; nothing "
+                      "is filled in from the waveform.<br>" + pitch, d)
+    n, pc = sb["counts"], sb["pct_of_speech"]
+    sev = (("Mixed real + fake", RED) if n["FAKE"] and n["REAL"] else ("Fake segments", RED) if n["FAKE"] else
+           ("Uncertain parts", AMBER) if n["UNCERTAIN"] else ("All real", GREEN))
+    val = (f"<div class='val'><span style='color:{GREEN}'>{pc['REAL']:.0f}%</span><small>real</small> "
+           f"<span style='color:{RED};margin-left:10px'>{pc['FAKE']:.0f}%</span><small>fake</small></div>")
+    secs = sb.get("seconds") or {}
+    what = (f"{len(sb['blocks'])} regions from the segment model (one prediction every 0.16 s)"
+            if sb.get("source") == "temporal" else
+            f"{len(sb['blocks'])} segments of {sb['block_s']:g} s, approximated from the whole-clip model")
+    txt = (f"{what} over {sb['duration_s']:.1f} s ({sb['analysed_s']:.1f} s with speech"
+           + (f"; {secs.get('REAL', 0):.1f} s real, {secs.get('FAKE', 0):.1f} s fake" if secs else "")
+           + f"): {n['REAL']} real, {n['FAKE']} fake, {n['UNCERTAIN']} uncertain"
+           + (f", {n['NO SPEECH']} without speech" if n["NO SPEECH"] else "") + ".")
+    rows = "".join(f"<li><span style='color:{BLOCK_COLOR[b['label']]};font-weight:700'>{b['label']}</span> "
+                   f"{b['start_s']:.1f}–{b['end_s']:.1f} s"
+                   + ("" if b["p_fake"] is None else f" · {100 * b['p_fake']:.0f}% synthetic"
+                      if b["label"] == "UNCERTAIN" else f" · {100 * b['confidence']:.0f}%") + "</li>"
+                   for b in sb["blocks"][:40])
+    more = f"<br>… {len(sb['blocks']) - 40} more in the segment card of the lab." if len(sb["blocks"]) > 40 else ""
+    return _xcard("Temporal patterns", "clock", sev, val, txt, block_strip_html(sb),
+                  f"Segment breakdown (REAL below {100 * sb['uncertain'][0]:.0f}%, UNCERTAIN, FAKE at "
+                  f"{100 * sb['uncertain'][1]:.0f}% or more; confidence is the model's probability, not an "
+                  f"accuracy):<ul>{rows}</ul>{more}"
+                  + pitch, d)
+
+
 def feature_cards(res: dict) -> list[str]:
     meas = res.get("measurements") or {}
     ref = _reference()
@@ -655,17 +634,9 @@ def feature_cards(res: dict) -> list[str]:
                         _cue_text(k, meas.get(k), P[k]), _gauge(P[k], s[1]),
                         "Effective bandwidth: the highest frequency whose long-term level is within 50 dB of the "
                         "peak. Resampling, telephone channels and low-rate vocoders cut it early.<br>" + btxt, 1))
-    # 3 temporal patterns
-    k = "pitch_variation_st"
-    s = _severity(P[k])
+    # 3 temporal patterns: segment-level authenticity timeline (pitch moves to the details)
     steps = [w["p_fake"] for w in res.get("per_second", [])]
-    cards.append(_xcard("Temporal patterns", "clock", s, _val(meas.get(k), "semitones pitch spread"),
-                        _cue_text(k, meas.get(k), P[k]), _gauge(P[k], s[1]) + _mini(steps),
-                        "Pitch variation is the spread of the voice's pitch over voiced frames; flat intonation is "
-                        "common in synthetic or converted speech.<br>"
-                        + _secondary(meas, P, "pitch_jitter_st", "Frame-to-frame pitch jitter", "semitones") + "<br>"
-                        "The bar strip shows the ensemble's local synthetic score across the recording, left to "
-                        "right (red at or above 50%).", 2))
+    cards.append(segment_card(res, meas, P, 2))
     # 4 energy distribution
     k = "hf_energy_pct"
     s = _severity(P[k])
@@ -698,27 +669,25 @@ def feature_cards(res: dict) -> list[str]:
         sev5 = ("Speech check warning", AMBER)
         t5 += " The speech checks flagged the input: " + "; ".join(res["ood_reasons"]) + "."
     cards.append(_xcard("Audio consistency", "layers", sev5, v5, t5, extra5,
-                        "Share of the recording whose local ensemble score crosses 50%, and how much the local score "
+                        "Share of the recording whose local synthetic probability crosses 50%, and how much it "
                         "moves. The histogram counts scored steps by synthetic score, 0% on the left to 100% on the "
                         "right. A recording that is real in one part and synthetic in another shows up as mixed.", 4))
-    # 6 model agreement
-    ms = res.get("members") or []
-    agree, n, status = consensus(res)
-    ps = [m["p_fake"] for m in ms]
-    spread = 100 * (max(ps) - min(ps)) if ps else 0.0
-    sev6 = ("Unanimous", GREEN) if status == "Unanimous" else ("Majority", AMBER) if status == "Majority" else (
-        "Split", RED)
-    bars6 = "<div class='vg-mini' aria-hidden='true' style='height:34px;gap:6px'>" + "".join(
-        f"<i style='height:{max(6.0, 100 * p):.0f}%;--c:{VERDICT_COLOR[m['vote']]}' "
-        f"title='{esc(m['label'])}: {100 * p:.0f}% synthetic'></i>" for m, p in zip(ms, ps)) + "</div>"
-    cards.append(_xcard("Model agreement", "scale", sev6,
-                        f"<div class='val'>{agree}/{n}<small>models share the verdict</small></div>",
-                        f"The three own scores lie {spread:.0f} points apart "
-                        f"({', '.join(f'{100 * p:.0f}%' for p in ps)} synthetic).", bars6,
-                        "<ul>" + "".join(f"<li>{esc(m['label'])}: {100 * m['p_fake']:.1f}% synthetic, calls it "
-                                         f"{VERDICT_WORD[m['vote']]} (weight {100 * m['weight']:.0f}%)</li>"
-                                         for m in ms)
-                        + "</ul>On held-out data, unanimous verdicts were right more often than split ones.", 5))
+    # 6 model confidence (the one model's probability for its own call, and its own windows)
+    conf = confidence_pct(res)
+    lvl = trust_of(res)["level"]
+    sev6 = (("Far from the line", GREEN) if lvl in ("high", "very high") else
+            ("Near the line", RED) if lvl in ("very low", "low") else ("Moderate", AMBER))
+    mw = [w["p_fake"] for w in res.get("model_windows") or []]
+    cards.append(_xcard("Model confidence", "gauge", sev6,
+                        f"<div class='val'>{conf:.1f}%<small>for {VERDICT_WORD[res['verdict']]}</small></div>",
+                        f"{model_label(res)} gives {100 * res['p_fake']:.1f}% synthetic probability; its file-level "
+                        f"windows range {100 * min(mw):.0f}%–{100 * max(mw):.0f}%." if mw else
+                        f"{model_label(res)} gives {100 * res['p_fake']:.1f}% synthetic probability.",
+                        _mini(mw),
+                        "Confidence is the model's calibrated probability for the class it chose. It is not an "
+                        "accuracy: the reliability panel shows how often calls at this confidence were right on "
+                        "held-out data. The bars are the model's own 4-s analysis windows (hop 1 s), whose mean "
+                        "logit gives the file score.", 5))
     return cards
 
 
@@ -760,16 +729,15 @@ def bands_chart(res: dict):
 
 
 def summary_html(res: dict) -> str:
-    agree, n, _ = consensus(res)
-    n_syn = sum(m["vote"] == "Fake" for m in res.get("members", []))
     segs = res.get("segments", [])
     flagged = sum(s["end_s"] - s["start_s"] for s in segs)
     obs = res.get("observations", [])
     bands = res.get("bands") or []
     top = max(bands, key=lambda b: b["share_pct"] / max(b["bandwidth_share_pct"], 1e-6))["band"] if bands else "–"
     rows = [("Final verdict", verdict_chip(res["verdict"])),
-            ("Ensemble synthetic score", f"{100 * res['p_fake']:.1f}%"),
-            ("Models voting SYNTHETIC", f"{n_syn} of {n}"),
+            ("Model", esc(model_label(res))),
+            ("Synthetic probability", f"{100 * res['p_fake']:.1f}%"),
+            ("Confidence", f"{confidence_pct(res):.1f}%"),
             ("Flagged time", f"{flagged:.1f} s of {res['duration_s']:.1f} s" if segs else "none"),
             ("Most-relied band", esc(top)),
             ("Unusual measurements", f"{len(obs)} of {len(MEAS_NAMES) - 1}"),
@@ -793,26 +761,16 @@ def explain_center(x: np.ndarray, res: dict) -> None:
            "This recording was called REAL. Below: what the models and the measurements saw"
            + (", including the regions that crossed 50% locally." if flagged else "."))
     section("Why was this audio flagged?", sub, "search", "model evidence + model-free measurements", big=True)
+    # the waveform and spectrogram with the segment-level REAL / FAKE layer are in the lab above (one shared timeline)
     left, right = st.columns([3, 2], gap="medium")
     with left:
-        st.markdown(legend_html(), unsafe_allow_html=True)
-        st.altair_chart(waveform_chart(x, res), width="stretch")
-        st.markdown("<div style='display:flex;justify-content:space-between;font-size:.75rem;color:#8b98ad;"
-                    "margin:10px 2px 4px'><span>Spectrogram · 0–8 kHz, low at the bottom</span><span>whole recording, "
-                    "left to right</span></div>", unsafe_allow_html=True)
-        st.image(signal.spectrogram_png(x, SR), width="stretch")
+        st.markdown("<div style='font-weight:600;font-size:.92rem;margin:4px 0 8px'>Frequency analysis · average "
+                    "spectrum of the whole recording</div>", unsafe_allow_html=True)
+        st.altair_chart(ltas_chart(x), width="stretch")
     with right:
         st.markdown(summary_html(res), unsafe_allow_html=True)
     if res.get("bands"):
-        c1, c2 = st.columns(2, gap="medium")
-    else:
-        c1, c2 = st.container(), None
-    with c1:
-        st.markdown("<div style='font-weight:600;font-size:.92rem;margin:18px 0 8px'>Frequency analysis · average "
-                    "spectrum of the whole recording</div>", unsafe_allow_html=True)
-        st.altair_chart(ltas_chart(x), width="stretch")
-    if c2 is not None:
-        with c2:
+        with st.container():
             st.markdown("<div style='font-weight:600;font-size:.92rem;margin:18px 0 8px'>Where the spectrogram model "
                         "looked · evidence by frequency band</div>", unsafe_allow_html=True)
             st.altair_chart(bands_chart(res), width="stretch")
@@ -827,43 +785,41 @@ def explain_center(x: np.ndarray, res: dict) -> None:
                "and never change the verdict. Model evidence shows where a model reacted, not proof of manipulation.")
 
 
-def ensemble_view(name: str, x: np.ndarray, res: dict, elapsed: float | None = None) -> bytes:
+def result_view(name: str, x: np.ndarray, res: dict, elapsed: float | None = None) -> bytes:
     t = trust_of(res)
-    st.markdown(verdict_html(res, f"ensemble of {len(res['members'])} models", elapsed, t), unsafe_allow_html=True)
+    st.markdown(verdict_html(res, model_label(res), elapsed, t), unsafe_allow_html=True)
     if res["out_of_distribution"]:
         st.markdown(warn_html("This doesn't look like normal speech",
                               "So the verdict is much less reliable: " + esc("; ".join(res["ood_reasons"])) + "."),
                     unsafe_allow_html=True)
-    models_panel(res)
     c1, c2 = st.columns([3, 2], gap="medium")
     with c1:
-        section("Model comparison", "REAL and SYNTHETIC score of each model and of the ensemble.", "chart")
-        st.markdown(f"<div class='vg-panel'>{comparison_html(res)}</div>", unsafe_allow_html=True)
-        st.caption("The ensemble clips each model's log-odds (so no over-confident model dominates) and weighs them; "
-                   "two models that agree always outweigh the third. Hover a bar for its exact value.")
+        section("AI model verdict", "VoiceGuard runs one model, which alone decides REAL or SYNTHETIC.", "cpu")
+        st.markdown(model_card_html(res), unsafe_allow_html=True)
     with c2:
-        section("Reliability", "Held-out accuracy of verdicts like this one.", "gauge")
+        section("Reliability", "Held-out accuracy of calls like this one.", "gauge")
         st.markdown(trust_panel_html(t), unsafe_allow_html=True)
 
-    section("Spectrogram lab", "Play, zoom, select and inspect. Top strip: the ensemble's local score; dashed red: "
-            "flagged segments.", "audio-waveform", f"{res['n_local_windows_scored']} local windows scored")
+    section("Spectrogram lab · segment analysis", "Waveform and spectrogram on one timeline, shaded by the model's "
+            "segment-level result (green REAL, red FAKE, amber UNCERTAIN). Click a segment in the card to play it.",
+            "audio-waveform", f"{res['n_local_windows_scored']} local windows scored")
     lab.render([lab.lane(x, SR, name, "main", res)], key=f"lab_{name}")
 
     explain_center(x, res)
 
-    section("Synthetic score over time", "Ensemble score of the local windows, on REAL and SYNTHETIC zones.",
-            "activity")
-    show = st.toggle("Show each model's own line", value=False, key=f"members_{name}")
-    st.altair_chart(timeline_chart(res, show), width="stretch")
+    section("Synthetic probability over time", "The model's score of the local windows, on REAL and SYNTHETIC "
+            "zones.", "activity")
+    st.altair_chart(timeline_chart(res), width="stretch")
     if not res["time_resolved"]:
         note("This clip is too short for time-local analysis (one analysis window), so the timeline has a single "
              "value. Upload a longer recording to see changes over time.")
     else:
-        st.caption(f"Each point is the ensemble synthetic score of the {res['local_window_s']:.0f}-s windows covering "
-                   f"that moment, scored by all three models (one point every {res['step_s']:.1f} s; window-level "
-                   "calibration). Red points are at or above the 50% line, green below. Hover for each model's value. "
-                   "The file verdict uses each model's full-length windows, so a file can be SYNTHETIC without any "
-                   "single region crossing 50%, or REAL with a few flagged regions.")
+        st.caption(f"Each point is the model's synthetic probability for the {res['local_window_s']:.0f}-s windows "
+                   f"covering that moment (one point every {res['step_s']:.1f} s; the model's own calibration). Points "
+                   "use the segment classes: green REAL below 40%, amber UNCERTAIN 40–60%, red FAKE 60% or more. "
+                   "Flagged segments below still use the 50% line. The file verdict uses the speech region's "
+                   "windows, so a file can be SYNTHETIC without any single region crossing 50%, or REAL with a few "
+                   "flagged regions.")
     segments_panel(x, res)
 
     section("Advanced forensics", "Full reasoning, saliency, measurements and model internals.", "cpu")
@@ -876,22 +832,16 @@ def ensemble_view(name: str, x: np.ndarray, res: dict, elapsed: float | None = N
         with st.spinner("Drawing the forensic view…"):
             fpng = fig_png(plot_forensic(x, res))
         st.image(fpng, width="stretch")
-        st.caption("Top: waveform coloured by the local analysis. Middle: the 128-band log-mel spectrogram the "
-                   "VoiceGuard models read; the bar on top repeats the regions, and the cyan outline marks the "
-                   "time-frequency areas that moved the score most in the decisive window (gradient × input). Bottom: "
-                   "the merged local score and each model's own full-window scores. Saliency shows where a model "
-                   "looked, not proof of manipulation.")
+        st.caption("Top: waveform coloured by the local analysis. Middle: 128-band log-mel spectrogram with the "
+                   "regions on top (E7a reads WavLM features, which have no frequency axis, so there is no "
+                   "frequency saliency). Bottom: the local synthetic probability and the model's own 4-s file-level "
+                   "windows.")
     with st.expander("Whole-file acoustic measurements compared with real speech"):
         st.dataframe(measurement_table(res), hide_index=True, width="stretch")
         st.caption("Percentile among 1,700 real reference recordings (ASVspoof train/dev bona fide, clean and with "
                    "codec, noise and telephone degradations). Values below the 5th or above the 95th percentile are "
                    "reported as observations; they never change the verdict.")
-    if res.get("bands"):
-        with st.expander("Which frequency bands the mel-spectrogram model relied on"):
-            st.dataframe(pd.DataFrame([{"band": b["band"], "share of evidence %": round(b["share_pct"], 1),
-                                        "share of mel bands %": round(b["bandwidth_share_pct"], 1)}
-                                       for b in res["bands"]]), hide_index=True, width="stretch")
-    with st.expander("Inside the models: Grad-CAM, attention over time, WavLM layers"):
+    with st.expander("Inside the model: Grad-CAM, attention over time, WavLM layers"):
         internals_panel(name, x, res)
     return fpng
 
@@ -901,52 +851,49 @@ def _decisive(tl: list[dict], fake: bool) -> dict:
 
 
 def internals_panel(name: str, x: np.ndarray, res: dict) -> None:
-    """Grad-CAM for each spectrogram member, attention and layer weights for the WavLM member (P4.5)."""
+    """Grad-CAM, attention over time and WavLM layer weights of the one model, on its decisive window (P4.5)."""
     from adfd import interpret
 
-    if not st.toggle("Compute (a few seconds per model)", key=f"internals_{name}_{res['p_fake']:.6f}"):
+    if not st.toggle("Compute (a few seconds)", key=f"internals_{name}_{res['p_fake']:.6f}"):
         st.caption("Grad-CAM shows which parts of the input the last convolution layer used to push the score towards "
-                   "FAKE; the attention curve shows which moments the WavLM model weighted most when summarising "
-                   "the window.")
+                   "SYNTHETIC; the attention curve shows which moments the model weighted most when summarising the "
+                   "window; the layer weights show how it mixes WavLM's layers.")
         return
-    ens = get_analyzer(registry.ENSEMBLE)
-    fake = res["verdict"] == "Fake"
-    for m in res["members"]:
-        an = ens.analyzers[m["run"]] if hasattr(ens, "analyzers") else None
-        if an is None:
-            continue
-        w = _decisive(m["timeline"], fake)
-        a, b = int(w["start_s"] * SR), int(w["end_s"] * SR)
-        st.markdown(f"**{m['label']}** · decisive window {fmt_ts(w['start_s'])}–{fmt_ts(w['end_s'])} "
-                    f"({100 * w['p_fake']:.0f}% fake)")
-        try:
-            with st.spinner(f"Grad-CAM for {m['label']}…"):
-                gc = interpret.grad_cam(an, x[a:b])
-            if gc is not None:
-                spectral = not m["run"].startswith("e7")
-                st.image(fig_png(interpret.plot_grad_cam(gc, f"Grad-CAM, {m['label']}", spectral)), width="stretch")
-            att = interpret.attention(an, x[a:b])
-            if att is not None:
-                st.image(fig_png(interpret.plot_attention(att, f"Attention over time, {m['label']}")), width="stretch")
-            lw = interpret.layer_weights(an)
-            if lw is not None:
-                st.image(fig_png(interpret.plot_layer_weights(lw)), width="stretch")
-        except Exception as e:  # noqa: BLE001
-            log.warning("internals for %s failed: %r", m["run"], e)
-            st.info(f"Could not compute the internal views for this model ({e.__class__.__name__}).")
-    st.caption("Bright Grad-CAM areas pushed the score towards FAKE; for the WavLM model the vertical axis is the "
-               "128 learned features, not frequency. The dashed lines mark a uniform weight. These show where a model "
-               "looked, not proof of manipulation.")
+    an = get_analyzer(registry.MODEL).analyzers[registry.MODEL]
+    tl = res.get("model_windows") or []
+    if not tl:
+        st.info("No model windows to inspect for this result.")
+        return
+    w = _decisive(tl, res["verdict"] == "Fake")
+    a, b = int(w["start_s"] * SR), int(w["end_s"] * SR)
+    st.markdown(f"**{model_label(res)}** · decisive window {fmt_ts(w['start_s'])}–{fmt_ts(w['end_s'])} "
+                f"({100 * w['p_fake']:.0f}% synthetic)")
+    try:
+        with st.spinner("Grad-CAM…"):
+            gc = interpret.grad_cam(an, x[a:b])
+        if gc is not None:
+            st.image(fig_png(interpret.plot_grad_cam(gc, f"Grad-CAM, {model_label(res)}", False)), width="stretch")
+        att = interpret.attention(an, x[a:b])
+        if att is not None:
+            st.image(fig_png(interpret.plot_attention(att, f"Attention over time, {model_label(res)}")),
+                     width="stretch")
+        lw = interpret.layer_weights(an)
+        if lw is not None:
+            st.image(fig_png(interpret.plot_layer_weights(lw)), width="stretch")
+    except Exception as e:  # noqa: BLE001
+        log.warning("internals failed: %r", e)
+        st.info(f"Could not compute the internal views ({e.__class__.__name__}).")
+    st.caption("Bright Grad-CAM areas pushed the score towards SYNTHETIC; the vertical axis is the model's 128 learned "
+               "features, not frequency. The dashed lines mark a uniform weight. These show where the model looked, "
+               "not proof of manipulation.")
 
 
-def ensemble_report(name: str, res: dict, fpng: bytes) -> str:
+def analysis_report(name: str, res: dict, fpng: bytes) -> str:
     b64 = lambda b: base64.b64encode(b).decode()  # noqa: E731
-    line_png = fig_png(plot_score_line(res, show_members=True))
+    line_png = fig_png(plot_score_line(res, show_members=False))
     fake = res["verdict"] == "Fake"
     color = RED if fake else GREEN
     lines = "".join(f"<li>{html.escape(ln.lstrip('• '))}</li>" for ln in res["explanation"]["lines"])
-    members = "".join(f"<tr><td>{html.escape(m['label'])}</td><td>{100 * m['weight']:.0f}%</td>"
-                      f"<td>{100 * m['p_fake']:.1f}%</td><td>{m['vote'].upper()}</td></tr>" for m in res["members"])
     segs = ""
     for i, s in enumerate(res.get("segments", []), 1):
         ev = s.get("evidence") or {}
@@ -955,7 +902,7 @@ def ensemble_report(name: str, res: dict, fpng: bytes) -> str:
         segs += (f"<tr><td>S{i}</td><td>{fmt_ts(s['start_s'])}</td><td>{fmt_ts(s['end_s'])}</td>"
                  f"<td>{s['duration_s']:.1f}</td><td>{100 * s['p_fake']:.1f}%</td><td>{s['severity']}</td>"
                  f"<td><ul>{items}</ul></td></tr>")
-    segs = (f"<table><tr><th>#</th><th>start</th><th>end</th><th>duration (s)</th><th>fake prob.</th>"
+    segs = (f"<table><tr><th>#</th><th>start</th><th>end</th><th>duration (s)</th><th>synthetic prob.</th>"
             f"<th>severity</th><th>evidence</th></tr>{segs}</table>" if segs
             else "<p>No part of the recording reaches 50% in the local analysis.</p>")
     real_pct, fake_pct = 100 * (1 - res["p_fake"]), 100 * res["p_fake"]
@@ -969,17 +916,16 @@ ul{{margin:0;padding-left:1.1rem}} .adfd-trust{{border:1px solid #ccc;border-rad
 overflow:hidden;margin:3px 0 8px}} .adfd-bar>div{{height:100%;background:var(--c)}}</style></head><body>
 <h1>Audio deepfake report</h1>
 <p>File: <b>{html.escape(name)}</b> ({res['duration_s']:.1f} s) · {datetime.now():%Y-%m-%d %H:%M} ·
-model: {registry.ENSEMBLE_LABEL}</p>
-<div class='v'><div style='font-size:2rem;font-weight:800;color:{color}'>{'FAKE' if fake else 'REAL'}</div>
-Fake probability <b>{fake_pct:.1f}%</b> (FAKE at ≥ 50%)
-<p style='display:flex;justify-content:space-between;margin:.6rem 0 .3rem'><span style='color:{GREEN}'>Realness
-{real_pct:.1f}%</span><span style='color:{RED}'>Fakeness {fake_pct:.1f}%</span></p>
+model: {html.escape(model_label(res))} (sole detection model)</p>
+<div class='v'><div style='font-size:2rem;font-weight:800;color:{color}'>{'SYNTHETIC' if fake else 'REAL'}</div>
+Synthetic probability <b>{fake_pct:.1f}%</b>, real probability <b>{real_pct:.1f}%</b>, confidence
+<b>{confidence_pct(res):.1f}%</b> (SYNTHETIC at ≥ 50%)
+<p style='display:flex;justify-content:space-between;margin:.6rem 0 .3rem'><span style='color:{GREEN}'>Real
+{real_pct:.1f}%</span><span style='color:{RED}'>Synthetic {fake_pct:.1f}%</span></p>
 <div class='m'><div style='width:{real_pct:.1f}%;background:{GREEN}'></div><div style='width:{fake_pct:.1f}%;
 background:{RED}'></div></div></div>
 <h2>How far to trust it</h2>{trust_html(trust_of(res))}
-<h2>The three models</h2><table><tr><th>model</th><th>weight</th><th>fake probability</th><th>on its own</th></tr>
-{members}</table>
-<h2>Fake probability over time</h2><img src='data:image/png;base64,{b64(line_png)}'>
+<h2>Synthetic probability over time</h2><img src='data:image/png;base64,{b64(line_png)}'>
 <h2>Flagged segments</h2>{segs}
 <h2>Why</h2><ul>{lines}</ul>
 <h2>Forensic view</h2><img src='data:image/png;base64,{b64(fpng)}'>
@@ -1023,9 +969,9 @@ def remember(name: str, run: str, res: dict, key: str) -> None:
         return
     t = trust_of(res)
     row = {"key": key, "time": datetime.now().strftime("%H:%M:%S"), "file": name,
-           "model": registry.available().get(run, run), "verdict": res["verdict"].upper(),
-           "fake_pct": round(100 * res["p_fake"], 1), "confidence": t["level"],
-           "models_agreeing": f"{t['agree']} of {t['n_members']}" if res.get("members") else "–",
+           "model": model_label(res), "verdict": VERDICT_WORD[res["verdict"]],
+           "fake_pct": round(100 * res["p_fake"], 1), "real_pct": round(100 * (1 - res["p_fake"]), 1),
+           "confidence_pct": round(confidence_pct(res), 1), "trust": t["level"],
            "duration_s": round(res["duration_s"], 1), "flagged_segments": len(res.get("segments") or
                                                                               res.get("suspicious_segments", [])),
            "speech_check": "warning" if res["out_of_distribution"] else "ok"}
@@ -1043,19 +989,18 @@ def _estimate(dur: float) -> tuple[int, int]:
     # audio up to 1 min; longer files grow more slowly (the local timeline is capped at 120 windows)
     eff = dur if dur <= 60 else 60 + 0.4 * (dur - 60)
     on_gpu = device().startswith("cuda") and gpu_available()
-    f_lo, f_hi = (0.08, 0.5) if on_gpu else (0.65, 3.5)
+    f_lo, f_hi = (0.06, 0.35) if on_gpu else (0.45, 2.5)      # E7a alone: ~70% of the old ensemble time
     return max(5, 5 * round(f_lo * eff / 5)), max(15, 5 * round(f_hi * eff / 5))
 
 
-def analyse_one(name: str, data: bytes, run: str, compare: bool, step_ph=None) -> None:
+def analyse_one(name: str, data: bytes, run: str = registry.MODEL, step_ph=None) -> None:
     """Upload -> preview -> analyze -> results, for one recording."""
     step_ph = step_ph or st.empty()
     x = prepare(name, data)
     if x is None:
         step_ph.markdown(stepper_html(1), unsafe_allow_html=True)
         return
-    ens = run == registry.ENSEMBLE
-    key = ("analysis", run, hashlib.sha1(data if ens else x.tobytes()).hexdigest())
+    key = ("analysis", run, hashlib.sha1(data).hexdigest())
     done = key in st.session_state
     step_ph.markdown(stepper_html(5 if done else 2), unsafe_allow_html=True)
 
@@ -1073,7 +1018,7 @@ def analyse_one(name: str, data: bytes, run: str, compare: bool, step_ph=None) -
         lab.render([lab.lane(x, SR, name)], key=f"prev_{key[2]}")
         lo, hi = _estimate(len(x) / SR)
         go = st.button("Analyze recording", type="primary", icon=":material/graphic_eq:", key=f"go_{key[2]}")
-        st.caption(f"Runs {'all three models' if ens else 'the selected model'} on the {device_label()}; usually "
+        st.caption(f"Runs {registry.LABELS[registry.MODEL]} on the {device_label()}; usually "
                    f"{lo}–{hi} s, plus ~15 s the first time while the models load. Nothing leaves this computer.")
         if not go:
             return
@@ -1088,11 +1033,7 @@ def analyse_one(name: str, data: bytes, run: str, compare: bool, step_ph=None) -
         t0 = time.perf_counter()
         try:
             an = get_analyzer(run)
-            if ens:
-                res = run_analysis(run, an, x, progress=lambda f, t: pb.progress(f, text=t))
-            else:
-                pb.progress(0.3, text="Scoring with the selected model…")
-                res = run_analysis(run, an, x)
+            res = run_analysis(run, an, x, progress=lambda f, t: pb.progress(f, text=t))
         except Exception as e:  # noqa: BLE001
             log.exception("analysis failed for %s", name)
             box.empty()
@@ -1107,117 +1048,11 @@ def analyse_one(name: str, data: bytes, run: str, compare: bool, step_ph=None) -
     res = st.session_state[key]
     elapsed = st.session_state.get(("elapsed",) + key)
     remember(name, run, res, key[2])
-    if not ens:
-        return analyse_single(name, x, run, compare, elapsed)
-    fpng = ensemble_view(name, x, res, elapsed)
+    fpng = result_view(name, x, res, elapsed)
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-    st.download_button("Download report (HTML)", ensemble_report(name, res, fpng), icon=":material/download:",
+    st.download_button("Download report (HTML)", analysis_report(name, res, fpng), icon=":material/download:",
                        file_name=f"{Path(name).stem}_deepfake_report.html", mime="text/html", on_click="ignore",
                        type="primary")
-
-
-def report_html(name: str, res: dict, timeline_png: bytes, heatmap_png: bytes | None, others: pd.DataFrame | None,
-                model_label: str) -> str:
-    b64 = lambda b: base64.b64encode(b).decode()  # noqa: E731
-    color = RED if res["verdict"] == "Fake" else GREEN
-    segs = "".join(f"<li>{fmt_ts(w['start_s'])}–{fmt_ts(w['end_s'])}: fake probability {100 * w['p_fake']:.0f}%</li>"
-                   for w in res["suspicious_segments"]) or "<li>no window at or above 50%</li>"
-    ood = ("<p style='color:#b35c00'><b>Out-of-distribution warning:</b> " + "; ".join(res["ood_reasons"]) + "</p>"
-           if res["out_of_distribution"] else "<p>Input looks like speech (signal and embedding checks passed).</p>")
-    table = others.to_html(index=False, float_format=lambda v: f"{v:.3f}") if others is not None else ""
-    heat = f"<h2>Spectrogram and saliency</h2><img src='data:image/png;base64,{b64(heatmap_png)}'>" if heatmap_png else ""
-    return f"""<!doctype html><html><head><meta charset='utf-8'><title>Deepfake report: {html.escape(name)}</title>
-<style>body{{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1f1f1e}}
-img{{max-width:100%}} table{{border-collapse:collapse}} td,th{{border:1px solid #ccc;padding:4px 8px}}
-.v{{border:2px solid {color};border-radius:12px;padding:.6rem 1rem}}</style></head><body>
-<h1>Audio deepfake report</h1>
-<p>File: <b>{html.escape(name)}</b> ({res['duration_s']:.1f} s) · {datetime.now():%Y-%m-%d %H:%M} · model: {model_label} (<code>{res['model']}</code>)</p>
-<div class='v'><h2 style='margin:0;color:{color}'>{res['verdict'].upper()}</h2>Fake probability: <b>{100 * res['p_fake']:.1f}%</b>,
-realness {100 * (1 - res['p_fake']):.1f}% (FAKE at ≥ 50%)</div>
-{ood}<h2>Score over time</h2><img src='data:image/png;base64,{b64(timeline_png)}'>
-<h3>Most suspicious windows</h3><ul>{segs}</ul>{heat}
-{'<h2>All models</h2>' + table if table else ''}
-<h2>Limitations</h2><p>{LIMITS}</p></body></html>"""
-
-
-def analyse_single(name: str, x: np.ndarray, run: str, compare: bool, elapsed: float | None = None) -> None:
-    an = get_analyzer(run)
-    key = ("analysis", run, hashlib.sha1(x.tobytes()).hexdigest())
-    if key not in st.session_state:
-        try:
-            with st.spinner("Analysing…"):
-                st.session_state[key] = run_analysis(run, an, x)
-        except Exception as e:  # noqa: BLE001
-            log.exception("analysis failed for %s", name)
-            st.error(f"The analysis stopped with an error ({e.__class__.__name__}: {e}).", icon="🛑")
-            return
-    res = st.session_state[key]
-    remember(name, run, res, key[2])
-    st.markdown(verdict_html(res, registry.available().get(run, "single model"), elapsed), unsafe_allow_html=True)
-    if res["out_of_distribution"]:
-        st.markdown(warn_html("This doesn't look like normal speech", "So the verdict is much less reliable: "
-                              + esc("; ".join(res["ood_reasons"])) + "."), unsafe_allow_html=True)
-    section("Spectrogram lab", "Play, zoom, select and inspect the recording.", "audio-waveform")
-    lab.render([lab.lane(x, SR, name)], key=f"lab_{name}")
-    section("Score over time", "The selected model's windows and the most suspicious regions.", "activity")
-    left, right = st.columns([1, 2])
-    with left:
-        st.caption(f"{res['duration_s']:.1f} s · analysed {res['analysed_region_s'][0]:.1f}–"
-                   f"{res['analysed_region_s'][1]:.1f} s · {len(res['timeline'])} window(s)"
-                   f"{'' if res['calibrated'] else ' · uncalibrated model'}")
-    with right:
-        tl_png = fig_png(plot_timeline(res))
-        st.image(tl_png, width="stretch")
-        if res["suspicious_segments"]:
-            st.markdown("**Most suspicious windows**")
-            for w in res["suspicious_segments"]:
-                a, b = int(w["start_s"] * SR), int(w["end_s"] * SR)
-                st.write(f"{fmt_ts(w['start_s'])}–{fmt_ts(w['end_s'])} · fake probability {100 * w['p_fake']:.0f}%")
-                st.audio(to_wav_bytes(x[a:b]), format="audio/wav")
-    heat_png = None
-    with st.expander("Spectrogram and saliency heatmap (most suspicious window)"):
-        top = max(res["timeline"], key=lambda w: w["p_fake"])
-        a, b = int(top["start_s"] * SR), int(top["end_s"] * SR)
-        with st.spinner("Computing saliency…"):
-            heat_png = fig_png(plot_heatmap(an._prep(x[a:b]), an.saliency(x[a:b]), (b - a) / SR))
-        st.image(heat_png, width="stretch")
-        st.caption("Bright areas changed the model's score the most (gradient × input). This shows where the model "
-                   "looked, not proof of manipulation.")
-    with st.expander("Inside the model: Grad-CAM and attention (most suspicious window)"):
-        from adfd import interpret
-
-        try:
-            gc = interpret.grad_cam(an, x[a:b])
-            if gc is not None:
-                st.image(fig_png(interpret.plot_grad_cam(gc, spectral=an.frontend_name != "ssl")), width="stretch")
-            att = interpret.attention(an, x[a:b])
-            if att is not None:
-                st.image(fig_png(interpret.plot_attention(att)), width="stretch")
-            lw = interpret.layer_weights(an)
-            if lw is not None:
-                st.image(fig_png(interpret.plot_layer_weights(lw)), width="stretch")
-            if gc is None and att is None and lw is None:
-                st.info("This model has no convolution, attention pooling or SSL layer weights to show.")
-        except Exception as e:  # noqa: BLE001
-            log.warning("internals for %s failed: %r", run, e)
-            st.info(f"Could not compute the internal views for this model ({e.__class__.__name__}).")
-    others = None
-    if compare:
-        rows = []
-        for r, label in registry.available().items():
-            if r == registry.ENSEMBLE:
-                continue
-            o = run_analysis(r, get_analyzer(r), x)
-            rows.append({"model": label, "verdict": o["verdict"].upper(), "fake probability %": 100 * o["p_fake"],
-                         "out of distribution": o["out_of_distribution"]})
-        others = pd.DataFrame(rows)
-        st.markdown("**All models**")
-        st.dataframe(others, hide_index=True, width="stretch")
-        counts = others["verdict"].value_counts()
-        st.caption(f"{counts.iloc[0]} of {len(others)} models say **{counts.index[0]}**.")
-    st.download_button("Download report (HTML)", report_html(name, res, tl_png, heat_png, others,
-                                                              registry.available().get(run, run)),
-                       file_name=f"{Path(name).stem}_deepfake_report.html", mime="text/html", on_click="ignore")
 
 
 def batch(files: list[tuple[str, bytes]], run: str) -> pd.DataFrame:
@@ -1232,22 +1067,20 @@ def batch(files: list[tuple[str, bytes]], run: str) -> pd.DataFrame:
                 raise ValueError("shorter than 0.25 s")
             cut = len(x) > MAX_SECONDS * SR
             x = x[: MAX_SECONDS * SR]
-            res = run_analysis(run, an, x, explain=False) if run == registry.ENSEMBLE else run_analysis(run, an, x)
+            res = run_analysis(run, an, x, explain=False)
             t = trust_of(res)
-            row = {"file": name, "verdict": res["verdict"].upper(), "fake_pct": round(100 * res["p_fake"], 2),
-                   "real_pct": round(100 * (1 - res["p_fake"]), 2), "confidence": t["level"],
+            row = {"file": name, "verdict": VERDICT_WORD[res["verdict"]], "fake_pct": round(100 * res["p_fake"], 2),
+                   "real_pct": round(100 * (1 - res["p_fake"]), 2), "confidence_pct": round(confidence_pct(res), 2),
+                   "trust": t["level"],
                    "duration_s": round(res["duration_s"], 2), "first_10_min_only": cut,
                    "out_of_distribution": res["out_of_distribution"], "ood_reasons": "; ".join(res["ood_reasons"])}
-            if run == registry.ENSEMBLE:
-                row["models_agreeing"] = f"{t['agree']} of {t['n_members']}"
-                row.update({f"{m['run']}_fake_pct": round(100 * m["p_fake"], 2) for m in res["members"]})
-                row["flagged_segments"] = "; ".join(f"{fmt_ts(s['start_s'])}-{fmt_ts(s['end_s'])} "
-                                                    f"({100 * s['p_fake']:.0f}%, {s['severity']})"
-                                                    for s in res["segments"])
+            row["model"] = model_label(res)
+            row["flagged_segments"] = "; ".join(f"{fmt_ts(s['start_s'])}-{fmt_ts(s['end_s'])} "
+                                                f"({100 * s['p_fake']:.0f}%, {s['severity']})" for s in res["segments"])
             rows.append(row)
         except Exception as e:  # noqa: BLE001
             log.warning("batch: %s failed: %r", name, e)
-            rows.append({"file": name, "verdict": "ERROR", "fake_pct": None, "real_pct": None, "confidence": None,
+            rows.append({"file": name, "verdict": "ERROR", "fake_pct": None, "real_pct": None, "confidence_pct": None,
                          "duration_s": None, "out_of_distribution": None,
                          "ood_reasons": f"could not analyse: {e.__class__.__name__}: {e}"})
     pb.progress(1.0, text=f"Scored {len(files)} of {len(files)}")

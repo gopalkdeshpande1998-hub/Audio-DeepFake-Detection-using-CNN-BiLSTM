@@ -5,14 +5,16 @@
 Endpoints
   GET  /health    service status and the default model
   GET  /models    available models
-  POST /predict   multipart audio file -> verdict (always "Real" or "Fake"), calibrated P(fake) and
-                  P(real) = 1 - P(fake), OOD warning, timeline
-                  query: model=<run name> (optional; default: the merged "ensemble"), timeline=true|false
-                  The ensemble also returns each member's score and vote, Real / Fake / No speech
-                  regions from the time-local analysis, the flagged segments with severity and
-                  evidence, and a plain-language explanation (explanation=false skips the acoustic part).
-                  Every response has a trust block: the held-out accuracy of verdicts with the
-                  same confidence (and member agreement), from scripts/error_analysis.py.
+  POST /predict   multipart audio file -> verdict ("Real" or "Fake" = SYNTHETIC), calibrated P(fake),
+                  P(real) = 1 - P(fake), confidence = max(P(fake), P(real)), OOD warning, timeline
+                  One model decides: WavLM + CNN-BiLSTM-Att (E7a), run e7a_wavlm_crnn_s42 (adfd.single).
+                  query: model=<run name> (optional; only that model is offered), timeline=true|false
+                  Also returns Real / Fake / No speech regions from the time-local analysis, the flagged
+                  segments with severity and evidence, and a plain-language explanation
+                  (explanation=false skips the acoustic part), and a trust block: the held-out accuracy
+                  of verdicts with the same confidence, from scripts/error_analysis.py.
+                  Removed on 2026-11-23 with the three-model ensemble: `members` (per-model scores)
+                  and the ensemble decision fields; trust.models_agreeing / n_members are always 1.
 Inference runs on the GPU when one is available, else the CPU (override: ADFD_DEVICE=cpu|cuda).
 """
 
@@ -58,14 +60,6 @@ class Segment(BaseModel):
     p_fake: float | None          # None: no speech in this stretch (not scored)
 
 
-class Member(BaseModel):
-    model: str
-    label: str
-    p_fake: float
-    vote: str
-    weight: float | None = None
-
-
 class Region(BaseModel):
     label: str                    # "Real", "Fake" or "No speech"
     start_s: float
@@ -86,7 +80,7 @@ class FlaggedSegment(BaseModel):
 
 class Trust(BaseModel):
     level: str                    # very low / low / medium / high / very high (distance from the 50% line)
-    models_agreeing: int          # members that share the final verdict (ensemble)
+    models_agreeing: int          # always 1 (one model); kept for API compatibility
     n_members: int
     advice: str
     heldout_accuracy_pct: dict[str, float]   # test set -> accuracy of verdicts like this one
@@ -95,18 +89,20 @@ class Trust(BaseModel):
 class Prediction(BaseModel):
     file: str
     model: str
-    verdict: str
+    verdict: str                  # "Real" or "Fake" (shown as SYNTHETIC in the app)
     p_fake: float
     p_real: float
+    confidence: float             # max(p_fake, p_real): the model's probability for its own call, not an accuracy
+    model_label: str
     calibrated: bool
     out_of_distribution: bool
     ood_reasons: list[str]
     duration_s: float
     suspicious_segments: list[Segment]
     timeline: list[Segment] | None = None
-    members: list[Member] | None = None
     regions: list[Region] | None = None
     segments: list[FlaggedSegment] | None = None
+    temporal: dict | None = None             # segment model: regions + 0.16-s frames (adfd.temporal)
     gate_reason: str | None = None
     trust: Trust | None = None
     explanation: list[str] | None = None
@@ -136,7 +132,7 @@ def models() -> dict:
 @app.post("/predict", response_model=Prediction, response_model_exclude_none=True)
 async def predict(file: UploadFile = File(...), model: str | None = Query(None, description="run name, see /models"),
                   timeline: bool = Query(False, description="include the per-window scores"),
-                  explanation: bool = Query(True, description="ensemble only: explanation statements")) -> Prediction:
+                  explanation: bool = Query(True, description="acoustic explanation statements")) -> Prediction:
     run = model or registry.default_run().name
     if run not in registry.available():
         raise HTTPException(404, f"unknown model {run!r}; see /models")
@@ -150,9 +146,9 @@ async def predict(file: UploadFile = File(...), model: str | None = Query(None, 
     if len(x) < SR // 4:
         raise HTTPException(422, "audio shorter than 0.25 s")
     an = analyzer(run)
-    res = an.analyze(x, explain=explanation) if run == registry.ENSEMBLE else an.analyze(x)
+    res = an.analyze(x, explain=explanation)
     seg = lambda w: Segment(start_s=w["start_s"], end_s=w["end_s"], p_fake=w["p_fake"])  # noqa: E731
-    ens = run == registry.ENSEMBLE
+
     def flagged(s):
         ev = s.get("evidence") or {}
         return FlaggedSegment(**{k: s[k] for k in ("start_s", "end_s", "duration_s", "p_fake", "p_fake_peak",
@@ -160,20 +156,19 @@ async def predict(file: UploadFile = File(...), model: str | None = Query(None, 
                               model_evidence=ev.get("model"),
                               acoustic_evidence=[a["statement"] for a in ev["acoustic"]] if "acoustic" in ev else None)
 
-    t = trust.assess(res["p_fake"], [m["p_fake"] for m in res["members"]] if ens else [res["p_fake"]])
+    t = trust.assess(res["p_fake"], [res["p_fake"]])
     trust_out = Trust(level=t["level"], models_agreeing=t["agree"], n_members=t["n_members"], advice=t["advice"],
                       heldout_accuracy_pct={k: v["accuracy_pct"] for k, v in t["sets"].items()})
-    return Prediction(file=file.filename or "upload", model=run, verdict=res["verdict"], p_fake=res["p_fake"],
-                      p_real=1.0 - res["p_fake"],
+    p = float(res["p_fake"])
+    return Prediction(file=file.filename or "upload", model=run, model_label=res.get("model_label", run),
+                      verdict=res["verdict"], p_fake=p, p_real=1.0 - p, confidence=max(p, 1.0 - p),
                       calibrated=res["calibrated"], out_of_distribution=res["out_of_distribution"],
                       ood_reasons=res["ood_reasons"], duration_s=res["duration_s"],
                       suspicious_segments=[seg(w) for w in res["suspicious_segments"]],
                       timeline=[seg(w) for w in res["timeline"]] if timeline else None,
-                      members=[Member(model=m["run"], label=m["label"], p_fake=m["p_fake"], vote=m["vote"],
-                                      weight=m.get("weight"))
-                               for m in res["members"]] if ens else None,
                       regions=[Region(**{k: r[k] for k in ("label", "start_s", "end_s", "p_fake_mean")})
-                               for r in res["regions"]] if ens else None,
-                      segments=[flagged(s) for s in res["segments"]] if ens else None,
-                      gate_reason=res.get("gate_reason") if ens else None, trust=trust_out,
-                      explanation=res["explanation"]["lines"] if ens and "explanation" in res else None)
+                               for r in res["regions"]],
+                      segments=[flagged(s) for s in res["segments"]],
+                      gate_reason=res.get("gate_reason"), trust=trust_out,
+                      explanation=res["explanation"]["lines"] if "explanation" in res else None,
+                      temporal=res.get("temporal"))

@@ -112,16 +112,15 @@ def _verdict_card(slot: str, res: dict | None, det) -> str:
                 f"SYNTHETIC verdict for this recording.</div></div>")
     c = VERDICT_COLOR[res["verdict"]]
     p = 100 * res["p_fake"]
-    agree, n, status = det.consensus(res)
     t = det.trust_of(res)
-    bars = "".join(f"<div class='vg-mbar'><div class='l'><span>{esc(m['label'])}</span><b>{100 * m['p_fake']:.0f}%"
-                   f"</b></div><div class='t'><div style='--w:{100 * m['p_fake']:.1f}%;--c:{VERDICT_COLOR[m['vote']]}'>"
-                   f"</div></div></div>" for m in res.get("members", []))
+    bars = "".join(f"<div class='vg-mbar'><div class='l'><span>{lb}</span><b>{v:.1f}%</b></div><div class='t'>"
+                   f"<div style='--w:{v:.1f}%;--c:{cc}'></div></div></div>"
+                   for lb, v, cc in (("REAL", 100 - p, GREEN), ("SYNTHETIC", p, RED)))
     return (f"<div class='vg-model' style='height:100%;border-top:2px solid {col}'><div class='top'><div>"
-            f"<div class='nm'>{slot} · {esc(title)}</div><div class='sub'>{agree}/{n} models agree · {status.lower()} · "
-            f"{esc(t['level'])} confidence</div></div>{verdict_chip(res['verdict'])}</div>"
+            f"<div class='nm'>{slot} · {esc(title)}</div><div class='sub'>{esc(det.model_label(res))} · "
+            f"{esc(t['level'])} held-out trust</div></div>{verdict_chip(res['verdict'])}</div>"
             f"<div class='mid'>{ring(p, c, 84, 'synthetic', 8, small=True)}<div class='bars'>{bars}</div></div>"
-            f"<div class='foot'><span>Ensemble synthetic score <b style='color:{c}'>{p:.1f}%</b></span>"
+            f"<div class='foot'><span>Confidence <b style='color:{c}'>{det.confidence_pct(res):.1f}%</b></span>"
             f"<span>{VERDICT_WORD[res['verdict']]}</span></div></div>")
 
 
@@ -141,10 +140,10 @@ def _summary(xa, xb, fa, fb, ra, rb) -> list[str]:
             out.append(f"B's {nm} is {abs(r):.0f}% {'higher' if r > 0 else 'lower'} than A's "
                        f"({fb[k]:.0f} vs {fa[k]:.0f} Hz).")
     if ra and rb:
-        same = ra["verdict"] == rb["verdict"]
-        out.append(f"The detector calls A {VERDICT_WORD[ra['verdict']]} ({100 * ra['p_fake']:.0f}% synthetic) and B "
-                   f"{VERDICT_WORD[rb['verdict']]} ({100 * rb['p_fake']:.0f}% synthetic)"
-                   + (", the same verdict." if same else ", different verdicts."))
+        va, vb = VERDICT_WORD[ra["verdict"]], VERDICT_WORD[rb["verdict"]]
+        out.append(f"The detector calls A {va} ({100 * ra['p_fake']:.0f}% synthetic) and B "
+                   f"{vb} ({100 * rb['p_fake']:.0f}% synthetic)"
+                   + (", the same verdict." if va == vb else ", different verdicts."))
     out.append("Differences in level, brightness or bandwidth also come from microphones, rooms and codecs; they are "
                "not evidence of synthesis on their own.")
     return out
@@ -186,7 +185,7 @@ def page(det) -> None:
                 continue
             xs[slot] = x
             ext = Path(item["name"]).suffix.lstrip(".").upper() or "AUDIO"
-            res = s.get(_key(item["data"], registry.ENSEMBLE))
+            res = s.get(_key(item["data"], registry.MODEL))
             tag = verdict_chip(res["verdict"]) if res else chip("Loaded", "cyan")
             st.markdown(file_card(item["name"], [("Size", fmt_size(len(item["data"]))), ("Format", ext),
                                                  ("Duration", fmt_dur(len(x) / SR)), ("Analysed as", "16 kHz mono")],
@@ -207,32 +206,32 @@ def page(det) -> None:
     lanes = []
     for slot, x in xs.items():
         item = s[f"cmp_{slot}"]
-        res = s.get(_key(item["data"], registry.ENSEMBLE))
+        res = s.get(_key(item["data"], registry.MODEL))
         lanes.append(lab.lane(x, SR, item["name"], slot, res))
     lab.render(lanes, key="cmp_lab")
 
-    section("Model verdicts", "The three-model ensemble on each recording.", "layers")
-    ens_ok = registry.ENSEMBLE in registry.available()
-    todo = [sl for sl in xs if _key(s[f"cmp_{sl}"]["data"], registry.ENSEMBLE) not in s]
+    section("Model verdicts", "WavLM + CNN-BiLSTM-Att (E7a) on each recording.", "cpu")
+    ens_ok = registry.MODEL in registry.available()
+    todo = [sl for sl in xs if _key(s[f"cmp_{sl}"]["data"], registry.MODEL) not in s]
     if ens_ok and todo:
         if st.button(f"Run the detector on {' and '.join(todo)}", type="primary", icon=":material/graphic_eq:"):
-            an = det.get_analyzer(registry.ENSEMBLE)
+            an = det.get_analyzer(registry.MODEL)
             for sl in todo:
                 item = s[f"cmp_{sl}"]
                 with st.spinner(f"Analyzing {sl} · {item['name']}…"):
                     try:
-                        res = det.run_analysis(registry.ENSEMBLE, an, xs[sl])
+                        res = det.run_analysis(registry.MODEL, an, xs[sl])
                     except Exception as e:  # noqa: BLE001
                         st.error(f"Recording {sl} could not be analysed ({e.__class__.__name__}: {e}).", icon="🛑")
                         continue
-                k = _key(item["data"], registry.ENSEMBLE)
+                k = _key(item["data"], registry.MODEL)
                 s[k] = res
-                det.remember(item["name"], registry.ENSEMBLE, res, k[2])
+                det.remember(item["name"], registry.MODEL, res, k[2])
             s["vg_toast"] = ("Comparison verdicts ready", ":material/task_alt:")
             st.rerun()
     elif not ens_ok:
-        note("The three-model ensemble is not available on this machine, so no verdicts can be shown.")
-    rs = {sl: s.get(_key(s[f"cmp_{sl}"]["data"], registry.ENSEMBLE)) for sl in xs}
+        note("The detection model is not available on this machine, so no verdicts can be shown.")
+    rs = {sl: s.get(_key(s[f"cmp_{sl}"]["data"], registry.MODEL)) for sl in xs}
     vc = st.columns(2, gap="medium")
     for c, sl in zip(vc, ("A", "B")):
         if sl in xs:

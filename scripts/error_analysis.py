@@ -1,4 +1,8 @@
-"""Error analysis of the merged detector (plan P4.6) from the stored per-utterance scores.
+"""Error analysis of the app's detector (plan P4.6) from the stored per-utterance scores.
+
+Default (--model e7a): WavLM + CNN-BiLSTM-Att (E7a) alone, the only model the app runs since 2026-11-23;
+writes experiments/error_analysis_e7a/ (the trust table the app reads). --model ensemble rebuilds the
+retired three-model analysis in experiments/error_analysis/ for reference.
 
 No audio is decoded and no model is run: the per-utterance scores of the three members
 (runs/<member>/scores_<set>.csv) are fused exactly as the app does (runs/ensemble/ensemble.json)
@@ -10,12 +14,13 @@ and the two-way decision at P(fake) = 0.5 is analysed on the held-out sets:
     confidence band. The app uses this table to say how trustworthy a given verdict has been;
   - the worst false accepts (fakes called REAL) and false rejects (real called FAKE).
 
-    python scripts/error_analysis.py
-Writes experiments/error_analysis/error_analysis.{json,md}.
+    python scripts/error_analysis.py                    # E7a (the app's model)
+    python scripts/error_analysis.py --model ensemble   # retired merged detector
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -24,6 +29,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fit_ensemble  # noqa: E402
 from fit_ensemble import MEMBERS, table  # noqa: E402
 
 from adfd.calibration import sigmoid  # noqa: E402
@@ -31,6 +37,8 @@ from adfd.metrics import eer_from_labels  # noqa: E402
 from adfd.paths import REPO_ROOT, load_paths  # noqa: E402
 
 OUT = REPO_ROOT / "experiments" / "error_analysis"
+OUT_E7A = REPO_ROOT / "experiments" / "error_analysis_e7a"
+E7A = [("e7a_wavlm_crnn_s42", "WavLM + CNN-BiLSTM-Att (E7a)")]
 SETS = [("ASVspoof eval", "asvspoof2019_la_eval"), ("In-the-Wild", "in_the_wild_test")]
 CONF_BINS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5001]          # |P(fake) - 0.5|
 CONF_NAMES = ["very low (50±10%)", "low (60–70% / 30–40%)", "medium (70–80% / 20–30%)",
@@ -86,13 +94,24 @@ def worst(meta: pd.DataFrame, p: np.ndarray, member_p: np.ndarray, y: np.ndarray
 
 
 def main() -> None:
-    cfg = json.loads((load_paths().runs_dir / "ensemble" / "ensemble.json").read_text(encoding="utf-8"))
-    report: dict = {"decision": "FAKE if merged P(fake) >= 0.5", "members": [r for r, _ in MEMBERS],
-                    "confidence_bins": CONF_NAMES, "sets": {}}
+    global MEMBERS
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--model", choices=["e7a", "ensemble"], default="e7a")
+    single = ap.parse_args().model == "e7a"
+    out_dir = OUT_E7A if single else OUT
+    if single:
+        MEMBERS = fit_ensemble.MEMBERS = E7A          # table() reads fit_ensemble.MEMBERS at call time
+        cfg = None
+    else:
+        cfg = json.loads((load_paths().runs_dir / "ensemble" / "ensemble.json").read_text(encoding="utf-8"))
+    report: dict = {"decision": ("FAKE if E7a's calibrated P(fake) >= 0.5" if single
+                                 else "FAKE if merged P(fake) >= 0.5"),
+                    "model": "e7a" if single else "ensemble",
+                    "members": [r for r, _ in MEMBERS], "confidence_bins": CONF_NAMES, "sets": {}}
     for name, stem in SETS:
         z, y, meta = table(stem)
         member_p = sigmoid(z)
-        p = fuse(z, cfg)
+        p = member_p[0] if single else fuse(z, cfg)
         fake = p >= 0.5
         d = {"overall": rates(fake, y), "eer_pct": 100 * float(eer_from_labels(-p, y)[0]),
              "reliability": reliability_tables(p, member_p, y),
@@ -120,9 +139,9 @@ def main() -> None:
             d["by_speaker"] = dict(sorted(rows.items(), key=lambda kv: kv[1]["accuracy_pct"]))   # hardest first
         report["sets"][name] = d
         print(f"{name}: n={len(y)} acc={d['overall']['accuracy_pct']:.1f}%", flush=True)
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "error_analysis.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
-    (OUT / "error_analysis.md").write_text(markdown(report), encoding="utf-8")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "error_analysis.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    (out_dir / "error_analysis.md").write_text(markdown(report), encoding="utf-8")
 
 
 def fmt(v, nd=1):
@@ -130,24 +149,34 @@ def fmt(v, nd=1):
 
 
 def markdown(r: dict) -> str:
-    out = ["# Error analysis of the merged detector (P4.6)", "",
+    single = r.get("model") == "e7a"
+    title = ("WavLM + CNN-BiLSTM-Att (E7a), the app's only model" if single
+             else "the retired merged detector")
+    out = [f"# Error analysis of {title} (P4.6)", "",
            "Produced by `scripts/error_analysis.py` from the stored per-utterance scores; decision: "
-           f"{r['decision']}. In-the-Wild is contaminated for VoiceGuard v2 (trained on most of it).", ""]
+           f"{r['decision']}." + ("" if single else " In-the-Wild is contaminated for VoiceGuard v2 (trained on most "
+                                     "of it)."), ""]
     for name, d in r["sets"].items():
         o = d["overall"]
         out += [f"## {name}", "", f"n = {o['n']:,} · accuracy {fmt(o['accuracy_pct'])}% · real → FAKE "
                 f"{fmt(o['real_called_fake_pct'])}% · fake → REAL {fmt(o['fake_called_real_pct'])}% · "
-                f"EER {d['eer_pct']:.2f}%", "", "**Accuracy by how many members share the final verdict**", "",
-                "| members agreeing | n | accuracy % |", "|---|---|---|"]
-        out += [f"| {k} of 3 | {v['n']:,} | {v['accuracy_pct']:.1f} |" for k, v in d["reliability"]["by_agreement"].items()]
-        out += ["", "**Accuracy by confidence of the merged probability**", "", "| confidence | n | accuracy % |",
+                f"EER {d['eer_pct']:.2f}%", ""]
+        if not single:
+            out += ["**Accuracy by how many members share the final verdict**", "",
+                    "| members agreeing | n | accuracy % |", "|---|---|---|"]
+            out += [f"| {k} of 3 | {v['n']:,} | {v['accuracy_pct']:.1f} |"
+                    for k, v in d["reliability"]["by_agreement"].items()]
+            out.append("")
+        out += [f"**Accuracy by confidence of the {'model' if single else 'merged'} probability**", "",
+                "| confidence | n | accuracy % |",
                 "|---|---|---|"]
         out += [f"| {k} | {v['n']:,} | {v['accuracy_pct']:.1f} |" for k, v in d["reliability"]["by_confidence"].items()]
         if "by_attack" in d:
             out += ["", "**Per attack** (fake → REAL at 0.5; EER against all bona fide eval)", "",
-                    "| attack | n | fake → REAL % | merged EER % | E7a EER % |", "|---|---|---|---|---|"]
-            out += [f"| {a} | {v['n']:,} | {fmt(v['fake_called_real_pct'])} | {v['merged_eer_pct']:.2f} | "
-                    f"{v['e7a_eer_pct']:.2f} |" for a, v in d["by_attack"].items()]
+                    ("| attack | n | fake → REAL % | EER % |" if single else "| attack | n | fake → REAL % | merged EER % | E7a EER % |"),
+                    "|---|---|---|---|" if single else "|---|---|---|---|---|"]
+            out += [f"| {a} | {v['n']:,} | {fmt(v['fake_called_real_pct'])} | {v['merged_eer_pct']:.2f} |"
+                    + ("" if single else f" {v['e7a_eer_pct']:.2f} |") for a, v in d["by_attack"].items()]
         out += ["", "**By clip duration**", "", "| duration | n | accuracy % | real → FAKE % | fake → REAL % |",
                 "|---|---|---|---|---|"]
         out += [f"| {k} | {v['n']:,} | {fmt(v['accuracy_pct'])} | {fmt(v['real_called_fake_pct'])} | "

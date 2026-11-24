@@ -97,7 +97,8 @@ def test_api_predict_and_health(tiny_run, monkeypatch):
     import api.main as api
 
     monkeypatch.setattr(registry, "runs_dir", lambda: tiny_run.parent)
-    monkeypatch.setattr(registry, "LABELS", {"tiny": "tiny test model"})
+    monkeypatch.setattr(registry, "MODEL", tiny_run.name)          # the single production model slot
+    monkeypatch.setattr(registry, "LABELS", {tiny_run.name: "tiny test model"})
     monkeypatch.setattr(registry, "default_run", lambda: tiny_run)
     api.analyzer.cache_clear()
     client = TestClient(api.app)
@@ -109,5 +110,9 @@ def test_api_predict_and_health(tiny_run, monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["verdict"] in {"Real", "Fake"} and len(body["timeline"]) >= 1
+    assert abs(body["p_fake"] + body["p_real"] - 1) < 1e-9
+    assert body["confidence"] == max(body["p_fake"], body["p_real"])
+    assert body["model_label"] == "tiny test model" and "members" not in body and "decision" not in body
+    assert body["trust"]["n_members"] == 1 and body["explanation"]
     assert client.post("/predict", files={"file": ("x.wav", b"not audio", "audio/wav")}).status_code == 415
     assert client.post("/predict?model=nope", files={"file": ("a.wav", buf.getvalue())}).status_code == 404

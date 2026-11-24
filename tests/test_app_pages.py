@@ -57,3 +57,38 @@ pages.{fn}()
 """
     at = st_testing.AppTest.from_string(script, default_timeout=60).run()
     assert not at.exception, at.exception
+
+
+@pytest.mark.parametrize("p", [0.013, 0.993])
+def test_single_model_result_view_renders(p):
+    """The single-model verdict panel, model card, summary, feature cards and report (stub E7a scores)."""
+    st_testing = pytest.importorskip("streamlit.testing.v1")
+    script = f"""
+import streamlit as st
+from tests.test_single import single, speech
+from ui import theme, detector as det
+theme.inject()
+res = single({p!r}).analyze(speech(8.0), explain=True)
+st.markdown(det.verdict_html(res, det.model_label(res), 1.0, det.trust_of(res)), unsafe_allow_html=True)
+st.markdown(det.model_card_html(res, "Loaded · test"), unsafe_allow_html=True)
+st.markdown(det.summary_html(res), unsafe_allow_html=True)
+for c in det.feature_cards(res):
+    st.markdown(c, unsafe_allow_html=True)
+st.altair_chart(det.timeline_chart(res))
+html = det.analysis_report("clip.wav", res, b"")
+st.session_state["report"] = html
+det.remember("clip.wav", det.registry.MODEL, res, "k")
+"""
+    at = st_testing.AppTest.from_string(script, default_timeout=120).run()
+    assert not at.exception, at.exception
+    text = " ".join(m.value for m in at.markdown)
+    word = "SYNTHETIC" if p >= 0.5 else "REAL"
+    assert word in text and "WavLM + CNN-BiLSTM-Att (E7a)" in text
+    assert f"{100 * max(p, 1 - p):.1f}%" in text                                 # confidence = its own probability
+    for gone in ("Majority vote", "Weighted ensemble", "Model disagreement", "models agree", "Three-model",
+                 "VoiceGuard improved", "VoiceGuard v2", "Own call at 50%", "ensemble"):
+        assert gone not in text, gone
+    rep = at.session_state["report"]
+    assert "sole detection model" in rep and "The three models" not in rep
+    h = at.session_state["history"][0]
+    assert h["verdict"] == word and "models_agreeing" not in h

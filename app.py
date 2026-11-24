@@ -7,8 +7,8 @@ Pages
   Research  Results · Error analysis
   About     Model card · Help
 
-The default detector is the merged model (adfd.ensemble: WavLM E7a + VoiceGuard improved +
-VoiceGuard v2): one REAL / FAKE verdict, a trust lookup from the held-out error analysis
+The detector is one model, WavLM + CNN-BiLSTM-Att (E7a), through adfd.single: one REAL / SYNTHETIC
+verdict from its calibrated probability at 50%, a trust lookup from its held-out error analysis
 (adfd.trust), a time-local timeline with playable flagged segments, a forensic view and an
 HTML report. The research pages read experiments/ and docs/ only and never load PyTorch.
 Page code: ui/pages.py; detector views: ui/detector.py; theme: ui/theme.py.

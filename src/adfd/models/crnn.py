@@ -9,6 +9,10 @@
   pooling  "last"   forward-last + backward-last state (as v1)
            "asp"    attentive statistics pooling: attention-weighted mean and std over time
 Input (B, 1, F, T) from any front end; output one spoof logit.
+
+  frame_head  (temporal detection) an extra head on the BiLSTM output, before any pooling: one spoof logit per
+           backbone frame (the CNN halves time three times, so a 50 frame/s WavLM input gives one frame every
+           0.16 s). forward() still returns the clip logit only; forward_frames() returns (clip, frames).
 """
 
 from __future__ import annotations
@@ -76,7 +80,8 @@ class AttentiveStatsPool(nn.Module):
 
 class CRNN(nn.Module):
     def __init__(self, n_feat: int = 60, cnn: str = "se_res", rnn: str = "lstm", pooling: str = "asp",
-                 rnn_input: int = 256, hidden: int = 128, dropout: float = 0.3, head_dropout: float = 0.5):
+                 rnn_input: int = 256, hidden: int = 128, dropout: float = 0.3, head_dropout: float = 0.5,
+                 frame_head: bool = False):
         super().__init__()
         if cnn == "v1":
             self.cnn, c = v1_cnn()
@@ -99,8 +104,19 @@ class CRNN(nn.Module):
             raise ValueError(f"unknown pooling {pooling!r}")
         self.head = nn.Sequential(nn.Linear(out_dim, 128), nn.ReLU(inplace=True), nn.Dropout(head_dropout),
                                   nn.Linear(128, 1))
+        self.frame_head = (nn.Sequential(nn.Linear(2 * hidden, 64), nn.ReLU(inplace=True), nn.Dropout(dropout),
+                                         nn.Linear(64, 1)) if frame_head else None)
 
     def forward(self, x):                                   # (B, 1, F, T)
+        return self._run(x)[0]
+
+    def forward_frames(self, x):
+        """(clip logit (B,), frame logits (B, T')) - needs frame_head=True."""
+        if self.frame_head is None:
+            raise RuntimeError("this model has no frame head")
+        return self._run(x, frames=True)
+
+    def _run(self, x, frames: bool = False):
         x = self.cnn(x)                                     # (B, C, F', T')
         b, c, f, t = x.shape
         x = self.proj(x.permute(0, 3, 1, 2).reshape(b, t, c * f))   # time-major (B, T', rnn_input)
@@ -110,4 +126,5 @@ class CRNN(nn.Module):
         else:
             hn = last[0] if isinstance(last, tuple) else last         # (layers*2, B, H)
             z = torch.cat([hn[-2], hn[-1]], dim=1)
-        return self.head(z).squeeze(1)
+        clip = self.head(z).squeeze(1)
+        return clip, (self.frame_head(h).squeeze(2) if frames else None)

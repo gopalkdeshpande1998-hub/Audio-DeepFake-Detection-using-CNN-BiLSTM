@@ -134,11 +134,11 @@ def plot_score_line(res: dict, show_members: bool = True):
         for e in (sg["start_s"], sg["end_s"]):
             ax.axvline(e, color=ZONE_COLOR["Fake"], linewidth=0.9, alpha=0.7, zorder=1)
     if show_members:
-        for m, ls, col in zip(res["members"], [(0, (6, 3)), (0, (2, 2)), (0, (8, 3, 2, 3))],
+        for m, ls, col in zip(res.get("members", []), [(0, (6, 3)), (0, (2, 2)), (0, (8, 3, 2, 3))],
                               ["#6f6e69", "#8a887f", "#a3a198"]):
             q = np.array([np.nan if v is None else 100 * v for v in m["per_second"]], float)
             ax.plot(c, q, color=col, linestyle=ls, linewidth=1.2, label=m["label"])
-    ax.plot(c, p, color=LINE, linewidth=2.4, label="merged fake probability", zorder=3,
+    ax.plot(c, p, color=LINE, linewidth=2.4, label="synthetic probability", zorder=3,
             solid_joinstyle="round", solid_capstyle="round", marker="o" if len(p) <= 60 else None, markersize=3.5)
     hot = p >= decision
     if np.any(hot):
@@ -147,12 +147,12 @@ def plot_score_line(res: dict, show_members: bool = True):
     ax.set_ylim(0, 100)
     ax.set_xlim(0, max(res["duration_s"], 1e-3))
     ax.set_xlabel("time (s)", color=INK_2)
-    ax.set_ylabel("fake probability (%)", color=INK_2)
+    ax.set_ylabel("synthetic probability (%)", color=INK_2)
     ax.grid(color=GRID, linewidth=0.8)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     ax.legend(frameon=False, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=4)
-    ax.set_title("Fake probability over time (merged, per local window; red bands = flagged segments)", loc="left",
+    ax.set_title("Synthetic probability over time (per local window; red bands = flagged segments)", loc="left",
                  color=INK, fontsize=10)
     fig.tight_layout()
     return fig
@@ -212,26 +212,30 @@ def plot_forensic(x: np.ndarray, res: dict):
         ax.axvspan(a, a + sal["source_s"], ymin=0, ymax=0.965, fill=False, edgecolor="#5ad1ff", linewidth=1.2)
         ax.text(a + 0.05, 2, "analysed window: outlines = time-frequency areas that drove the score",
                 color="#5ad1ff", fontsize=7.5, va="bottom")
-    ax.set_title("Log-mel spectrogram (128 bands, the VoiceGuard input) with region bar and saliency",
+    ax.set_title("Log-mel spectrogram (128 bands) with region bar",
                  loc="left", color=INK, fontsize=10)
     # 3. score per second
     ax = axes[2]
     th = res["thresholds"]
     ax.axhspan(th["t_fake"], 1, color=FAKE_BAND, zorder=0)
     ax.axhspan(0, th["t_real"], color=REAL_BAND, zorder=0)
-    for mm, ls in zip(res["members"], ["-", "--", ":"]):
+    for mm, ls in zip(res.get("members", []), ["-", "--", ":"]):
         c = [(w["start_s"] + w["end_s"]) / 2 for w in mm["timeline"]]
         ax.plot(c, [w["p_fake"] for w in mm["timeline"]], color="#8a887f", linestyle=ls, linewidth=1,
                 label=mm["label"] + " (own windows)")
+    if res.get("model_windows"):
+        mw = res["model_windows"]
+        ax.plot([(w["start_s"] + w["end_s"]) / 2 for w in mw], [w["p_fake"] for w in mw], color="#8a887f",
+                linestyle="--", linewidth=1, label="file-level windows (4 s, hop 1 s)")
     ps = res["per_second"]
     ax.plot([(w["start_s"] + w["end_s"]) / 2 for w in ps],
             [np.nan if w["p_fake"] is None else w["p_fake"] for w in ps], color=LINE, linewidth=2.2,
-            label="merged, local windows")
+            label="local windows")
     ax.set_ylim(0, 1)
     ax.set_ylabel("P(fake)", color=INK_2)
     ax.set_xlabel("time (s)", color=INK_2)
     ax.legend(frameon=False, fontsize=7.5, loc="upper right", ncol=2)
-    ax.set_title(f"Score over time: {res['verdict']} (merged P(fake) = {res['p_fake']:.2f})", loc="left",
+    ax.set_title(f"Score over time: {res['verdict']} (P(fake) = {res['p_fake']:.2f})", loc="left",
                  color=INK, fontsize=10)
     for a_ in axes:
         a_.set_facecolor(SURFACE)
@@ -248,10 +252,10 @@ def explain(path: str, run: str | None = None, out: str = "explanations", device
 
     d = Path(out) / Path(path).stem
     d.mkdir(parents=True, exist_ok=True)
-    if (run or str(default_run())).endswith("ensemble"):
-        from adfd.ensemble import EnsembleAnalyzer
+    from adfd.single import MODEL_RUN, SingleModelAnalyzer
 
-        ens = EnsembleAnalyzer(device=device)
+    if run is None or Path(run).name == MODEL_RUN:
+        ens = SingleModelAnalyzer(device=device)
         x = Analyzer.load_audio(path)
         res = ens.analyze(x)
         plot_forensic(x, res).savefig(d / "forensic.png", dpi=140, facecolor=SURFACE)

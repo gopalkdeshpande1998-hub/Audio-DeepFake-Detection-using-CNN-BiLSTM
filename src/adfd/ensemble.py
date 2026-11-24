@@ -1,4 +1,7 @@
-"""Merged detector: the project's best model plus the two VoiceGuard checkpoints.
+"""RETIRED merged detector (E7a + VoiceGuard improved + VoiceGuard v2). Not used by the app or the API since
+2026-11-23, which run E7a alone (adfd.single); kept only for the offline research scripts that fitted it.
+
+Merged detector: the project's best model plus the two VoiceGuard checkpoints.
 
     ens = EnsembleAnalyzer()                      # reads runs/ensemble/ensemble.json
     res = ens.analyze(load_audio("clip.wav"))     # verdict, P(fake), members, timeline, segments
@@ -11,8 +14,8 @@ How a file is decided (configuration fitted by scripts/fit_ensemble_binary.py)
      counts, and two members that agree always outweigh the third), then calibrated:
          P(fake) = sigmoid(A * sum_i w_i * clip(z_i) + B)
   3. two-way verdict: FAKE if P(fake) >= 0.5, else REAL; Realness = 1 - P(fake).
-     There is no Uncertain verdict. Input that fails the speech (OOD) checks keeps its
-     verdict and carries a warning.
+     Input that fails the speech (OOD) checks keeps its verdict and carries a warning.
+
 Where (time-local analysis, separate from the file verdict)
   4. every member also scores short local windows (2 s, hop 0.5 s; longer for long files,
      at most 120 windows) over the whole recording; each timeline step gets the mean member
@@ -39,6 +42,7 @@ from adfd import forensics, segments
 from adfd.calibration import sigmoid
 from adfd.inference import SR, Analyzer
 from adfd.paths import load_paths
+from adfd.timeline import local_grid, logit, speech_windows, step_logodds, timeline_regions  # noqa: F401
 
 DECISION_P = 0.5
 LOCAL_S = 2.0            # local analysis window (s), unless ensemble.json says otherwise
@@ -55,77 +59,12 @@ def window_cost(run: str) -> float:
     return next((v for k, v in WINDOW_COST.items() if run.startswith(k)), 1.0)
 
 
-def logit(p):
-    p = np.clip(np.asarray(p, float), 1e-6, 1 - 1e-6)
-    return np.log(p / (1 - p))
-
-
 def ensemble_dir() -> Path:
     return load_paths().runs_dir / "ensemble"
 
 
 def load_config(path: Path | None = None) -> dict:
     return json.loads((path or ensemble_dir() / "ensemble.json").read_text(encoding="utf-8"))
-
-
-def local_grid(n: int, local_s: float = LOCAL_S) -> tuple[list[tuple[int, int]], float, float]:
-    """Local windows (sample spans) over the whole recording, the timeline step and window length (s)."""
-    dur = n / SR
-    hop = MIN_HOP_S if dur <= local_s else max(MIN_HOP_S, (dur - local_s) / (MAX_LOCAL - 1))
-    win = max(local_s, hop)
-    if dur <= win:
-        return [(0, n)], dur, dur
-    starts = list(np.arange(0.0, dur - win + 1e-9, hop))
-    if starts[-1] + win < dur - 1e-6:
-        starts.append(dur - win)
-    return [(int(round(s * SR)), min(n, int(round((s + win) * SR)))) for s in starts], hop, win
-
-
-def speech_windows(x: np.ndarray, spans: list[tuple[int, int]], min_frac: float = 0.2) -> np.ndarray:
-    """True for windows where at least `min_frac` of the 20 ms frames carry speech-level energy
-    (within 40 dB of the loudest frame of the recording and above -70 dBFS)."""
-    f = int(0.02 * SR)
-    n = max(1, len(x) // f)
-    xx = np.zeros(n * f) if len(x) < f else x[: n * f].astype(np.float64)
-    db = 10 * np.log10(np.mean(xx.reshape(n, f) ** 2, axis=1) + 1e-12)
-    active = (db > db.max() - 40) & (db > -70)
-    return np.array([active[a // f: max(a // f + 1, b // f)].mean() >= min_frac for a, b in spans])
-
-
-def step_logodds(spans: list[tuple[int, int]], z: np.ndarray, n: int, step: float,
-                 valid: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Timeline steps of `step` s over the recording; each gets the mean log-odds of the valid
-    local windows that contain its centre, or NaN when no valid window covers it."""
-    dur = n / SR
-    k = max(1, int(np.ceil(dur / step - 1e-9)))
-    t0 = np.arange(k) * step
-    centre = np.minimum(t0 + step / 2, dur - 1e-6)
-    a = np.array([s for s, _ in spans]) / SR
-    b = np.array([e for _, e in spans]) / SR
-    z = np.asarray(z, float)
-    ok = np.isfinite(z) if valid is None else (np.asarray(valid, bool) & np.isfinite(z))
-    out = np.full(k, np.nan)
-    for i, c in enumerate(centre):
-        m = (a <= c) & (b > c) & ok
-        if m.any():
-            out[i] = z[m].mean()
-    return t0, out
-
-
-def timeline_regions(t0: np.ndarray, p: np.ndarray, step: float, dur: float) -> list[dict]:
-    """Consecutive steps merged into Fake (p >= 0.5), Real (p < 0.5) and No speech (no score) regions."""
-    out = []
-    for t, q in zip(t0, p):
-        lab = "No speech" if not np.isfinite(q) else ("Fake" if q >= DECISION_P else "Real")
-        if out and out[-1]["label"] == lab:
-            out[-1]["end_s"] = float(min(t + step, dur))
-            out[-1]["p"].append(q)
-        else:
-            out.append({"label": lab, "start_s": float(t), "end_s": float(min(t + step, dur)), "p": [q]})
-    for r in out:
-        v = [q for q in r.pop("p") if np.isfinite(q)]
-        r["p_fake_mean"] = float(np.mean(v)) if v else None
-    return out
 
 
 class EnsembleAnalyzer:
@@ -160,6 +99,15 @@ class EnsembleAnalyzer:
     def fuse_local(self, member_logodds: np.ndarray) -> np.ndarray:
         """Like fuse(), with the window-level calibration of the local timeline (NaN stays NaN)."""
         return sigmoid(self.local["A"] * self._weighted(member_logodds) + self.local["B"])
+
+    def _fuse_subset(self, member_logodds: np.ndarray, idx: list[int], cal: dict) -> np.ndarray:
+        """Fusion over the available members only, weights renormalised to the full-set total."""
+        z = np.asarray(member_logodds, float).reshape(len(self.members), -1)[idx]
+        w = np.array([self.members[i]["weight"] for i in idx])[:, None]
+        w = w * sum(m["weight"] for m in self.members) / w.sum()
+        clip = self.cfg.get("clip")
+        s = (w * (np.clip(z, -clip, clip) if clip else z)).sum(0)
+        return sigmoid(cal.get("A", 1.0) * s + cal.get("B", 0.0))
 
     @staticmethod
     def vote(p: float) -> str:
@@ -202,37 +150,61 @@ class EnsembleAnalyzer:
             an = self.analyzers[m["run"]]
             txt = f"{m['label']}: scoring the whole file"
             report(txt + "…")
-            r = an.analyze(x, on_batch=tracker(txt)) if progress is not None else an.analyze(x)
-            stage += 1
-            p_m = float(self.member_prob(m, r["logit"]))
-            tl = [dict(w, p_fake=float(self.member_prob(m, w["logit"]))) for w in r["timeline"]]
-            txt = f"{m['label']}: scoring {len(spans)} local windows"
-            report(txt + "…")
-            raw = np.asarray(an.score_segments(x, spans, on_batch=tracker(txt)) if progress is not None
-                             else an.score_segments(x, spans), float)
-            stage += 1
+            try:
+                r = an.analyze(x, on_batch=tracker(txt)) if progress is not None else an.analyze(x)
+                stage += 1
+                p_m = float(self.member_prob(m, r["logit"]))
+                if not np.isfinite(p_m):
+                    raise ValueError("non-finite member score")
+                tl = [dict(w, p_fake=float(self.member_prob(m, w["logit"]))) for w in r["timeline"]]
+                txt = f"{m['label']}: scoring {len(spans)} local windows"
+                report(txt + "…")
+                raw = np.asarray(an.score_segments(x, spans, on_batch=tracker(txt)) if progress is not None
+                                 else an.score_segments(x, spans), float)
+                stage += 1
+            except Exception as e:  # noqa: BLE001  (a failed member is reported, never counted as REAL)
+                if isinstance(e, MemoryError) or type(e).__name__ == "OutOfMemoryError":
+                    raise                     # the app retries the whole file on the CPU
+                stage = 2 * (len(mres) + 1)
+                mres.append({"run": m["run"], "label": m["label"], "p_fake": None, "result": None, "timeline": [],
+                             "error": f"{e.__class__.__name__}: {e}"})
+                mz.append(np.nan)
+                mlocal.append(np.full(len(spans), np.nan))
+                continue
             mlocal.append(np.where(np.isfinite(raw), logit(self.member_prob(m, np.nan_to_num(raw))), np.nan))
             mres.append({"run": m["run"], "label": m["label"], "p_fake": p_m, "result": r, "timeline": tl})
             mz.append(logit(p_m))
-        # a local window counts only if it carries speech and every member scored it
-        valid = speech & np.isfinite(np.array(mlocal)).all(0)
+        ok_members = [mr["p_fake"] is not None for mr in mres]
+        if not any(ok_members):
+            raise RuntimeError("every ensemble member failed: " + "; ".join(mr["error"] for mr in mres))
+        # a local window counts only if it carries speech and every available member scored it
+        ok_idx = [i for i, ok in enumerate(ok_members) if ok]
+        valid = speech & np.isfinite(np.array(mlocal)[ok_idx]).all(0)
         mstep = []
         for zl in mlocal:
             t0, zs = step_logodds(spans, zl, n, step, valid)
             mstep.append(zs)
-        p = float(self.fuse(np.array(mz))[0])
-        step_p = self.fuse_local(np.array(mstep))
+        if all(ok_members):
+            p = float(self.fuse(np.array(mz))[0])
+            step_p = self.fuse_local(np.array(mstep))
+        else:   # a member failed: renormalised weights over the rest (uncalibrated; the decision is INCONCLUSIVE)
+            p = float(self._fuse_subset(np.array(mz), ok_idx, self.cfg)[0])
+            step_p = self._fuse_subset(np.array(mstep), ok_idx, self.local)
         scored = np.isfinite(step_p)
         # OOD: the model-free signal check, or a majority of the members' embedding checks
-        sig_reasons = [s for s in mres[0]["result"]["ood_reasons"] if "internal features" not in s]
-        emb_flags = [any("internal features" in s for s in mr["result"]["ood_reasons"]) for mr in mres]
+        first = next(mr for mr in mres if mr["result"] is not None)
+        sig_reasons = [s for s in first["result"]["ood_reasons"] if "internal features" not in s]
+        emb_flags = [any("internal features" in s for s in mr["result"]["ood_reasons"]) for mr in mres
+                     if mr["result"] is not None]
         emb_ood = sum(emb_flags) > len(mres) / 2
         ood = bool(sig_reasons) or emb_ood
         ood_reasons = sig_reasons + (["most models' internal features are far from anything seen in training"]
                                      if emb_ood else [])
         verdict, _ = self.decide(p)
         # member lines: each member's own window-level P(fake) (display and segment evidence only)
-        members = [{"run": mr["run"], "label": mr["label"], "p_fake": mr["p_fake"], "vote": self.vote(mr["p_fake"]),
+        members = [{"run": mr["run"], "label": mr["label"], "p_fake": mr["p_fake"],
+                    "vote": None if mr["p_fake"] is None else self.vote(mr["p_fake"]),
+                    "available": mr["p_fake"] is not None, "error": mr.get("error"),
                     "weight": m["weight"], "timeline": mr["timeline"],
                     "local": [{"start_s": a / SR, "end_s": b / SR, "p_fake": float(sigmoid(z)) if ok else None}
                               for (a, b), z, ok in zip(spans, zl, valid)],
@@ -244,7 +216,7 @@ class EnsembleAnalyzer:
         res = {
             "verdict": verdict, "p_fake": p, "p_real": 1.0 - p, "logit": float(logit(p)), "gate_reason": None,
             "out_of_distribution": ood, "ood_reasons": ood_reasons,
-            "signal": mres[0]["result"]["signal"], "duration_s": dur, "analysed_region_s": [0.0, dur],
+            "signal": first["result"]["signal"], "duration_s": dur, "analysed_region_s": [0.0, dur],
             "members": members,
             "per_second": per_step,                 # timeline steps (name kept for API compatibility)
             "step_s": step, "local_window_s": win, "n_local_windows": len(spans),
@@ -252,6 +224,8 @@ class EnsembleAnalyzer:
             "thresholds": {"t_real": DECISION_P, "t_fake": DECISION_P, "decision": DECISION_P},
             "calibrated": True, "model": "ensemble",
         }
+        if not all(ok_members):
+            res["calibrated"] = False
         res["timeline"] = per_step
         res["regions"] = timeline_regions(t0, step_p, step, dur)
         res["segments"] = [{"start_s": r["start_s"], "end_s": r["end_s"], "duration_s": r["end_s"] - r["start_s"],
@@ -272,6 +246,7 @@ class EnsembleAnalyzer:
     def _explain(self, x: np.ndarray, res: dict) -> None:
         # saliency: the VoiceGuard member with the largest weight, on its most decisive window
         vg = [m for m in self.members if m["run"].startswith("vg_")]
+        vg = [m for m in vg if any(mm["run"] == m["run"] and mm["available"] for mm in res["members"])]
         if vg:
             m = max(vg, key=lambda m: abs(m["weight"]))
             an = self.analyzers[m["run"]]

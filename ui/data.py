@@ -42,7 +42,7 @@ def strip_title(md: str) -> str:
 
 
 def error_analysis() -> dict | None:
-    return read_json("experiments/error_analysis/error_analysis.json")
+    return read_json("experiments/error_analysis_e7a/error_analysis.json")
 
 
 def phase3() -> dict | None:

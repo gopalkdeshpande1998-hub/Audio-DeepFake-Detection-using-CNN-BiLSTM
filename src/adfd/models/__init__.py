@@ -19,6 +19,10 @@ class Detector(nn.Module):
     def forward(self, wav):
         return self.backbone(self.frontend(wav))
 
+    def forward_frames(self, wav):
+        """(clip logit, frame logits) for backbones with a frame head (temporal detection)."""
+        return self.backbone.forward_frames(self.frontend(wav))
+
 
 def build_frontend(cfg: dict, sample_rate: int) -> nn.Module:
     name = cfg.get("name", "mfcc")

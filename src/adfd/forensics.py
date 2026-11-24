@@ -208,15 +208,13 @@ def statements(res: dict) -> dict:
     from adfd.segments import fmt_ts
 
     v, p = res["verdict"], res["p_fake"]
-    members = res["members"]
-    n_fake = sum(m["vote"] == "Fake" for m in members)
-    lines = [{"Fake": f"Verdict: FAKE (likely synthetic or converted speech). Merged fake probability {100 * p:.0f}%, "
-                      f"realness {100 * (1 - p):.0f}%.",
-              "Real": f"Verdict: REAL (likely bona fide speech). Merged fake probability {100 * p:.0f}%, "
-                      f"realness {100 * (1 - p):.0f}%."}[v]]
-    votes = ", ".join(f"{m['label']}: {100 * m['p_fake']:.0f}%" for m in members)
-    lines.append(f"{n_fake} of {len(members)} models score the file above 50% fake on their own ({votes}). The verdict "
-                 "comes from the weighted combination of all three; no single model decides it.")
+    model = res.get("model_label", res.get("model", "the model"))
+    lines = [{"Fake": f"Verdict: SYNTHETIC (likely synthetic or converted speech). Synthetic probability "
+                      f"{100 * p:.1f}%, real probability {100 * (1 - p):.1f}%.",
+              "Real": f"Verdict: REAL (likely bona fide speech). Real probability {100 * (1 - p):.1f}%, synthetic "
+                      f"probability {100 * p:.1f}%."}[v]]
+    lines.append(f"Decided by {model} alone: its calibrated probability is compared with the 50% line "
+                 f"(SYNTHETIC at 50% or more). Confidence in this call: {100 * max(p, 1 - p):.1f}%.")
     if res["out_of_distribution"]:
         lines.append("Warning: the input does not look like normal speech (" + "; ".join(res["ood_reasons"]) +
                      "), so this verdict is much less reliable than usual.")
@@ -225,13 +223,13 @@ def statements(res: dict) -> dict:
     if segs:
         tot = sum(s["end_s"] - s["start_s"] for s in segs)
         spans = ", ".join(f"{fmt_ts(s['start_s'])}–{fmt_ts(s['end_s'])}" for s in segs[:4])
-        lines.append(f"Where: {tot:.1f} s of {dur:.1f} s are flagged as suspected fake ({spans}).")
+        lines.append(f"Where: {tot:.1f} s of {dur:.1f} s are flagged as suspected synthetic ({spans}).")
         if v == "Real":
             lines.append("These local regions score above 50% although the recording as a whole scores as real; "
                          "treat them as places to listen to, not as findings.")
     else:
         lines.append("Where: no part of the recording scores above the 50% line in the local analysis." +
-                     (" The FAKE verdict rests on evidence spread over the whole file rather than on one region."
+                     (" The SYNTHETIC verdict rests on evidence spread over the whole file rather than on one region."
                       if v == "Fake" else ""))
     if not res.get("time_resolved", True):
         lines.append("The clip is too short for time-local analysis (a single analysis window), so the timeline has "

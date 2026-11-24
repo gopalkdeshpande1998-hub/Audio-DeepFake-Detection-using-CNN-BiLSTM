@@ -216,6 +216,12 @@ h1,h2,h3,h4{letter-spacing:-.015em}
   display:inline-flex;align-items:center;gap:6px}
 .vg-mini{display:flex;gap:2px;align-items:flex-end;height:28px;margin-top:10px}
 .vg-mini i{flex:1;min-width:2px;border-radius:2px 2px 0 0;background:var(--c);opacity:.9}
+.vg-seg{position:relative;height:24px;border-radius:6px;background:#070b14;overflow:hidden;margin-top:12px}
+.vg-seg i{position:absolute;top:0;bottom:0;background:var(--c);border-right:1px solid var(--vg-panel);font:700 .58rem Inter,
+  sans-serif;font-style:normal;letter-spacing:.05em;color:rgba(5,12,22,.82);display:flex;align-items:center;
+  justify-content:center;overflow:hidden;white-space:nowrap;opacity:.92}
+.vg-seg-ax{position:relative;height:14px;font-size:.62rem;color:var(--vg-dim);font-variant-numeric:tabular-nums}
+.vg-seg-ax span{position:absolute;top:2px;transform:translateX(-50%)}
 
 /* empty state, skeleton, loader */
 .vg-empty{border:1px dashed var(--vg-line2);border-radius:14px;padding:34px 24px;text-align:center;background:var(--vg-panel2)}
@@ -352,9 +358,12 @@ def chip(text: str, kind: str = "mute", ico: str | None = None) -> str:
     return f"<span class='vg-chip {kind}'>{icon(ico, 12) if ico else ''}{esc(text)}</span>"
 
 
-def verdict_chip(verdict: str) -> str:
+def verdict_chip(verdict: str | None) -> str:
+    if verdict is None:
+        return chip("UNAVAILABLE", "mute", "info")
     return chip(VERDICT_WORD.get(verdict, verdict.upper()), "syn" if verdict == "Fake" else "real",
                 "alert" if verdict == "Fake" else "check")
+
 
 
 def note(text: str, ico: str = "info") -> None:

@@ -2,16 +2,16 @@
 
 ## Model details
 
-- **Default app model: the merged detector** (`src/adfd/ensemble.py`): E7a, WavLM-Base+ (fine-tuned, learned
-  layer weights) followed by an SE-ResNet CNN-BiLSTM with attentive statistics pooling (96.2M parameters, weight
-  0.45), plus two log-mel CNN-BiLSTM checkpoints, VoiceGuard improved (0.35) and VoiceGuard v2 (0.20). Each
-  member's calibrated log-odds are clipped to ±4 and weighted, so no single model decides. Weights and the line
-  were tuned on ASVspoof dev (clean + degraded) and the DEEP-VOICE non-test persons only.
-  Other selectable models: E7a alone, the v1 MFCC CNN-BiLSTM, LFCC CNN-BiLSTMs (Phase 2 pick E4a), LCNN, RawNet2,
-  and the SE-ResNet CNN-BiLSTM-Att on LFCC.
-- **Output:** a calibrated P(fake) and a two-way REAL / FAKE verdict at 50%, a per-second timeline from 2 s windows,
-  flagged segments with evidence, and a **trust lookup**: the held-out accuracy of verdicts with the same confidence
-  band and member agreement (`scripts/error_analysis.py`, `src/adfd/trust.py`).
+- **App model: WavLM + CNN-BiLSTM-Att (E7a) alone** (`src/adfd/single.py`, run `e7a_wavlm_crnn_s42`):
+  WavLM-Base+ (fine-tuned, learned layer weights) followed by an SE-ResNet CNN-BiLSTM with attentive statistics
+  pooling (96.2M parameters). It is the only model the app and the API load and run (since 2026-11-23); the
+  three-model ensemble with VoiceGuard improved and VoiceGuard v2 is retired and kept only as a research record
+  (`src/adfd/ensemble.py`, `experiments/ensemble_binary/`).
+- **Output:** E7a's calibrated P(fake) (its own calibration, fitted on ASVspoof dev), P(real) = 1 − P(fake), a
+  two-way REAL / SYNTHETIC verdict at 50%, the confidence (its probability for its own call, not an accuracy), a
+  timeline from 4 s windows (its training crop) every 0.5 s, flagged segments with acoustic evidence, and a
+  **trust lookup**: the held-out accuracy of E7a verdicts in the same confidence band
+  (`scripts/error_analysis.py`, `experiments/error_analysis_e7a/`, `src/adfd/trust.py`).
 - **Framework:** PyTorch 2.11. Code: `src/adfd/`. Version 0.1.0 (prototype). Runs on CPU at about 16× real time (E7a).
 
 ## Intended use
@@ -50,10 +50,10 @@ For E7a the dev classes barely overlap, so the Real/Fake thresholds meet at p = 
 
 ## Known failure cases
 
-- **Merged detector** (`experiments/error_analysis/error_analysis.md`): on ASVspoof eval it calls 11.2% of real
-  clips FAKE and 19.4% of fakes REAL; attacks A10 (71% missed) and A18 (52%) are the hardest. It misses about 95%
-  of DEEP-VOICE voice-conversion windows. Verdicts within 10 points of the 50% line are right only 48% of the time
-  on ASVspoof eval; the app says so in its trust panel.
+- **E7a alone, the app's model** (`experiments/error_analysis_e7a/error_analysis.md`): on ASVspoof eval it calls
+  0.1% of real clips SYNTHETIC and 18.6% of fakes REAL (accuracy 83.3%, EER 6.2%); on In-the-Wild 6.7% and 18.6%
+  (accuracy 88.9%). It misses about 74% of DEEP-VOICE voice-conversion windows. Verdicts below 90% confidence are
+  right only about half the time on ASVspoof eval; the app says so in its trust panel.
 
 - **Real-world fakes are missed more than real speech is wrongly flagged.** With its dev-fitted threshold,
   E7a calls 17% of In-the-Wild fakes and 71% of DEEP-VOICE fake windows "Real"; it calls the DEEP-VOICE

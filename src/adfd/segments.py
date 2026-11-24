@@ -105,17 +105,18 @@ def segment_evidence(x: np.ndarray, seg: dict, ff: dict, res: dict, ref: dict | 
     if idx:
         peak = max(idx, key=lambda i: res["per_second"][i]["p_fake"])
         pk = res["per_second"][peak]
-        model.append(f"Merged fake probability averages {100 * seg['p_fake']:.0f}% in this segment (peak "
+        model.append(f"Synthetic probability averages {100 * seg['p_fake']:.0f}% in this segment (peak "
                      f"{100 * pk['p_fake']:.0f}% at {fmt_ts(pk['start_s'])}), above the 50% decision line.")
         above = []
-        for m in res["members"]:
+        for m in res.get("members", []):
             vals = [m["per_second"][i] for i in idx if m["per_second"][i] is not None]
             if not vals:
                 continue
             q = float(np.mean(vals))
             above.append(q >= 0.5)
             model.append(f"{m['label']}: {100 * q:.0f}% fake on average here.")
-        model.append(f"{sum(above)} of {len(above)} models score this segment above 50% on their own.")
+        if above:
+            model.append(f"{sum(above)} of {len(above)} models score this segment above 50% on their own.")
     # --- acoustic: contrast with the rest of the recording -------------------------------
     t, act = ff["t"], ff["active"]
     inside = (t >= a) & (t < b)

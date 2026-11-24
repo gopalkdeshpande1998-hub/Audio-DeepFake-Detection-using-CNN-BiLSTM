@@ -1,66 +1,39 @@
-"""Which trained models the app, API and explain.py can use.
+"""Which model the app, the API and explain.py use.
 
-A model is a run folder in runs/ with best.pt (and ideally reliability.json from
-scripts/fit_reliability.py). The default is the model chosen for the app in
-experiments/tables/phase3.json (dev-data selection), else the Phase 2 selection.
-Override with the ADFD_MODEL environment variable (a run name or folder).
+Since 2026-11-23 VoiceGuard runs ONE model: WavLM-Base+ + CNN-BiLSTM-Att (E7a), run folder
+runs/e7a_wavlm_crnn_s42 (best.pt + reliability.json), through adfd.single.SingleModelAnalyzer.
+The VoiceGuard improved / v2 checkpoints and the merged ensemble are no longer listed, loaded or run.
 
-Besides run folders there are two kinds of entries:
-  vg_improved, vg_v2   the external VoiceGuard checkpoints (adfd.models.voiceguard),
-                       available when the checkpoint exists and scripts/fit_reliability.py
-                       has written runs/<name>/reliability.json
-  ensemble             the merged detector (adfd.ensemble), available when
-                       scripts/fit_ensemble.py has written runs/ensemble/ensemble.json;
-                       it is the default model when present
+ADFD_MODEL may still point at another run folder for offline experiments (explain.py, scripts);
+the app and the API only offer MODEL.
 """
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
-from adfd.paths import REPO_ROOT, load_paths
+from adfd.paths import load_paths
+from adfd.single import MODEL_LABEL, MODEL_RUN
 
-FALLBACK = "e4a_rawboost_s42"
-LABELS = {
-    "e1_cnn_bilstm_mfcc": "CNN-BiLSTM, MFCC (v1 paper model)",
-    "e2a_lfcc": "CNN-BiLSTM, LFCC (untrimmed)",
-    "e4a_rawboost": "CNN-BiLSTM, LFCC + RawBoost (Phase 2 pick)",
-    "e4c_rawboost_codec": "CNN-BiLSTM, LFCC + RawBoost + codec",
-    "e5a_lcnn": "LCNN, LFCC",
-    "e5b_rawnet2": "RawNet2 (raw waveform)",
-    "e5c_aasist": "AASIST (raw waveform)",
-    "e6b_crnn_seres_asp": "SE-ResNet CNN-BiLSTM-Att, LFCC",
-    "e7a_wavlm_crnn": "WavLM-Base+ + CNN-BiLSTM-Att",
-}
+MODEL = MODEL_RUN
+LABELS = {MODEL: MODEL_LABEL}
 
 
 def runs_dir() -> Path:
     return load_paths().runs_dir
 
 
-ENSEMBLE = "ensemble"
-ENSEMBLE_LABEL = "Merged: WavLM E7a + VoiceGuard improved + VoiceGuard v2 (recommended)"
-
-
-def ensemble_ready() -> bool:
-    return (runs_dir() / ENSEMBLE / "ensemble.json").exists()
+def model_ready() -> bool:
+    return (runs_dir() / MODEL / "best.pt").exists()
 
 
 def available() -> dict[str, str]:
-    """{run name: label} for runs with a checkpoint, seed 42 only (one per model)."""
-    from adfd.models.voiceguard import VOICEGUARD_MODELS, available_voiceguard
-
-    out = {ENSEMBLE: ENSEMBLE_LABEL} if ensemble_ready() else {}
-    for name in available_voiceguard():
-        if (runs_dir() / name / "reliability.json").exists():
-            out[name] = VOICEGUARD_MODELS[name]["label"]
-    for prefix, label in LABELS.items():
-        run = runs_dir() / f"{prefix}_s42"
-        if (run / "best.pt").exists() and (run / "train_summary.json").exists():   # finished training only
-            out[run.name] = label + ("" if (run / "reliability.json").exists() else " (uncalibrated)")
-    return out
+    """{run name: label}: the single production model, when its checkpoint is on this machine."""
+    if not model_ready():
+        return {}
+    calibrated = (runs_dir() / MODEL / "reliability.json").exists()
+    return {MODEL: LABELS.get(MODEL, MODEL_LABEL) + ("" if calibrated else " (uncalibrated)")}
 
 
 def default_run() -> Path:
@@ -68,22 +41,15 @@ def default_run() -> Path:
     if env:
         p = Path(env)
         return p if p.is_absolute() or p.exists() else runs_dir() / env
-    if ensemble_ready():
-        return runs_dir() / ENSEMBLE
-    f = REPO_ROOT / "experiments" / "tables" / "phase3.json"
-    if f.exists():
-        best = json.loads(f.read_text(encoding="utf-8")).get("_app_model")
-        if best and (runs_dir() / f"{best}_s42" / "reliability.json").exists():
-            return runs_dir() / f"{best}_s42"
-    return runs_dir() / FALLBACK
+    return runs_dir() / MODEL
 
 
-def make_analyzer(run: str, device: str = "cpu"):
-    """Analyzer (single model) or EnsembleAnalyzer for a name from available()."""
-    if run == ENSEMBLE:
-        from adfd.ensemble import EnsembleAnalyzer
+def make_analyzer(run: str = MODEL, device: str = "cpu"):
+    """The production analyzer (E7a only). Other run names load a plain Analyzer for offline experiments."""
+    if run == MODEL:
+        from adfd.single import SingleModelAnalyzer
 
-        return EnsembleAnalyzer(device=device)
+        return SingleModelAnalyzer(device=device, run_dir=runs_dir() / run, label=LABELS.get(run, MODEL_LABEL))
     from adfd.inference import Analyzer
 
     return Analyzer(runs_dir() / run, device)

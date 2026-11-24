@@ -1,0 +1,41 @@
+# T1: temporal (segment-level) detector. E7a (WavLM-Base+ -> SE-res CNN -> BiLSTM -> attentive pooling -> clip
+# head) plus a frame head on the BiLSTM output: one logit per 0.16 s. Warm start from E7a; trained with
+# PartialSpoof dev (train speakers) + ASVspoof 2019 LA train (fully real / fully fake), frame BCE + clip BCE.
+name: t1_wavlm_crnn_temporal
+
+model:
+  name: crnn
+  frontend:
+    name: ssl
+    model: wavlm_base_plus
+    mode: finetune
+    proj_dim: 128
+    grad_checkpointing: true
+  kwargs:
+    n_feat: 128
+    cnn: se_res
+    rnn: lstm
+    pooling: asp
+    frame_head: true
+
+augment:                    # E7a's augmentation (no time shifts, so frame labels stay aligned)
+  rawboost: {p: 0.7, algos: [lnl, isd]}
+  gain: {p: 0.5, min_db: -6, max_db: 6}
+
+temporal:
+  manifest: partialspoof
+  crop_frames: 25           # 4.0 s (E7a's training crop)
+  asv_real: 2580            # all ASVspoof train bona fide (fully real clips)
+  asv_fake: 2580            # a seeded sample of ASVspoof train spoofs (fully fake clips)
+  clip_loss_weight: 0.5
+  init_from: runs/e7a_wavlm_crnn_s42/best.pt
+
+train:
+  batch_size: 8
+  grad_accum: 4             # effective batch 32
+  eval_batch_size: 16
+  lr: 1.0e-4                # back end
+  head_lr: 1.0e-3           # the new frame head
+  ssl_lr: 1.0e-5            # pretrained transformer
+  max_epochs: 2
+  early_stop_patience: 2

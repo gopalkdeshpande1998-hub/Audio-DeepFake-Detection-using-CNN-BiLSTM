@@ -5,7 +5,8 @@ from __future__ import annotations
 STEPS = [
     ("Add a recording", "Upload an audio or video file, record with the microphone, or pick a demo clip. Speech of "
      "5 s or more works best."),
-    ("Wait for the three models", "Each model scores the whole file and then every 2-second window. A progress bar "
+    ("Wait for the model", "WavLM + CNN-BiLSTM-Att scores the whole file and then 4-second windows across it. A "
+     "progress bar "
      "shows the steps; a minute of audio takes seconds on the GPU, or about 40 s to 3 min on a laptop CPU."),
     ("Read the verdict, then the evidence", "REAL or FAKE, how often verdicts like it were right on test data, and "
      "which seconds pushed the score. Listen to flagged segments before you decide anything."),
@@ -13,7 +14,7 @@ STEPS = [
 
 FAQ = [
     ("Can I rely on one verdict?",
-     "No. It is a screening hint. Use the trust panel under the verdict: a score near 50% or models that disagree "
+     "No. It is a screening hint. Use the trust panel under the verdict: a score near 50% "
      "mean the verdict is weak. Never use it as the only evidence about a real person."),
     ("Which files work?",
      "WAV, FLAC, MP3, OGG, M4A, AIFF, WebM and Opus audio; MP4, MOV, MKV, AVI and WebM video (the audio track is "
@@ -30,5 +31,5 @@ FAQ = [
      "Use Batch: upload files or a ZIP and download one CSV row per file."),
     ("Can I call it from code?",
      "Yes: run `uvicorn api.main:app --port 8000`, then POST a file to `/predict`. The response includes the "
-     "verdict, each model's score, flagged segments and the trust lookup."),
+     "verdict, both probabilities, the confidence, flagged segments and the trust lookup."),
 ]
