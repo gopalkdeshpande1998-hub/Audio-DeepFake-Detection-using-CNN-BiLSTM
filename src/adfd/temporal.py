@@ -9,12 +9,13 @@ How a recording is scored
      end. Each window gives one logit per 0.16-s frame (frame head) and one clip logit (clip head).
   2. Overlapping frame logits are averaged with weights that favour the centre of each window (edge frames have
      less context). There is no further smoothing, so a fake run of a single 0.16-s frame can still show.
-  3. Frame logits -> calibrated P(fake) (Platt scaling fitted on validation frames, temporal_calibration.json),
-     then REAL below t_lo, FAKE at or above t_hi, UNCERTAIN between (both fitted on validation frames).
-  4. Frames with no speech energy (within 40 dB of the loudest frame and above -70 dBFS for less than 30% of the
-     frame) are NO SPEECH: silence is never called fake.
+  3. Frame logits -> calibrated P(fake) (Platt scaling fitted on validation frames, temporal_calibration.json);
+     P(real) = 1 - P(fake). Every frame gets the class with the higher probability: FAKE if P(fake) > P(real),
+     otherwise REAL (a 50/50 tie is REAL). No threshold band: confidence never withholds a label.
+  4. Silent frames (speech energy within 40 dB of the loudest frame and above -70 dBFS for less than 30% of the
+     frame) are NO SPEECH, drawn grey: silence is neither called real nor fake. Every speech frame is REAL or FAKE.
   5. Consecutive frames with the same label form regions; each region's confidence is the mean calibrated
-     probability of its side (UNCERTAIN regions report their mean P(fake)).
+     probability of its class (informational, it never changes the label).
 The whole-clip verdict stays separate (adfd.single, E7a); the clip head here is reported as clip_p_fake only.
 """
 
@@ -27,12 +28,14 @@ import numpy as np
 import torch
 
 from adfd.data.partialspoof import EXTRA, FRAME_S, HOP, samples_for
+from adfd.device import resolve as resolve_device
 from adfd.models import build_model
 
 WIN_FRAMES = 25
 HOP_FRAMES = 12
-LABELS = ("REAL", "FAKE", "UNCERTAIN", "NO SPEECH")
-DEFAULT_CAL = {"a": 1.0, "b": 0.0, "t_lo": 0.35, "t_hi": 0.65, "fitted": False}
+LABELS = ("REAL", "FAKE")
+SILENCE = "NO SPEECH"            # silent frames: shown grey, never REAL / FAKE
+DEFAULT_CAL = {"a": 1.0, "b": 0.0, "fitted": False}
 
 
 def sigmoid(z):
@@ -69,9 +72,15 @@ def speech_frames(x: np.ndarray, n_frames: int, min_frac: float = 0.3) -> np.nda
     return out
 
 
-def frame_labels(p: np.ndarray, speech: np.ndarray, t_lo: float, t_hi: float) -> list[str]:
-    return ["NO SPEECH" if not s else "FAKE" if q >= t_hi else "REAL" if q < t_lo else "UNCERTAIN"
-            for q, s in zip(p, speech)]
+def binary_label(p_fake: float) -> str:
+    """Argmax of (P(real), P(fake)) with P(real) = 1 - P(fake): FAKE only when P(fake) > P(real); ties are REAL."""
+    return "FAKE" if p_fake > 1.0 - p_fake else "REAL"
+
+
+def frame_labels(p: np.ndarray, speech: np.ndarray | None = None) -> list[str]:
+    """REAL / FAKE by argmax for speech frames; NO SPEECH for silent ones (speech=None: every frame is speech)."""
+    speech = np.ones(len(p), bool) if speech is None else np.asarray(speech, bool)
+    return [binary_label(float(q)) if s else SILENCE for q, s in zip(p, speech)]
 
 
 def regions(p: np.ndarray, labels: list[str], dur: float) -> list[dict]:
@@ -87,9 +96,10 @@ def regions(p: np.ndarray, labels: list[str], dur: float) -> list[dict]:
         r["start_s"] = round(ks[0] * FRAME_S, 3)
         r["end_s"] = round(min((ks[-1] + 1) * FRAME_S, dur), 3)
         q = p[ks]
-        r["p_fake"] = None if r["label"] == "NO SPEECH" else float(q.mean())
-        r["confidence"] = (None if r["label"] == "NO SPEECH" else float(q.mean()) if r["label"] == "FAKE"
-                           else float(1 - q.mean()) if r["label"] == "REAL" else float(max(q.mean(), 1 - q.mean())))
+        silent = r["label"] == SILENCE
+        r["p_fake"] = None if silent else float(q.mean())
+        r["p_real"] = None if silent else float(1 - q.mean())
+        r["confidence"] = None if silent else r["p_fake"] if r["label"] == "FAKE" else r["p_real"]
         r["n_frames"] = len(ks)
     return [r for r in out if r["end_s"] > r["start_s"]]
 
@@ -102,7 +112,7 @@ class TemporalAnalyzer:
         cfg["model"]["frontend"]["grad_checkpointing"] = False
         self.model = build_model(cfg)
         self.model.load_state_dict(ck["model"])
-        self.device = torch.device(device)
+        self.device = torch.device(resolve_device(device))      # cuda / mps (macOS) / cpu
         self.model.to(self.device).eval()
         self.batch = batch
         self.name = self.run_dir.name
@@ -151,19 +161,19 @@ class TemporalAnalyzer:
         z, clips, n = self.logits(x)
         p = self.prob(z)
         speech = speech_frames(x, n)
-        labs = frame_labels(p, speech, self.cal["t_lo"], self.cal["t_hi"])
+        labs = frame_labels(p, speech)
         regs = regions(p, labs, dur)
-        secs = {k: sum(r["end_s"] - r["start_s"] for r in regs if r["label"] == k) for k in LABELS}
-        scored = secs["REAL"] + secs["FAKE"] + secs["UNCERTAIN"]
+        secs = {k: sum(r["end_s"] - r["start_s"] for r in regs if r["label"] == k) for k in LABELS + (SILENCE,)}
+        scored = secs["REAL"] + secs["FAKE"]
         return {
             "model": self.name, "frame_s": FRAME_S, "duration_s": dur, "calibrated": bool(self.cal.get("fitted")),
-            "thresholds": {"t_lo": self.cal["t_lo"], "t_hi": self.cal["t_hi"]},
+            "decision": "argmax: FAKE if P(fake) > P(real), else REAL; silent frames NO SPEECH",
             "frames": [{"start_s": round(k * FRAME_S, 3), "end_s": round(min((k + 1) * FRAME_S, dur), 3),
-                        "p_fake": float(q), "speech": bool(s), "label": lab}
+                        "p_fake": float(q), "p_real": float(1 - q), "speech": bool(s), "label": lab}
                        for k, (q, s, lab) in enumerate(zip(p, speech, labs))],
             "regions": regs,
             "seconds": secs, "analysed_s": scored,
-            "pct_of_speech": {k: (100 * secs[k] / scored if scored else 0.0) for k in ("REAL", "FAKE", "UNCERTAIN")},
-            "counts": {k: sum(r["label"] == k for r in regs) for k in LABELS},
+            "pct_of_speech": {k: (100 * secs[k] / scored if scored else 0.0) for k in LABELS},
+            "counts": {k: sum(r["label"] == k for r in regs) for k in LABELS + (SILENCE,)},
             "clip_p_fake": float(sigmoid(np.mean(clips))) if len(clips) else None,
         }

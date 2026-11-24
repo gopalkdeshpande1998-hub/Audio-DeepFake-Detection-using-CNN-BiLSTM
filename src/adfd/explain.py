@@ -102,11 +102,10 @@ def plot_heatmap(seg: np.ndarray, sal: dict, source_s: float | None = None):
     return fig
 
 
-REGION_COLOR = {"Fake": "#d92d20", "Real": "#16a34a", "Uncertain": "#eda100", "No speech": "#b9b7ae"}
+REGION_COLOR = {"Fake": "#d92d20", "Real": "#16a34a", "No speech": "#b9b7ae"}
 
 
-ZONE_COLOR = {"Fake": "#d92d20", "Border": "#f59e0b", "Uncertain": "#f59e0b", "Real": "#16a34a"}   # labelled
-BORDER = 10.0     # +-10 points around the decision line: drawn amber for reference, never a verdict
+ZONE_COLOR = {"Fake": "#d92d20", "Real": "#16a34a"}   # binary: above the decision line FAKE, at or below REAL
 
 
 def plot_score_line(res: dict, show_members: bool = True):
@@ -121,9 +120,7 @@ def plot_score_line(res: dict, show_members: bool = True):
     p = np.array([np.nan if w["p_fake"] is None else 100 * w["p_fake"] for w in ps], float)
     fig, ax = plt.subplots(figsize=(10, 3.4), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
-    lo, hi = decision - BORDER, decision + BORDER
-    for (y0, y1, z, lab) in ((hi, 100, "Fake", "FAKE zone"), (lo, hi, "Border", "near the line (visual only)"),
-                             (0, lo, "Real", "REAL zone")):
+    for (y0, y1, z, lab) in ((decision, 100, "Fake", "FAKE zone"), (0, decision, "Real", "REAL zone")):
         ax.axhspan(y0, y1, color=ZONE_COLOR[z], alpha=0.12, linewidth=0, zorder=0)
         ax.text(0.006, (y1 - 1.5) / 100, lab, transform=ax.transAxes, va="top", color=INK_2, fontsize=8.5,
                 fontweight="bold")
@@ -140,7 +137,7 @@ def plot_score_line(res: dict, show_members: bool = True):
             ax.plot(c, q, color=col, linestyle=ls, linewidth=1.2, label=m["label"])
     ax.plot(c, p, color=LINE, linewidth=2.4, label="synthetic probability", zorder=3,
             solid_joinstyle="round", solid_capstyle="round", marker="o" if len(p) <= 60 else None, markersize=3.5)
-    hot = p >= decision
+    hot = p > decision
     if np.any(hot):
         ax.scatter(c[hot], p[hot], s=26, color=ZONE_COLOR["Fake"], edgecolor=SURFACE, linewidth=1, zorder=4,
                    label="step above the threshold")
@@ -161,7 +158,7 @@ def plot_score_line(res: dict, show_members: bool = True):
 def plot_forensic(x: np.ndarray, res: dict):
     """Whole-file forensic view for an ensemble result (adfd.ensemble).
 
-    Row 1: waveform, coloured by the Real / Uncertain / Fake region it falls in.
+    Row 1: waveform, coloured by the Real / Fake region it falls in.
     Row 2: 128-band log-mel spectrogram (the VoiceGuard models' input), region bar on top,
            and the saliency of the analysed window outlined on it.
     Row 3: fused P(fake) per second with each member's score and the decision bands.

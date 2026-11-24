@@ -6,7 +6,7 @@ leak-free, cross-dataset research pipeline in PyTorch, with a web app and a REST
 
 **What you get for any audio file**
 
-- a calibrated **Real / Uncertain / Fake** verdict with a probability;
+- a calibrated **Real / Fake** verdict with a probability;
 - a warning when the input **does not look like speech** (tones, noise, music, silence) instead of a confident wrong answer;
 - the **score over time** (4 s windows) with the most suspicious segments, playable;
 - the **spectrogram with a saliency heatmap** of what moved the score;
@@ -23,13 +23,33 @@ leak-free, cross-dataset research pipeline in PyTorch, with a web app and a REST
 
 ## Quick start
 
+Windows / Linux:
+
 ```bash
 python -m venv .venv-torch
 .venv-torch/Scripts/pip install -r requirements-train.txt   # GPU (CUDA 13); CPU only: requirements.txt
 .venv-torch/Scripts/pip install -e .
 ```
 
-Trained models live in `runs/<run name>/` (`best.pt`, `reliability.json`); they are not stored in git.
+macOS (Apple silicon or Intel), Python 3.11:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt     # torch from PyPI includes the Apple GPU (MPS) backend
+pip install -e .
+export ADFD_PATHS=configs/paths.macos.yaml   # dataset folders under ~/datasets (only needed for training)
+streamlit run app.py
+```
+
+On an Apple silicon Mac the app and API run on the Apple GPU (MPS) automatically, with operators MPS lacks
+falling back to the CPU; on an Intel Mac they run on the CPU. `ADFD_DEVICE=cpu|cuda|mps` forces a device.
+Do not use `requirements-train.txt` on a Mac: its CUDA builds of torch exist for Windows and Linux only.
+The first run downloads WavLM-Base+ from Hugging Face (about 380 MB) into `.cache/`.
+
+Trained models live in `runs/<run name>/` (`best.pt`, `reliability.json`, and for the segment model
+`temporal_calibration.json`); they are not stored in git, so copy the `runs/` folders across from the Windows
+machine.
 
 ```bash
 streamlit run app.py                                  # web app, http://localhost:8501
@@ -56,7 +76,7 @@ flowchart LR
   F --> G[detector: CNN-BiLSTM, LCNN, RawNet2, AASIST, ...]
   G --> H[spoof logit per window]
   H --> I[mean -> calibrated P fake\nPlatt scaling on dev data]
-  I --> J[Real / Uncertain / Fake]
+  I --> J[Real / Fake]
   H --> K[timeline + suspicious segments]
   G --> L[saliency heatmap]
   C --> J

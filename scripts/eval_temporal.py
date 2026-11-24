@@ -5,10 +5,8 @@
     python scripts/eval_temporal.py --run ... --split test --long 300    # 10-15 s same-speaker mixtures
 
 --fit       scores PartialSpoof dev validation speakers (never trained on) and writes
-            <run>/temporal_calibration.json: Platt scaling of frame logits, the frame decision threshold (EER on
-            validation), and the UNCERTAIN band [t_lo, t_hi) = the narrowest band around it outside which
-            validation frame accuracy reaches TARGET_ACC, never narrower than +-MIN_BAND (calibrated
-            probabilities that close to the line are near coin flips).
+            <run>/temporal_calibration.json: Platt scaling of frame logits (and, for reference, the validation EER
+            threshold). Frames are labelled by argmax as in the app: FAKE if P(fake) > P(real), ties REAL.
 --split     val | test (PartialSpoof eval: unseen speakers, unseen attacks A07-A19). Never used for fitting.
 --limit     seeded sample stratified by kind (real / partial / fake).
 --long N    also builds N recordings of 10-15 s by joining utterances of one speaker from the same split (each
@@ -36,10 +34,8 @@ from adfd.paths import REPO_ROOT, load_paths
 from adfd.temporal import TemporalAnalyzer, sigmoid
 from adfd.temporal_metrics import frame_metrics, segment_counts, segment_summary, short_recall
 
-LAB = "F:/PartialSpoof/database/segment_labels/{}_seglab_0.16.npy"
+LAB = str(load_paths().dataset("partialspoof") / "segment_labels" / "{}_seglab_0.16.npy")
 OUT = REPO_ROOT / "experiments" / "temporal_t1"
-TARGET_ACC = 0.98
-MIN_BAND = 0.15                 # frames within +-0.15 of the decision threshold are always UNCERTAIN
 
 
 def sample(df: pd.DataFrame, n: int | None, seed: int) -> pd.DataFrame:
@@ -121,23 +117,13 @@ def fit(rows) -> dict:
     p = sigmoid(a * z + b)
     eer, thr = compute_eer(-p[y == 0], -p[y == 1])        # accept-as-real when -p >= thr
     t = float(-thr)
-    d_best = 0.25
-    for d in np.arange(MIN_BAND, 0.46, 0.01):
-        lo, hi = max(t - d, 0.0), min(t + d, 1.0)
-        keep = (p < lo) | (p >= hi)
-        if keep.any() and np.mean((p[keep] >= hi) == (y[keep] == 1)) >= TARGET_ACC:
-            d_best = float(d)
-            break
-    lo, hi = max(t - d_best, 0.01), min(t + d_best, 0.99)
-    keep = (p < lo) | (p >= hi)
     clip_y = np.array([int(r["y"].max() > 0) for r in rows])
     clip_z = np.array([r["clip_z"] for r in rows])
     ceer, cthr = compute_eer(-clip_z[clip_y == 0], -clip_z[clip_y == 1])
-    return {"a": float(a), "b": float(b), "t": t, "t_lo": float(lo), "t_hi": float(hi), "fitted": True,
+    return {"a": float(a), "b": float(b), "eer_threshold": t, "fitted": True,
             "clip_logit_threshold": float(-cthr),
-            "val": {"frames": int(len(y)), "frame_eer": float(eer), "uncertain_share": float(1 - keep.mean()),
-                    "accuracy_outside_band": float(np.mean((p[keep] >= hi) == (y[keep] == 1))),
-                    "clip_eer": float(ceer), "target_accuracy": TARGET_ACC, "min_band": MIN_BAND}}
+            "val": {"frames": int(len(y)), "frame_eer": float(eer),
+                    "argmax_accuracy": float(np.mean((p > 0.5) == (y == 1))), "clip_eer": float(ceer)}}
 
 
 def report(rows, cal, with_e7a: bool) -> dict:
@@ -148,16 +134,12 @@ def report(rows, cal, with_e7a: bool) -> dict:
         systems["e7a_sliding"] = [r["e7a"] for r in rows]
     for name, ps in systems.items():
         p = np.concatenate(ps)
-        thr = cal["t"] if name == "t1" else 0.5
-        pred = [q >= thr for q in ps]
+        thr = 0.5                                    # argmax: FAKE only if P(fake) > P(real), as in the app
+        pred = [q > thr for q in ps]
         res = {"frame_eer": float(compute_eer(-p[y == 0], -p[y == 1])[0]) if 0 < y.mean() < 1 else None,
-               "threshold": thr, "frame": frame_metrics(y, p >= thr),
+               "threshold": thr, "frame": frame_metrics(y, p > thr),
                "segment": segment_summary([segment_counts(r["y"], q) for r, q in zip(rows, pred)]),
                "short_fake_recall": short_recall([(r["y"], q) for r, q in zip(rows, pred)])}
-        lo, hi = (cal["t_lo"], cal["t_hi"]) if name == "t1" else (0.4, 0.6)
-        keep = (p < lo) | (p >= hi)
-        res["three_way"] = {"t_lo": lo, "t_hi": hi, "uncertain_share": float(1 - keep.mean()),
-                            "decided": frame_metrics(y[keep], p[keep] >= hi) if keep.any() else None}
         res["threshold_sweep"] = [{"threshold": round(float(t), 2), **{k: v for k, v in frame_metrics(y, p >= t).items()
                                                                      if k in ("precision", "recall", "f1", "fpr", "fnr")}}
                                   for t in np.arange(0.05, 0.96, 0.05)]

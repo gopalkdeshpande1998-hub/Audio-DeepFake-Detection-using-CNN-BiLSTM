@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from adfd.temporal import centre_weights, frame_labels, regions, window_starts
+from adfd.temporal import binary_label, centre_weights, frame_labels, regions, window_starts
 from adfd.temporal_metrics import frame_metrics, runs, segment_counts, segment_summary, short_recall
 
 
@@ -42,15 +42,24 @@ def test_windows_cover_every_frame_and_end_aligned():
     assert centre_weights()[12] == 1.0 and centre_weights()[0] == pytest.approx(0.25)
 
 
-def test_regions_and_silence_never_fake():
-    p = np.array([0.1, 0.1, 0.9, 0.95, 0.5, 0.9])
-    speech = np.array([True, True, True, True, True, False])
-    labs = frame_labels(p, speech, 0.35, 0.65)
-    assert labs == ["REAL", "REAL", "FAKE", "FAKE", "UNCERTAIN", "NO SPEECH"]
+@pytest.mark.parametrize("p_fake,lab", [(0.49, "REAL"), (0.51, "FAKE"), (0.5, "REAL"), (0.0, "REAL"), (1.0, "FAKE")])
+def test_binary_label_is_argmax_with_ties_real(p_fake, lab):
+    assert binary_label(p_fake) == lab                  # 51% real / 49% fake -> REAL; 51% fake -> FAKE; 50/50 -> REAL
+
+
+def test_regions_are_binary_and_cover_the_whole_timeline():
+    p = np.array([0.1, 0.49, 0.9, 0.95, 0.51, 0.5])
+    labs = frame_labels(p)
+    assert labs == ["REAL", "REAL", "FAKE", "FAKE", "FAKE", "REAL"]
     r = regions(p, labs, 0.96)
     assert [(x["label"], x["start_s"], x["end_s"]) for x in r] == [
-        ("REAL", 0.0, 0.32), ("FAKE", 0.32, 0.64), ("UNCERTAIN", 0.64, 0.8), ("NO SPEECH", 0.8, 0.96)]
-    assert r[1]["confidence"] == pytest.approx(0.925) and r[3]["confidence"] is None
+        ("REAL", 0.0, 0.32), ("FAKE", 0.32, 0.8), ("REAL", 0.8, 0.96)]
+    assert all(x["label"] in ("REAL", "FAKE") for x in r)
+    assert r[0]["start_s"] == 0.0 and r[-1]["end_s"] == 0.96 and all(
+        a["end_s"] == b["start_s"] for a, b in zip(r, r[1:]))               # no gaps
+    assert r[1]["confidence"] == pytest.approx(np.mean([0.9, 0.95, 0.51]))  # low-confidence frame stays FAKE
+    assert r[0]["confidence"] == pytest.approx(1 - np.mean([0.1, 0.49]))
+    assert r[2]["confidence"] == pytest.approx(0.5)                          # 50/50 tie labelled REAL
 
 
 class StubTemporal:
@@ -63,13 +72,13 @@ class StubTemporal:
         from adfd.temporal import LABELS
 
         dur = len(x) / 16000
-        labs = frame_labels(self.p, np.ones(len(self.p), bool), 0.35, 0.65)
+        labs = frame_labels(self.p)
         regs = regions(self.p, labs, dur)
         secs = {k: sum(r["end_s"] - r["start_s"] for r in regs if r["label"] == k) for k in LABELS}
-        sp = secs["REAL"] + secs["FAKE"] + secs["UNCERTAIN"]
-        return {"model": "stub", "frame_s": 0.16, "duration_s": dur, "thresholds": {"t_lo": 0.35, "t_hi": 0.65},
+        sp = secs["REAL"] + secs["FAKE"]
+        return {"model": "stub", "frame_s": 0.16, "duration_s": dur,
                 "regions": regs, "seconds": secs, "analysed_s": sp,
-                "pct_of_speech": {k: 100 * secs[k] / sp for k in ("REAL", "FAKE", "UNCERTAIN")},
+                "pct_of_speech": {k: 100 * secs[k] / sp for k in ("REAL", "FAKE")},
                 "counts": {k: sum(r["label"] == k for r in regs) for k in LABELS}}
 
 
@@ -87,3 +96,32 @@ def test_segment_model_output_drives_lab_and_card():
     assert [(b[0], b[1], b[2]) for b in d["blocks"]] == [(0.0, 3.04, "REAL"), (3.04, 6.08, "FAKE"), (6.08, 8.0, "REAL")]
     html = det.segment_card(res, {}, {}, 0)
     assert "regions from the segment model" in html and "Mixed real + fake" in html
+    from ui.theme import AMBER, GREEN, RED
+
+    assert "UNCERTAIN" not in html.upper().replace("UNCERTAINTY", "") and AMBER not in html
+    assert {b[2] for b in d["blocks"]} <= {"REAL", "FAKE"}
+    colours = {c.split("'")[0].split(";")[0] for c in html.split("--c:")[1:]}
+    assert colours <= {GREEN, RED}, colours                       # strip blocks and card status: green or red only
+
+
+def test_low_confidence_segments_keep_their_winning_class():
+    from tests.test_single import StubE7a, speech
+    from adfd.single import SingleModelAnalyzer
+
+    p = [0.48] * 25 + [0.52] * 25                                   # 8 s: 52% real, then 52% fake
+    res = SingleModelAnalyzer(analyzer=StubE7a(0.5), temporal=StubTemporal(p)).analyze(speech(8.0), explain=False)
+    r = res["temporal"]["regions"]
+    assert [(x["label"], round(x["confidence"], 2)) for x in r] == [("REAL", 0.52), ("FAKE", 0.52)]
+
+
+def test_silence_is_grey_no_speech_and_speech_stays_binary():
+    p = np.array([0.1, 0.9, 0.9, 0.51, 0.2, 0.2])
+    speech = np.array([False, True, True, True, True, False])
+    labs = frame_labels(p, speech)
+    assert labs == ["NO SPEECH", "FAKE", "FAKE", "FAKE", "REAL", "NO SPEECH"]
+    r = regions(p, labs, 0.96)
+    assert [(x["label"], x["start_s"], x["end_s"]) for x in r] == [
+        ("NO SPEECH", 0.0, 0.16), ("FAKE", 0.16, 0.64), ("REAL", 0.64, 0.8), ("NO SPEECH", 0.8, 0.96)]
+    assert r[0]["confidence"] is None and r[0]["p_fake"] is None                # silence is not classified
+    assert all(a["end_s"] == b["start_s"] for a, b in zip(r, r[1:]))            # still no gaps in the timeline
+    assert "UNCERTAIN" not in labs

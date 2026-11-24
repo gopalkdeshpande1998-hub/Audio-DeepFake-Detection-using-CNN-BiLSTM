@@ -15,12 +15,12 @@ Endpoints
                   of verdicts with the same confidence, from scripts/error_analysis.py.
                   Removed on 2026-11-23 with the three-model ensemble: `members` (per-model scores)
                   and the ensemble decision fields; trust.models_agreeing / n_members are always 1.
-Inference runs on the GPU when one is available, else the CPU (override: ADFD_DEVICE=cpu|cuda).
+Inference runs on the GPU when one is available (CUDA, or MPS on Apple silicon Macs), else the CPU
+(override: ADFD_DEVICE=cpu|cuda|mps).
 """
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -39,12 +39,10 @@ MAX_BYTES = 50 * 2**20
 
 
 def _device() -> str:
-    """ADFD_DEVICE if set, else the GPU when PyTorch can see one, else the CPU."""
-    if os.environ.get("ADFD_DEVICE"):
-        return os.environ["ADFD_DEVICE"]
-    import torch
+    """ADFD_DEVICE if set, else the GPU PyTorch can see (CUDA, or MPS on Apple silicon), else the CPU."""
+    from adfd.device import best_device
 
-    return "cuda" if torch.cuda.is_available() else "cpu"
+    return best_device()
 
 
 DEVICE = _device()

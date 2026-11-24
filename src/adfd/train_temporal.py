@@ -32,7 +32,7 @@ from adfd.paths import configure_caches, load_paths
 from adfd.runinfo import describe_device, save_run_info
 from adfd.seed import seed_everything, worker_init_fn
 
-SEGLAB = "F:/PartialSpoof/database/segment_labels/dev_seglab_0.16.npy"
+SEGLAB = load_paths().dataset("partialspoof") / "segment_labels" / "dev_seglab_0.16.npy"   # configs/paths.yaml
 
 
 def loader(ds, bs, train, workers, seed):

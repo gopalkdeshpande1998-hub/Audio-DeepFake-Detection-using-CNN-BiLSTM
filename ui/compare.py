@@ -24,8 +24,6 @@ SLOTS = {"A": ("Reference recording", "A known or trusted voice sample.", "a", C
 FEATURES = [("rms_dbfs", "RMS energy", "dBFS", "{:.1f}", "Average loudness of the whole file."),
             ("centroid_hz", "Spectral centroid", "Hz", "{:.0f}", "Centre of mass of the spectrum: brightness."),
             ("rolloff_hz", "Spectral roll-off", "Hz", "{:.0f}", "Frequency below which 85% of the energy lies."),
-            ("zcr", "Zero-crossing rate", "per sample", "{:.3f}", "How often the waveform crosses zero: noisiness."),
-            ("flatness", "Spectral flatness", "0–1", "{:.3f}", "Noise-like (1) versus tonal (0) spectrum."),
             ("crest_db", "Crest factor", "dB", "{:.1f}", "Peak level above the average level: dynamics.")]
 
 
@@ -82,25 +80,6 @@ def _feature_html(fa: dict | None, fb: dict | None) -> str:
                      f"{esc(diff)}</span></div><p style='margin:2px 0 12px'>{esc(what)}</p>"
                      f"<div style='display:grid;gap:10px'>{rows}</div></div>")
     return cards
-
-
-def _mfcc_chart(fa: dict | None, fb: dict | None):
-    import altair as alt
-
-    rows = []
-    for tag, f in (("A · reference", fa), ("B · suspected", fb)):
-        if f and f.get("mfcc_mean"):
-            rows += [{"coefficient": i, "mean": v, "recording": tag} for i, v in enumerate(f["mfcc_mean"])]
-    if not rows:
-        return None
-    df = pd.DataFrame(rows)
-    return alt.Chart(df).mark_line(point=alt.OverlayMarkDef(size=40, filled=True), strokeWidth=2,
-                                   interpolate="monotone").encode(
-        x=alt.X("coefficient:O", title="MFCC coefficient", axis=alt.Axis(labelAngle=0)),
-        y=alt.Y("mean:Q", title="mean value"),
-        color=alt.Color("recording:N", scale=alt.Scale(domain=["A · reference", "B · suspected"], range=[CYAN, AMBER]),
-                        legend=alt.Legend(orient="bottom", title=None)),
-        tooltip=["recording", "coefficient", alt.Tooltip("mean:Q", format=".2f")]).properties(height=260)
 
 
 def _verdict_card(slot: str, res: dict | None, det) -> str:
@@ -242,29 +221,17 @@ def page(det) -> None:
 
     feats = {sl: signal.features(x, SR) for sl, x in xs.items()}
     fa, fb = feats.get("A"), feats.get("B")
-    section("Feature comparison", "Plain acoustic measurements of each whole recording (frames with signal only).",
-            "chart")
+    section("Loudness, frequency and amplitude", "Level, brightness and dynamics of each whole recording (frames "
+            "with signal only).", "chart")
     cards = _feature_html(fa, fb)
-    for i in range(0, len(cards), 3):
-        for c, h in zip(st.columns(3, gap="medium"), cards[i:i + 3]):
-            c.markdown(h, unsafe_allow_html=True)
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-    ch = _mfcc_chart(fa, fb)
-    c1, c2 = st.columns([3, 2], gap="medium")
-    with c1:
-        st.markdown("<div style='font-weight:600;font-size:.92rem;margin:14px 0 8px'>MFCC profile · mean of 13 "
-                    "coefficients</div>", unsafe_allow_html=True)
-        if ch is not None:
-            st.altair_chart(ch, width="stretch")
-        else:
-            note("MFCCs are not available for these recordings.")
-    with c2:
-        st.markdown("<div style='font-weight:600;font-size:.92rem;margin:14px 0 8px'>Comparison summary</div>",
-                    unsafe_allow_html=True)
-        items = "".join(f"<li style='margin-bottom:8px'>{esc(t)}</li>" for t in _summary(
-            xs.get("A"), xs.get("B"), fa, fb, rs.get("A"), rs.get("B")))
-        st.markdown(f"<div class='vg-panel'><ul style='margin:0;padding-left:1.1rem;font-size:.88rem;color:#c4cdd9;"
-                    f"line-height:1.5'>{items}</ul></div>", unsafe_allow_html=True)
+    for c, h in zip(st.columns(len(cards), gap="medium"), cards):
+        c.markdown(h, unsafe_allow_html=True)
+    st.markdown("<div style='font-weight:600;font-size:.92rem;margin:18px 0 8px'>Comparison summary</div>",
+                unsafe_allow_html=True)
+    items = "".join(f"<li style='margin-bottom:8px'>{esc(t)}</li>" for t in _summary(
+        xs.get("A"), xs.get("B"), fa, fb, rs.get("A"), rs.get("B")))
+    st.markdown(f"<div class='vg-panel'><ul style='margin:0;padding-left:1.1rem;font-size:.88rem;color:#c4cdd9;"
+                f"line-height:1.5'>{items}</ul></div>", unsafe_allow_html=True)
     rows = []
     for k, nm, unit, fmt, _ in FEATURES:
         rows.append({"feature": nm, "unit": unit, "A": None if fa is None else round(fa[k], 4),

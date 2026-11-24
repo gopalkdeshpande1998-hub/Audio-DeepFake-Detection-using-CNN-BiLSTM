@@ -17,7 +17,7 @@ Where (time-local analysis, display only, never changes the verdict)
 E7a reads WavLM features, which have no frequency axis, so there is no frequency-band saliency.
 Segment-level detection (when runs/t1_wavlm_crnn_temporal_s42 has best.pt and temporal_calibration.json)
   5. the temporal model (adfd.temporal, E7a + a frame head trained on PartialSpoof's time-stamped labels) labels
-     every 0.16 s REAL / FAKE / UNCERTAIN / NO SPEECH: res["temporal"]. It never changes the E7a verdict.
+     every 0.16 s REAL or FAKE (argmax, ties REAL): res["temporal"]. It never changes the E7a verdict.
      Without a calibrated temporal run res["temporal"] is None and the UI falls back to step 3, marked as such.
 """
 

@@ -1,6 +1,6 @@
 # Segment-level (temporal) real/fake detection: audit and plan
 
-Started 2026-11-24. Goal: label each part of a recording REAL / FAKE / UNCERTAIN from a model trained with
+Started 2026-11-24. Goal: label each part of a recording REAL or FAKE from a model trained with
 time-stamped labels, and keep the whole-clip verdict as a separate output.
 
 ## 1. Audit: why the current model only judges whole clips
@@ -33,8 +33,9 @@ time axis, which matches PartialSpoof's 0.16-s segment labels exactly.
 - **Training crops**: 4 s, start aligned to the 0.16-s grid so labels stay exact; short clips are repeated
   together with their labels.
 - **Inference (any length)**: 4-s windows, hop 2 s (aligned to 0.16 s), overlapping frame logits averaged;
-  calibration and two thresholds (REAL below `t_lo`, FAKE at or above `t_hi`, UNCERTAIN between) fitted on
-  validation frames; frames without speech energy are NO SPEECH; consecutive frames merged into regions with
+  calibration fitted on validation frames, then each frame takes its more probable class (FAKE only if
+  P(fake) > P(real), ties REAL; updated 2026-11-24: the first version's uncertain band and no-speech label were
+  removed, so every speech frame is REAL or FAKE; silent frames are NO SPEECH, drawn grey); consecutive frames merged into regions with
   no smoothing beyond the 0.16-s frame (short fakes are kept).
 - **Evaluation** on PartialSpoof eval, new model vs E7a's sliding-window timeline: clip accuracy, frame EER /
   precision / recall / F1 / FPR / FNR / confusion matrix, segment precision / recall / F1 (IoU >= 0.5), boundary

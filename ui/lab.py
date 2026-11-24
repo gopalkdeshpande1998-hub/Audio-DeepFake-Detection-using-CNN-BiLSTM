@@ -5,9 +5,10 @@ audio element; the toolbar zooms, pans, switches views and frequency ranges, set
 a region (played, zoomed to, mirrored on every lane), hovering reads out time, frequency and level. Every number comes
 from ui.signal (the decoded audio) and, when given, the detector's own per-step scores and flagged segments.
 
-Segment-level authenticity layer (after an analysis): the model's timeline steps are grouped into equal blocks by
-adfd.timeline.segment_blocks (REAL < 40% <= UNCERTAIN < 60% <= FAKE, from E7a's calibrated 4-s window scores). The
-same blocks shade the waveform and the spectrogram, colour the strip above them, draw the boundary lines and fill the
+Segment-level authenticity layer (after an analysis): the segment model's regions (adfd.temporal), or without it the
+whole-clip model's steps grouped into equal blocks (adfd.timeline.segment_blocks). Every segment is REAL or FAKE by
+argmax of its probabilities (FAKE only if P(fake) > P(real); ties are REAL); confidence is shown, never used to
+withhold a label; silent parts are NO SPEECH (grey). The same blocks shade the waveform and the spectrogram, colour the strip above them, draw the boundary lines and fill the
 Segment analysis card under a single-lane lab; clicking a block plays it, the block under the playhead is highlighted.
 When the clip fits in one analysis window there are no blocks and the card says segment analysis is unavailable.
 """
@@ -40,7 +41,7 @@ def blocks_of(res: dict) -> dict:
         return {"available": speech, "source": "temporal", "model": tm["model"],
                 "reason": None if speech else "No speech was found in the recording, so nothing was labelled.",
                 "block_s": tm["frame_s"], "window_s": 4.0, "step_s": tm["frame_s"],
-                "uncertain": [tm["thresholds"]["t_lo"], tm["thresholds"]["t_hi"]], "duration_s": tm["duration_s"],
+                "duration_s": tm["duration_s"],
                 "blocks": [{"start_s": r["start_s"], "end_s": r["end_s"], "label": r["label"], "p_fake": r["p_fake"],
                             "confidence": r["confidence"]} for r in tm["regions"]],
                 "seconds": tm["seconds"], "pct_of_speech": tm["pct_of_speech"], "analysed_s": tm["analysed_s"],
@@ -57,7 +58,7 @@ def lane(x: np.ndarray, sr: int, title: str, tone: str = "main", res: dict | Non
         d["steps"] = [[w["start_s"], w["end_s"], w["p_fake"]] for w in res["per_second"]]
         d["segs"] = [[s["start_s"], s["end_s"], f"S{i}", s["p_fake"]] for i, s in enumerate(res.get("segments", []), 1)]
         sb = blocks_of(res)
-        d["seg"] = {k: sb.get(k) for k in ("available", "reason", "block_s", "window_s", "step_s", "uncertain",
+        d["seg"] = {k: sb.get(k) for k in ("available", "reason", "block_s", "window_s", "step_s",
                                            "pct_of_speech", "counts", "analysed_s", "duration_s", "source",
                                            "seconds")}
         d["seg"]["verdict"] = "SYNTHETIC" if res["verdict"] == "Fake" else "REAL"
@@ -77,7 +78,7 @@ def render(lanes: list[dict], key: str, view_h: int | None = None) -> None:
     if card:
         height += CARD_H[bool(lanes[0]["seg"]["available"])] + 10
     cfg = {"lanes": lanes, "viewH": view_h, "heat": signal.HEAT_STOPS, "key": key, "card": card,
-           "colors": {"real": GREEN, "syn": RED, "amber": AMBER, "cyan": CYAN}}
+           "colors": {"real": GREEN, "syn": RED, "cyan": CYAN}}
     payload = json.dumps(cfg).replace("</", "<\\/")
     components.html(TEMPLATE.replace("__CFG__", payload), height=height, scrolling=False)
 
@@ -252,15 +253,14 @@ const fmt = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - 60 
 const fmtHz = f => f >= 1000 ? (f/1000).toFixed(f % 1000 ? 1 : 0) + ' kHz' : Math.round(f) + ' Hz';
 const pcol = p => p == null ? '#475569' : (p >= 0.5 ? C.colors.syn : C.colors.real);
 // segment-level authenticity blocks: [start, end, label, p_fake, confidence] from adfd.timeline.segment_blocks
-const BC = {'REAL': C.colors.real, 'FAKE': C.colors.syn, 'UNCERTAIN': C.colors.amber, 'NO SPEECH': '#475569'};
+const BC = {'REAL': C.colors.real, 'FAKE': C.colors.syn, 'NO SPEECH': '#475569'};
 const rgba = (hex, a) => `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`;
 const blockAt = (d, t) => { if (!d.blocks) return -1; for (let i = 0; i < d.blocks.length; i++){ const b = d.blocks[i];
   if (t >= b[0] && (t < b[1] || (i === d.blocks.length - 1 && t <= b[1]))) return i; } return -1; };
 const fs = t => (Math.round(t * 10) / 10).toFixed(1);
-const blockConf = b => b[2] === 'NO SPEECH' ? '–' : b[2] === 'UNCERTAIN' ? Math.round(b[3] * 100) + '% syn.' : Math.round(b[4] * 100) + '%';
+const blockConf = b => b[2] === 'NO SPEECH' ? '–' : Math.round(b[4] * 100) + '%';
 const blockTip = b => `<i>time</i> ${fs(b[0])}–${fs(b[1])} s<br><span style="color:${BC[b[2]]};font-weight:700">${b[2]}</span>` +
-  (b[2] === 'NO SPEECH' ? '<br><i>not scored (no speech)</i>' : b[2] === 'UNCERTAIN'
-    ? `<br><i>synthetic score</i> ${Math.round(b[3] * 100)}% <i>(40–60%)</i>`
+  (b[2] === 'NO SPEECH' ? '<br><i>not scored (no speech)</i>'
     : `<br><i>confidence</i> ${Math.round(b[4] * 100)}% <i>${b[2] === 'FAKE' ? 'synthetic' : 'real'}</i>`);
 let curBlock = -2;
 
@@ -507,7 +507,8 @@ function playBlock(i){ const o = LS[0], b = o.d.blocks[i]; if (!b || b[2] === 'N
 function buildCard(){
   const d = LS[0].d, s = d.seg, el = $('card'); if (!C.card || !s) return;
   el.style.display = ''; el.style.height = (s.available ? 286 : 128) + 'px';
-  const legend = `<div class="clg">${['REAL', 'FAKE', 'UNCERTAIN', 'NO SPEECH'].map(k => `<span><i style="background:${BC[k]}"></i>${k}</span>`).join('')}</div>`;
+  const keys = ['REAL', 'FAKE'].concat((d.blocks || []).some(b => b[2] === 'NO SPEECH') ? ['NO SPEECH'] : []);
+  const legend = `<div class="clg">${keys.map(k => `<span><i style="background:${BC[k]}"></i>${k}</span>`).join('')}</div>`;
   const icon = '<svg viewBox="0 0 24 24"><path d="M3 12h3l3-8 4 16 3-8h5"/></svg>';
   if (!s.available){
     el.innerHTML = `<div class="chd"><div class="ctt"><span class="ib">${icon}</span>Segment analysis</div>
@@ -518,11 +519,11 @@ function buildCard(){
     return; }
   const B = d.blocks, n = s.counts, P = s.pct_of_speech, sec = s.seconds || {REAL: P.REAL / 100 * s.analysed_s, FAKE: P.FAKE / 100 * s.analysed_s};
   const [stTxt, stCol] = n.FAKE && n.REAL ? ['Mixed: real + fake', C.colors.syn] : n.FAKE ? ['Fake segments', C.colors.syn]
-    : n.UNCERTAIN ? ['Uncertain segments', C.colors.amber] : ['All segments real', C.colors.real];
+    : ['All segments real', C.colors.real];
   const blocks = B.map((b, i) => { const l = b[0] / s.duration_s * 100, w = (b[1] - b[0]) / s.duration_s * 100;
     const ns = b[2] === 'NO SPEECH';
     return `<div class="blk${ns ? ' ns' : ''}" data-i="${i}" style="left:${l}%;width:${w}%;background:${ns ? 'rgba(71,85,105,.45)' : BC[b[2]]}"
-      role="button" data-l="${ns ? '' : b[2] === 'UNCERTAIN' ? '?' : b[2]}" aria-label="${fs(b[0])} to ${fs(b[1])} seconds, ${b[2]}"></div>`; }).join('');
+      role="button" data-l="${ns ? '' : b[2]}" aria-label="${fs(b[0])} to ${fs(b[1])} seconds, ${b[2]}"></div>`; }).join('');
   const rows = B.map((b, i) => `<div class="rw${b[2] === 'NO SPEECH' ? ' ns' : ''}" data-i="${i}"><span class="sw" style="background:${BC[b[2]]}"></span>
       <span>${fs(b[0])}–${fs(b[1])} s</span><span class="lb" style="color:${BC[b[2]]}">${b[2]}</span><span class="cf">${blockConf(b)}</span></div>`).join('');
   const stat = (k, v, u, col) => `<div><div class="k">${k}</div><div class="v" style="color:${col || 'var(--text)'}">${v}<small>${u}</small></div></div>`;
@@ -532,12 +533,12 @@ function buildCard(){
       <div class="bar" id="sbar">${blocks}</div><div class="bax" id="sbax"></div>
       <div class="sts">${stat('Real audio', P.REAL.toFixed(0), '% · ' + fs(sec.REAL) + ' s', C.colors.real)}${stat('Fake audio', P.FAKE.toFixed(0), '% · ' + fs(sec.FAKE) + ' s', C.colors.syn)}
         ${stat('Analysed', fs(s.analysed_s), 's of ' + fs(s.duration_s) + ' s')}
-        ${stat('Segments', `<span style="color:${C.colors.real}">${n.REAL}</span> · <span style="color:${C.colors.syn}">${n.FAKE}</span> · <span style="color:${C.colors.amber}">${n.UNCERTAIN}</span>`, 'R · F · U')}</div>
+        ${stat('Segments', `<span style="color:${C.colors.real}">${n.REAL}</span> · <span style="color:${C.colors.syn}">${n.FAKE}</span>`, 'real · fake')}</div>
       <div class="cnote">${s.source === 'temporal'
         ? `Segment model: one prediction every 0.16 s, trained on recordings with time-stamped real/fake labels (PartialSpoof).
-           REAL below ${Math.round(s.uncertain[0] * 100)}%, UNCERTAIN ${Math.round(s.uncertain[0] * 100)}–${Math.round(s.uncertain[1] * 100)}%, FAKE ${Math.round(s.uncertain[1] * 100)}% or more (calibrated on held-out speakers)${n['NO SPEECH'] ? '; grey parts have no speech and are never called fake' : ''}.`
+           Each segment is the more probable class: FAKE when its fake probability is higher than its real probability, otherwise REAL; the confidence shown is that probability (calibrated on held-out speakers)${n['NO SPEECH'] ? '. Grey parts are silence (no speech) and are not classified' : ''}.`
         : `Approximation: the segment model is not installed, so these ${fs(s.block_s)}-s segments come from the whole-clip model's ${s.window_s.toFixed(0)}-s windows (every ${s.step_s.toFixed(1)} s);
-           each also hears about ${(s.window_s / 2).toFixed(0)} s on each side, so short fake inserts are smoothed. REAL below 40%, UNCERTAIN 40–60%, FAKE 60% or more${n['NO SPEECH'] ? '; grey parts have no speech' : ''}.`}
+           each also hears about ${(s.window_s / 2).toFixed(0)} s on each side, so short fake inserts are smoothed. Each segment is the more probable class (FAKE only above 50%)${n['NO SPEECH'] ? '; grey parts have no speech, so the model gave them no score' : ''}.`}
         Click a segment to play it.</div>
     </div><div class="lst"><div class="lh2"><span>Segment breakdown</span><span>confidence</span></div><div class="rows" id="srows">${rows}</div></div></div>`;
   const tip = $('btip');
@@ -550,7 +551,7 @@ function buildCard(){
   axisCard(); }
 function axisCard(){ const ax = $('sbax'); if (!ax) return; const s = LS[0].d.seg, w = ax.clientWidth || 300;
   // a block shows its word only when it is wide enough to read
-  $('card').querySelectorAll('.blk').forEach(b => { const l = b.dataset.l, need = l === '?' ? 10 : 34;
+  $('card').querySelectorAll('.blk').forEach(b => { const l = b.dataset.l, need = 34;
     b.textContent = b.offsetWidth >= need ? l : ''; });
   const step = niceStep(s.duration_s, w * .9); let h = '';
   for (let t = 0; t <= s.duration_s + 1e-9; t += step){ const l = t / s.duration_s * 100;

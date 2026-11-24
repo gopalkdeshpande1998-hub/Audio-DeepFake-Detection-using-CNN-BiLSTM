@@ -140,9 +140,9 @@ USE
                 a table, CSV download and "Clear history". Lost on reload.
 
 RESEARCH  (reads experiments/ and docs/ only; never loads PyTorch, so it opens fast)
-  Results         EER comparison of every model on every test set, plus tabs:
-                  Main comparison, Retired ensemble, Robustness, Calibration,
-                  Frequency bands, Speed.
+  Results         Test results on 100 real + 100 fake ASVspoof 2019 eval clips: accuracy, F1,
+                  precision, recall, mistakes per 100 and missed fakes by system, as bar
+                  charts, plus the large held-out test figures.
   Error analysis  Where E7a goes wrong on held-out data and when to trust a verdict.
 
 ABOUT
@@ -197,43 +197,36 @@ The result is shown top to bottom in this order.
 
 4.4  SPECTROGRAM LAB WITH SEGMENT ANALYSIS (interactive)
      What it shows:  A custom player with the waveform (top) and spectrogram (bottom) of the whole
-                     recording on ONE shared time axis, plus the segment-level authenticity layer:
-                       - The recording is split into equal segments (1 s for clips up to a minute,
-                         longer for long files, at most 60). Each segment gets the mean log-odds of
-                         the model's local scores whose centre falls inside it (E7a, 4-s windows
-                         every 0.5 s, calibrated):
-                             REAL       local synthetic score below 40%      green
-                             UNCERTAIN  40-60%, too close to call             amber
-                             FAKE       60% or more                           red
-                             NO SPEECH  no speech, not scored                 grey
+                     recording on ONE shared time axis, plus the segment-level authenticity layer.
+                     Segments come from the segment model (one prediction every 0.16 s, trained on
+                     PartialSpoof's time-stamped labels). Every segment is exactly one of:
+                             REAL   P(real) >= P(fake)  (a 50/50 tie is REAL)   green
+                             FAKE   P(fake) >  P(real)                          red
+                             NO SPEECH  silence (no speech energy)              grey
+                     There is no uncertain class: a 51% / 49% speech segment still gets the winning
+                     label. Grey marks silence only; it is not a real/fake judgement.
                        - SEGM. strip above the views: one coloured cell per segment.
                        - The waveform is coloured by its segment, on a faint matching background.
-                       - The spectrogram carries a transparent green / amber / red overlay (the
-                         frequency pattern stays readable) with a coloured edge on top.
-                       - White vertical lines where the classification changes; faint lines
-                         between segments of the same class. Time markers (0s, 2s, ...) below.
+                       - The spectrogram carries a transparent green / red overlay (the frequency
+                         pattern stays readable) with a coloured edge on top.
+                       - White vertical lines where the classification changes. Time markers below.
                        - Hover anywhere: time, frequency, level and the segment's label and
                          confidence.
-     SEGMENT ANALYSIS CARD (under the views; this replaces the old Temporal-patterns bar strip)
-                     - Status chip: "Mixed: real + fake", "Fake segments", "Uncertain segments"
-                       or "All segments real".
-                     - Authenticity timeline: adjacent coloured blocks [REAL][REAL][FAKE][REAL]
-                       on the recording's own time scale. Hover = start/end, label, confidence.
-                       CLICK = jump to that segment and play it.
-                     - Stats: % of the speech that is REAL and FAKE, seconds analysed of the total,
-                       and the number of REAL / FAKE / UNCERTAIN segments.
-                     - Segment breakdown list: "2.0-3.0 s  FAKE  96%" for every segment; clickable.
+     SEGMENT ANALYSIS CARD (under the views)
+                     - Status chip: "Mixed: real + fake", "Fake segments" or "All segments real".
+                     - Authenticity timeline: adjacent green/red blocks [REAL][FAKE][REAL]... on the
+                       recording's own time scale, with grey blocks for silence and no gaps. Hover = start/end, label,
+                       confidence. CLICK = jump to that segment and play it.
+                     - Stats: % and seconds of REAL and FAKE audio, seconds analysed, and the number
+                       of REAL and FAKE segments.
+                     - Segment breakdown list: "3.0-6.6 s  FAKE  99%" for every segment; clickable.
                      - While audio plays, the current segment is outlined in the strip, the
                        timeline and the list.
-                     Confidence = the model's calibrated probability for the segment's side
-                     (max of P(fake), P(real)); for UNCERTAIN the synthetic % is shown. It is not an
-                     accuracy.
-     Honest limits:  Each segment's score comes from 4-s windows, so it also "hears" about 2 s
-                     on either side: short fake inserts are smoothed and boundaries are approximate
-                     (about +/-2 s). Clips that fit in one analysis window (about 4 s or less) get
-                     NO segment labels - the card says "Segment-level analysis is unavailable" and
-                     the file verdict applies to the whole clip. Nothing is ever derived from the
-                     waveform amplitude.
+                     Confidence = the model's calibrated probability for the segment's class. It is
+                     shown for information only and never changes the label. It is not an accuracy.
+     Fallback:       without the segment model installed, segments are approximated from the
+                     whole-clip model's 4-s windows (FAKE only above 50%); clips that fit in one window
+                     get no segment labels, and blocks the old model never scored (silence) stay grey.
      Controls:       Play/Pause (Space), Zoom in/out/reset (+, -, 0), pan (arrow keys),
                      toggle Wave / Spectrum, frequency range (0-8 kHz full, 0-4 kHz
                      speech, 4-8 kHz high band, 0-1 kHz pitch), volume, playback speed.
@@ -321,13 +314,12 @@ The result is shown top to bottom in this order.
 4.6  SYNTHETIC PROBABILITY OVER TIME (main timeline chart, interactive)
      Axes:     x = time (s); y = synthetic score 0-100%, with the 50 tick labelled
                "50 > threshold".
-     Layers:   - Background zones: red "SYNTHETIC zone" (60-100%), amber "near the line"
-                 (40-60%), green "REAL zone" (0-40%).
+     Layers:   - Background zones: red "SYNTHETIC zone" (above 50%), green "REAL zone" (50% and
+                 below).
                - Grey dashed horizontal line at 50% = the decision threshold.
                - Blue smooth line = local synthetic probability over time; it breaks
                  (gaps) where there is no speech.
-               - Dots on the line use the segment classes: green < 40%, amber 40-60%,
-                 red >= 60%.
+               - Dots: red when FAKE is the more probable class (above 50%), green otherwise.
                - Flagged segments: faint red rectangles, dashed red edges, labels S1, S2...
                - Hover anywhere: a vertical cursor and tooltip with time span, local
                  result and synthetic %.
@@ -336,7 +328,8 @@ The result is shown top to bottom in this order.
      How to read it:
                - Line flat and low in the green zone -> consistently real-looking.
                - Line flat and high in the red zone -> consistently synthetic-looking.
-               - Line hovering in the amber band -> the model is unsure in that region.
+               - Line close to 50% -> the call in that region is weak (the label is still
+                 REAL or FAKE; the low confidence shows in the number).
                - Line jumping from green to red and back -> partial manipulation is
                  possible (e.g. a synthetic sentence inserted into real speech), or the
                  model reacts to a change of noise/channel. Listen to that part.
@@ -450,40 +443,30 @@ The result is shown top to bottom in this order.
      (The page reads these from the error-analysis file; if that file is missing it
      shows built-in fallback numbers.)
 
-6.2  RESULTS > MAIN COMPARISON - grouped horizontal bar chart
-     y = model, x = EER % (Equal Error Rate: the operating point where the share of
-     fakes accepted equals the share of reals rejected; LOWER IS BETTER). One coloured
-     bar per test set: ASVspoof eval (cyan), In-the-Wild (green), DEEP-VOICE per
-     recording (amber), degraded eval (grey). Bars are means over seeds (tooltip shows
-     the seed count). Models are sorted best-first.
-     Key result (from the model card):
-        Model                                  ASVspoof eval  In-the-Wild  DEEP-VOICE
-        v1 CNN-BiLSTM, MFCC                    7.97           47.3         52.4
-        E4a CNN-BiLSTM, LFCC + RawBoost        14.38          47.4         50.3
-        E7a WavLM-Base+ + CNN-BiLSTM-Att       6.22           10.67        12.50
-     Analysis: models trained from scratch on handcrafted features (MFCC, LFCC) do
-     well on studio ASVspoof audio but are near chance (~50% EER) on real internet audio
-     and voice conversion - they learned dataset shortcuts. The self-supervised WavLM
-     front-end generalises far better, which is why E7a is the app's model.
-     Tables for Phase 2 (features, shortcuts, augmentation) are in an expander.
-
-6.3  RESULTS > RETIRED ENSEMBLE - tables of the old 3-model ensemble (record only).
-
-6.4  RESULTS > ROBUSTNESS - images of EER under degradations (MP3 and Opus at two bit
-     rates, telephone band, white noise 20/10/5 dB, pink noise) on eval and dev. A line
-     or bar that rises sharply for a condition = the model is fragile to that channel.
-
-6.5  RESULTS > CALIBRATION - reliability diagram per model (select a model).
-     x = predicted probability (binned), y = observed fraction of fakes. The diagonal is
-     perfect calibration. Points below the diagonal = over-confident towards fake; above
-     = under-confident. ECE (expected calibration error) for E7a: ASVspoof eval
-     14.0% -> 12.2% after calibration; In-the-Wild 7.3% -> 5.0%.
-
-6.6  RESULTS > FREQUENCY BANDS - per-attack frequency-band analysis image: which
-     frequency bands carry the evidence for each attack type (from spectrogram models).
-
-6.7  RESULTS > SPEED - efficiency table (parameters, time per second of audio).
-     E7a runs at about 16x real time on CPU.
+6.2  RESULTS PAGE (100 real + 100 fake ASVspoof 2019 eval clips, never used in training)
+     Three methods are compared, each with a fixed colour:
+        blue    App verdict (E7a)            - the verdict the app shows today
+        gold    New model: whole clip        - the segment model's own whole-clip output
+        violet  New model: any FAKE segment  - FAKE if any part of the clip is marked FAKE
+     a) Stat tiles: accuracy of the app verdict (92.5%) and the new model (98.0%); real clips
+        called FAKE per 100 (0 / 1) and fake clips called REAL per 100 (15 / 3).
+     b) "Accuracy, F1, precision and recall" - grouped bars, value on each bar. Higher is
+        better. Precision = of the clips called FAKE, how many were fake; recall = of the fake
+        clips, how many were caught.
+           App verdict:        accuracy 92.5, F1 91.9, precision 100, recall 85
+           New model clip:     accuracy 98.0, F1 98.0, precision 99,  recall 97
+           Any FAKE segment:   accuracy 98.5, F1 98.5, precision 98,  recall 99
+     c) "Mistakes per 100 recordings" - lower is better. Real called FAKE: 0 / 1 / 2.
+        Fake called REAL: 15 / 3 / 1. Reading: the app verdict almost never accuses real
+        speech but misses about 1 fake in 7 here; the new model catches far more fakes.
+     d) "Which fakes are missed" - missed fake clips per fake-speech system (A07-A19). Most
+        misses are A10 (8 of 9 for the app verdict), then A11 and A07.
+     e) "All numbers" - the counts behind the charts (fakes caught, real called FAKE, fakes
+        missed, real correct).
+     f) "On the large held-out tests" - the reliable long-run figures: app verdict on
+        ASVspoof eval (71,237 clips) and In-the-Wild (31,779), new model on PartialSpoof eval.
+     With 100 clips per class one mistake moves a rate by 1 point, so small differences
+     between the two new-model methods are within noise.
 
 6.8  ERROR ANALYSIS PAGE
      Choose a test set (ASVspoof eval, In-the-Wild). Stat cards: clips, accuracy, real

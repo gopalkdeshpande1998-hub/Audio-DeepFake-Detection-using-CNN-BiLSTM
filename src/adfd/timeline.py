@@ -68,10 +68,10 @@ def step_logodds(spans: list[tuple[int, int]], z: np.ndarray, n: int, step: floa
 
 
 def timeline_regions(t0: np.ndarray, p: np.ndarray, step: float, dur: float) -> list[dict]:
-    """Consecutive steps merged into Fake (p >= 0.5), Real (p < 0.5) and No speech (no score) regions."""
+    """Consecutive steps merged into Fake (p > 0.5), Real (p <= 0.5) and No speech (no score) regions."""
     out = []
     for t, q in zip(t0, p):
-        lab = "No speech" if not np.isfinite(q) else ("Fake" if q >= DECISION_P else "Real")
+        lab = "No speech" if not np.isfinite(q) else ("Fake" if q > DECISION_P else "Real")   # 50/50 -> Real
         if out and out[-1]["label"] == lab:
             out[-1]["end_s"] = float(min(t + step, dur))
             out[-1]["p"].append(q)
@@ -86,31 +86,32 @@ def timeline_regions(t0: np.ndarray, p: np.ndarray, step: float, dur: float) -> 
 # ---------------------------------------------------------------------------------------
 # segment-level authenticity blocks (display only)
 # ---------------------------------------------------------------------------------------
-UNCERTAIN = (0.4, 0.6)            # local P(fake) in [0.4, 0.6) is shown UNCERTAIN, not forced to REAL / FAKE
 BLOCK_SIZES = (1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 30.0, 60.0)
 MAX_BLOCKS = 60
-LABELS = ("REAL", "FAKE", "UNCERTAIN", "NO SPEECH")
+LABELS = ("REAL", "FAKE", "NO SPEECH")
 
 
-def block_label(p: float | None, uncertain: tuple[float, float] = UNCERTAIN) -> str:
+def block_label(p: float | None) -> str:
+    """Argmax of (P(real), P(fake)): FAKE only when P(fake) > P(real); a 50/50 tie is REAL. A block the model
+    never scored (no speech in any of its windows) has no probability and stays NO SPEECH."""
     if p is None or not np.isfinite(p):
         return "NO SPEECH"
-    return "FAKE" if p >= uncertain[1] else "REAL" if p < uncertain[0] else "UNCERTAIN"
+    return "FAKE" if p > 1.0 - p else "REAL"
 
 
 def segment_blocks(per_step: list[dict], dur: float, step_s: float, window_s: float, time_resolved: bool,
-                   uncertain: tuple[float, float] = UNCERTAIN, max_blocks: int = MAX_BLOCKS) -> dict:
+                   max_blocks: int = MAX_BLOCKS) -> dict:
     """Group the model's timeline steps into equal display blocks (1 s for clips up to a minute).
 
     Every block gets the mean log-odds of the scored timeline steps whose centre falls inside it (the same
-    model scores the timeline chart draws: 4-s windows of E7a, calibrated), labelled FAKE at >= 60%, REAL
-    below 40% and UNCERTAIN in between; blocks without a scored step are NO SPEECH. Confidence is the
-    model's probability for the block's leading side, never an accuracy. When the recording fits in one
+    model scores the timeline chart draws: 4-s windows of E7a, calibrated), labelled by argmax (FAKE if
+    P(fake) > P(real), else REAL); blocks without any scored step are NO SPEECH. Confidence is the model's
+    probability for the block's class (informational, never an accuracy and never a reason to withhold a label). When the recording fits in one
     analysis window (no time resolution) nothing is invented: 'available' is False with the reason.
     """
     scored = [w for w in per_step if w.get("p_fake") is not None]
     base = {"block_s": None, "window_s": float(window_s), "step_s": float(step_s), "duration_s": float(dur),
-            "uncertain": list(uncertain), "blocks": []}
+            "blocks": []}
     if not time_resolved or len(scored) < 2:
         why = (f"The recording fits in one {window_s:.0f}-s analysis window, so the model gives one score for the "
                "whole clip and cannot say which part is real or fake." if not scored or not time_resolved else
@@ -127,12 +128,12 @@ def segment_blocks(per_step: list[dict], dur: float, step_s: float, window_s: fl
     for a, b in zip(edges[:-1], edges[1:]):
         m = (centres >= a) & (centres < b) & np.isfinite(zs)
         p = float(1 / (1 + np.exp(-zs[m].mean()))) if m.any() else None
-        lab = block_label(p, uncertain)
+        lab = block_label(p)
         blocks.append({"start_s": float(a), "end_s": float(b), "label": lab, "p_fake": p, "n_steps": int(m.sum()),
                        "confidence": None if p is None else float(max(p, 1 - p))})
     secs = {k: sum(x["end_s"] - x["start_s"] for x in blocks if x["label"] == k) for k in LABELS}
-    speech = secs["REAL"] + secs["FAKE"] + secs["UNCERTAIN"]
-    pct = {k: (100 * secs[k] / speech if speech else 0.0) for k in ("REAL", "FAKE", "UNCERTAIN")}
+    speech = secs["REAL"] + secs["FAKE"]
+    pct = {k: (100 * secs[k] / speech if speech else 0.0) for k in ("REAL", "FAKE")}
     return {**base, "available": True, "reason": None, "block_s": float(size), "blocks": blocks,
             "seconds": secs, "pct_of_speech": pct, "analysed_s": float(speech),
             "counts": {k: sum(x["label"] == k for x in blocks) for k in LABELS}}

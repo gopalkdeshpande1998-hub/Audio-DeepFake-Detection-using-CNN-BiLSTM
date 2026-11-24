@@ -22,10 +22,11 @@ import pandas as pd
 import soundfile as sf
 
 from adfd.data.partialspoof import load_seglab
-from adfd.paths import REPO_ROOT
+from adfd.paths import REPO_ROOT, load_paths
 
-ROOT = Path("F:/PartialSpoof/database")
-AUDIO = {"dev": Path("F:/database_dev mixed/database/dev/con_wav"), "eval": ROOT / "eval" / "con_wav"}
+_P = load_paths()
+ROOT = _P.dataset("partialspoof")                          # configs/paths.yaml (or ADFD_PATHS)
+AUDIO = {"dev": _P.dataset("partialspoof_dev_audio"), "eval": ROOT / "eval" / "con_wav"}
 VAL_SPEAKERS = 4
 SEED = 2026
 

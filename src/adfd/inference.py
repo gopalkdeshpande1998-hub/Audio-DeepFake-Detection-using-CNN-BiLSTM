@@ -31,6 +31,7 @@ import torch
 from torch import nn
 
 from adfd.calibration import Calibration, sigmoid
+from adfd.device import resolve as resolve_device
 from adfd.data.datasets import fit_length, normalize_level
 from adfd.data.silence import speech_bounds
 from adfd.models import build_model, count_parameters
@@ -107,7 +108,7 @@ class Window:
 class Analyzer:
     def __init__(self, run_dir, device: str = "cpu"):
         self.run_dir = Path(run_dir)
-        self.device = torch.device(device if device == "cpu" or torch.cuda.is_available() else "cpu")
+        self.device = torch.device(resolve_device(device))      # cuda / mps (macOS) / cpu
         if self.run_dir.name in VOICEGUARD_MODELS and not (self.run_dir / "best.pt").exists():
             # external VoiceGuard checkpoint: 5 s zero-padded log-mel input, no trimming
             self.cfg = {"audio": {"crop_seconds": VG_CLIP_S, "pad_mode": "zero", "trim_silence": False,

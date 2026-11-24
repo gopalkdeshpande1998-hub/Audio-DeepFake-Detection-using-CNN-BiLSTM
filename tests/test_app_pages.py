@@ -92,3 +92,30 @@ det.remember("clip.wav", det.registry.MODEL, res, "k")
     assert "sole detection model" in rep and "The three models" not in rep
     h = at.session_state["history"][0]
     assert h["verdict"] == word and "models_agreeing" not in h
+
+
+def test_compare_shows_only_loudness_frequency_and_amplitude_features():
+    st_testing = pytest.importorskip("streamlit.testing.v1")
+    script = """
+import io
+import numpy as np
+import soundfile as sf
+import streamlit as st
+from ui import theme
+from ui import pages
+theme.inject()
+def wav(f, amp):
+    t = np.arange(3 * 16000) / 16000
+    x = (amp * np.sin(2 * np.pi * f * t) * (1 + 0.5 * np.sin(2 * np.pi * 3 * t))).astype(np.float32)
+    b = io.BytesIO(); sf.write(b, x, 16000, format="WAV"); return b.getvalue()
+st.session_state.setdefault("cmp_A", {"name": "a.wav", "data": wav(220, 0.3)})
+st.session_state.setdefault("cmp_B", {"name": "b.wav", "data": wav(440, 0.1)})
+pages.compare()
+"""
+    at = st_testing.AppTest.from_string(script, default_timeout=180).run()
+    assert not at.exception, at.exception
+    text = " ".join(m.value for m in at.markdown)
+    for kept in ("RMS energy", "Spectral centroid", "Spectral roll-off", "Crest factor"):
+        assert kept in text, kept
+    for gone in ("Zero-crossing rate", "Spectral flatness", "MFCC"):
+        assert gone not in text, gone

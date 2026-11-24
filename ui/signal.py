@@ -1,5 +1,5 @@
 """Display-side signal measurements: waveform peaks, the spectrogram, the average spectrum and plain acoustic
-features (RMS, spectral centroid, roll-off, zero-crossing rate, flatness, MFCC means).
+features (RMS, spectral centroid, roll-off, zero-crossing rate, flatness, crest factor).
 
 Everything here is measured from the decoded audio the app already holds; nothing feeds the detector.
 """
@@ -111,13 +111,6 @@ def features(x: np.ndarray, sr: int) -> dict:
         "active_pct": float(100 * active.mean()),
     }
     out["crest_db"] = out["peak_dbfs"] - out["rms_dbfs"]
-    try:
-        import librosa
-
-        m = librosa.feature.mfcc(y=x.astype(np.float32), sr=sr, n_mfcc=13, n_fft=N_FFT, hop_length=hop)
-        out["mfcc_mean"] = m[:, : len(active)][:, active[: m.shape[1]]].mean(axis=1).astype(float).tolist()
-    except Exception:  # noqa: BLE001  (MFCCs are optional in the comparison)
-        out["mfcc_mean"] = None
     return out
 
 

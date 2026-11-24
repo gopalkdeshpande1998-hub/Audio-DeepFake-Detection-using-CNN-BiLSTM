@@ -31,7 +31,8 @@ class Paths:
 
 
 def _resolve(p: str | Path) -> Path:
-    p = Path(p)
+    """Absolute paths as given; ~ and $VARS expanded (macOS / Linux homes); relative ones from the repo root."""
+    p = Path(os.path.expandvars(os.path.expanduser(str(p))))
     return p if p.is_absolute() else (REPO_ROOT / p)
 
 
@@ -64,4 +65,6 @@ def configure_caches(paths: Paths | None = None) -> Path:
     os.environ.setdefault("TORCH_HOME", str(cache / "torch"))
     os.environ.setdefault("PIP_CACHE_DIR", str(cache / "pip"))
     os.environ.setdefault("MPLCONFIGDIR", str(cache / "matplotlib"))
+    # macOS (Apple silicon): run operators the MPS backend lacks on the CPU instead of failing
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     return cache

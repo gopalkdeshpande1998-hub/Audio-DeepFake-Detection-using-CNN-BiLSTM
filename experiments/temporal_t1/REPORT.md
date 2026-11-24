@@ -1,5 +1,12 @@
 # T1 segment-level detector: results (2026-11-24)
 
+> **Update (2026-11-24, later):** the app no longer has an UNCERTAIN class. Silent parts are NO SPEECH (grey,
+> not classified); every speech segment is REAL or FAKE by argmax of its calibrated probabilities (FAKE only if P(fake) > P(real), ties REAL); confidence is
+> informational. The model and its calibration are unchanged. The frame metrics below were measured at the
+> validation EER threshold 0.49; at the app's 0.5 the threshold sweep gives, on the 6,000 test utterances,
+> precision 0.938, recall 0.874, F1 0.905, false-positive rate 5.7% (vs 0.936 / 0.876 / 0.905 / 5.9% at 0.49).
+> The "UNCERTAIN band" row and the example's UNCERTAIN / NO SPEECH regions describe the earlier version.
+
 Run `runs/t1_wavlm_crnn_temporal_s42` (config `configs/t1_wavlm_crnn_temporal.yaml`), 1 seed, 2 epochs
 (37 min on the RTX 3050). Raw numbers: `test.json`, `test_long.json`; calibration:
 `runs/t1_wavlm_crnn_temporal_s42/temporal_calibration.json`.

@@ -38,28 +38,29 @@ VIDEO_TYPES = ["mp4", "mov", "mkv", "avi", "webm"]
 MAX_MB = 50
 MAX_SECONDS = 600                                  # longer files: the first 10 minutes are analysed
 DECISION = 50.0                                    # % : FAKE at or above, REAL below
-BORDER = 10.0                                      # amber band +-10 around the line: visual reference only
 LIMITS = ("Research prototype. The final verdict is always REAL or SYNTHETIC, decided by one model (WavLM + "
           "CNN-BiLSTM-Att, E7a) at 50%. Every verdict can be wrong. On held-out tests it calls 0.1% of real ASVspoof "
-          "studio recordings and 6.7% of real In-the-Wild clips SYNTHETIC, but misses about 1 in 5 fakes on both, and "
+          "studio recordings SYNTHETIC, but misses about 1 in 5 fakes, and "
           "about 3 in 4 voice-conversion fakes (DEEP-VOICE windows); see the Error analysis page. Flagged regions are "
           "model-flagged suspicions, not proof of manipulation. Never use one verdict as evidence on its own.")
 
 
-def gpu_available() -> bool:
-    import torch
+def gpu_device() -> str | None:
+    """The GPU this machine has: "cuda" (NVIDIA) or "mps" (Apple silicon), else None."""
+    from adfd.device import gpu_device as _gpu
 
-    return torch.cuda.is_available()
+    return _gpu()
+
+
+def gpu_available() -> bool:
+    return gpu_device() is not None
 
 
 def default_device() -> str:
-    """ADFD_DEVICE if set, else the GPU when PyTorch can see one, else the CPU."""
-    import os
+    """ADFD_DEVICE if set, else the GPU PyTorch can see (CUDA or Apple MPS), else the CPU."""
+    from adfd.device import best_device
 
-    env = os.environ.get("ADFD_DEVICE")
-    if env:
-        return env
-    return "cuda" if gpu_available() else "cpu"
+    return best_device()
 
 
 def device() -> str:
@@ -67,12 +68,9 @@ def device() -> str:
 
 
 def device_label(dev: str | None = None) -> str:
-    dev = dev or device()
-    if dev.startswith("cuda") and gpu_available():
-        import torch
+    from adfd.device import describe
 
-        return f"GPU ({torch.cuda.get_device_name(0)})"
-    return "CPU"
+    return describe(dev or device())
 
 
 @st.cache_resource(show_spinner="Loading models…", max_entries=3)
@@ -98,11 +96,10 @@ def _free_gpu() -> None:
     _load_analyzer.clear()
     import gc
 
-    import torch
+    from adfd.device import empty_cache
 
     gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    empty_cache()
 
 
 def run_analysis(run: str, an, x: np.ndarray, **kw) -> dict:
@@ -111,11 +108,15 @@ def run_analysis(run: str, an, x: np.ndarray, **kw) -> dict:
 
     try:
         return an.analyze(x, **kw)
-    except torch.OutOfMemoryError:
-        log.warning("CUDA out of memory; retrying on the CPU")
+    except (torch.OutOfMemoryError, RuntimeError, NotImplementedError) as e:
+        # CUDA raises OutOfMemoryError; Apple MPS raises RuntimeError when out of memory and NotImplementedError for
+        # a missing operator. On the CPU there is nothing to fall back to.
+        if device() == "cpu":
+            raise
+        log.warning("analysis on %s failed (%r); retrying on the CPU", device(), e)
         _free_gpu()
         st.session_state["device"] = "cpu"
-        st.warning("The GPU ran out of memory on this file, so it was analysed on the CPU instead.", icon="⚠️")
+        st.warning("The GPU could not finish this file, so it was analysed on the CPU instead.", icon="⚠️")
         kw.pop("progress", None)
         return _load_analyzer(run, "cpu").analyze(x, **kw)
 
@@ -235,7 +236,7 @@ def model_card_html(res: dict, status: str | None = None) -> str:
             f"</span><span>Sole detection model</span></div></div>")
 
 
-TRUST_SETS = {"ASVspoof eval": "Studio TTS, unseen attacks", "In-the-Wild": "Internet audio (partly seen by one model)"}
+TRUST_SETS = {"ASVspoof eval": "Studio TTS, unseen attacks"}      # held-out sets shown in the trust panels
 
 
 def trust_of(res: dict) -> dict:
@@ -251,7 +252,7 @@ def trust_html(t: dict) -> str:
             c = GREEN if s["accuracy_pct"] >= 90 else AMBER if s["accuracy_pct"] >= 70 else RED
             bars += bar(f"{sub} · n = {s['n']:,}", s["accuracy_pct"], c)
     basis = next((s["basis"] for s in t["sets"].values()), None)
-    weak = [(TRUST_SETS.get(k, k), v["accuracy_pct"]) for k, v in t["sets"].items() if v["accuracy_pct"] < 50]
+    weak = [(TRUST_SETS[k], v["accuracy_pct"]) for k, v in t["sets"].items() if k in TRUST_SETS and v["accuracy_pct"] < 50]
     advice = t["advice"]
     if weak:
         advice += " But on " + ", ".join(f"{n[0].lower() + n[1:]} ({a:.0f}% right)" for n, a in weak) + (
@@ -276,7 +277,7 @@ def trust_panel_html(t: dict) -> str:
             c = GREEN if s["accuracy_pct"] >= 90 else AMBER if s["accuracy_pct"] >= 70 else RED
             bars += bar(f"{sub} · n = {s['n']:,}", s["accuracy_pct"], c)
     basis = next((s["basis"] for s in t["sets"].values()), None)
-    weak = [(TRUST_SETS.get(k, k), v["accuracy_pct"]) for k, v in t["sets"].items() if v["accuracy_pct"] < 50]
+    weak = [(TRUST_SETS[k], v["accuracy_pct"]) for k, v in t["sets"].items() if k in TRUST_SETS and v["accuracy_pct"] < 50]
     advice = t["advice"]
     if weak:
         advice += " But on " + ", ".join(f"{n[0].lower() + n[1:]} ({a:.0f}% right)" for n, a in weak) + (
@@ -297,7 +298,7 @@ def trust_panel_html(t: dict) -> str:
 # time charts (Altair: tooltips and hover)
 # ---------------------------------------------------------------------------------------
 def step_label(p) -> str:
-    """The segment classes of the lab and the Temporal patterns card (adfd.timeline.block_label)."""
+    """REAL / FAKE by argmax (adfd.timeline.block_label), as in the lab and the Temporal patterns card."""
     from adfd.timeline import block_label
 
     return block_label(p)
@@ -319,9 +320,8 @@ def timeline_chart(res: dict):
     df = pd.DataFrame(rows)
     xs = alt.X("t:Q", title="time (s)", scale=alt.Scale(domain=[0, max(dur, 1e-3)], nice=False))
     ysc = alt.Scale(domain=[0, 100], nice=False)
-    zones = pd.DataFrame([{"y0": DECISION + BORDER, "y1": 100, "c": RED, "z": "SYNTHETIC zone"},
-                          {"y0": DECISION - BORDER, "y1": DECISION + BORDER, "c": AMBER, "z": "near the line"},
-                          {"y0": 0, "y1": DECISION - BORDER, "c": GREEN, "z": "REAL zone"}])
+    zones = pd.DataFrame([{"y0": DECISION, "y1": 100, "c": RED, "z": "SYNTHETIC zone"},
+                          {"y0": 0, "y1": DECISION, "c": GREEN, "z": "REAL zone"}])
     y_axis = alt.Axis(values=[0, 20, 40, 50, 60, 80, 100], labelOverlap=False, labelFontWeight=alt.ExprRef(
         "datum.value == 50 ? 'bold' : 'normal'"), labelExpr=f"datum.value == {DECISION:g} ? "
         f"'{DECISION:g} ▸ threshold' : datum.label")
@@ -353,7 +353,7 @@ def timeline_chart(res: dict):
         x=xs, y=alt.Y("score:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"), detail="run:N"))
     layers.append(alt.Chart(scored).mark_point(filled=True, size=36, opacity=1).encode(
         x=xs, y=alt.Y("score:Q", scale=ysc, axis=y_axis, title="synthetic score (%)"),
-        color=alt.Color("here:N", scale=alt.Scale(domain=["REAL", "UNCERTAIN", "FAKE"], range=[GREEN, AMBER, RED]), legend=None)))
+        color=alt.Color("here:N", scale=alt.Scale(domain=["REAL", "FAKE"], range=[GREEN, RED]), legend=None)))
     hover = alt.selection_point(fields=["t"], nearest=True, on="pointerover", empty=False, clear="pointerout")
     tips = [alt.Tooltip("time:N", title="time"), alt.Tooltip("here:N", title="local result"),
             alt.Tooltip("score:Q", title="synthetic %", format=".1f")]
@@ -539,7 +539,7 @@ def _secondary(meas: dict, P: dict, k: str, nm: str, unit: str) -> str:
     return f"{nm}: <b>{v:.3f} {unit}</b>" + (f" (percentile {P[k]:.0f})" if P.get(k) is not None else "")
 
 
-BLOCK_COLOR = {"REAL": GREEN, "FAKE": RED, "UNCERTAIN": AMBER, "NO SPEECH": GREY}
+BLOCK_COLOR = {"REAL": GREEN, "FAKE": RED, "NO SPEECH": GREY}
 
 
 def block_strip_html(sb: dict) -> str:
@@ -548,10 +548,10 @@ def block_strip_html(sb: dict) -> str:
     cells = []
     for b in sb["blocks"]:
         lab_, p = b["label"], b["p_fake"]
-        tip = (f"{b['start_s']:.1f}–{b['end_s']:.1f} s · {lab_}" + ("" if p is None else
-               f" · {100 * p:.0f}% synthetic" if lab_ == "UNCERTAIN" else f" · {100 * b['confidence']:.0f}% confidence"))
+        tip = (f"{b['start_s']:.1f}–{b['end_s']:.1f} s · {lab_}"
+               + ("" if p is None else f" · {100 * b['confidence']:.0f}% confidence"))
         wide = (b["end_s"] - b["start_s"]) / dur >= 0.09                     # room for a word in the card
-        txt = "" if lab_ == "NO SPEECH" or not wide else ("?" if lab_ == "UNCERTAIN" else lab_)
+        txt = "" if lab_ == "NO SPEECH" or not wide else lab_
         cells.append(f"<i style='left:{100 * b['start_s'] / dur:.3f}%;width:{100 * (b['end_s'] - b['start_s']) / dur:.3f}%;"
                      f"--c:{BLOCK_COLOR[lab_]}' title='{esc(tip)}'>{txt}</i>")
     ticks = "".join(f"<span style='left:{min(max(100 * t / dur, 3), 97):.2f}%'>{t:g}s</span>"
@@ -567,7 +567,7 @@ def _nice_ticks(dur: float, n: int = 5) -> list[float]:
 
 
 def segment_card(res: dict, meas: dict, P: dict, d: int) -> str:
-    """Temporal patterns card: the segment-level REAL / FAKE / UNCERTAIN timeline (pitch figures in the details)."""
+    """Temporal patterns card: the segment-level REAL / FAKE timeline (pitch figures in the details)."""
     from ui.lab import blocks_of
 
     sb = blocks_of(res)
@@ -584,7 +584,7 @@ def segment_card(res: dict, meas: dict, P: dict, d: int) -> str:
                       "is filled in from the waveform.<br>" + pitch, d)
     n, pc = sb["counts"], sb["pct_of_speech"]
     sev = (("Mixed real + fake", RED) if n["FAKE"] and n["REAL"] else ("Fake segments", RED) if n["FAKE"] else
-           ("Uncertain parts", AMBER) if n["UNCERTAIN"] else ("All real", GREEN))
+           ("All real", GREEN))
     val = (f"<div class='val'><span style='color:{GREEN}'>{pc['REAL']:.0f}%</span><small>real</small> "
            f"<span style='color:{RED};margin-left:10px'>{pc['FAKE']:.0f}%</span><small>fake</small></div>")
     secs = sb.get("seconds") or {}
@@ -593,17 +593,16 @@ def segment_card(res: dict, meas: dict, P: dict, d: int) -> str:
             f"{len(sb['blocks'])} segments of {sb['block_s']:g} s, approximated from the whole-clip model")
     txt = (f"{what} over {sb['duration_s']:.1f} s ({sb['analysed_s']:.1f} s with speech"
            + (f"; {secs.get('REAL', 0):.1f} s real, {secs.get('FAKE', 0):.1f} s fake" if secs else "")
-           + f"): {n['REAL']} real, {n['FAKE']} fake, {n['UNCERTAIN']} uncertain"
-           + (f", {n['NO SPEECH']} without speech" if n["NO SPEECH"] else "") + ".")
+           + f"): {n['REAL']} real, {n['FAKE']} fake"
+           + (f", {n['NO SPEECH']} without speech" if n.get("NO SPEECH") else "") + ".")
     rows = "".join(f"<li><span style='color:{BLOCK_COLOR[b['label']]};font-weight:700'>{b['label']}</span> "
                    f"{b['start_s']:.1f}–{b['end_s']:.1f} s"
-                   + ("" if b["p_fake"] is None else f" · {100 * b['p_fake']:.0f}% synthetic"
-                      if b["label"] == "UNCERTAIN" else f" · {100 * b['confidence']:.0f}%") + "</li>"
+                   + ("" if b["p_fake"] is None else f" · {100 * b['confidence']:.0f}%") + "</li>"
                    for b in sb["blocks"][:40])
     more = f"<br>… {len(sb['blocks']) - 40} more in the segment card of the lab." if len(sb["blocks"]) > 40 else ""
     return _xcard("Temporal patterns", "clock", sev, val, txt, block_strip_html(sb),
-                  f"Segment breakdown (REAL below {100 * sb['uncertain'][0]:.0f}%, UNCERTAIN, FAKE at "
-                  f"{100 * sb['uncertain'][1]:.0f}% or more; confidence is the model's probability, not an "
+                  f"Segment breakdown (each speech segment is its more probable class, FAKE only when the fake "
+                  f"probability is higher; grey NO SPEECH parts are silence; confidence is that probability, not an "
                   f"accuracy):<ul>{rows}</ul>{more}"
                   + pitch, d)
 
@@ -801,7 +800,7 @@ def result_view(name: str, x: np.ndarray, res: dict, elapsed: float | None = Non
         st.markdown(trust_panel_html(t), unsafe_allow_html=True)
 
     section("Spectrogram lab · segment analysis", "Waveform and spectrogram on one timeline, shaded by the model's "
-            "segment-level result (green REAL, red FAKE, amber UNCERTAIN). Click a segment in the card to play it.",
+            "segment-level result (green REAL, red FAKE). Click a segment in the card to play it.",
             "audio-waveform", f"{res['n_local_windows_scored']} local windows scored")
     lab.render([lab.lane(x, SR, name, "main", res)], key=f"lab_{name}")
 
@@ -816,8 +815,8 @@ def result_view(name: str, x: np.ndarray, res: dict, elapsed: float | None = Non
     else:
         st.caption(f"Each point is the model's synthetic probability for the {res['local_window_s']:.0f}-s windows "
                    f"covering that moment (one point every {res['step_s']:.1f} s; the model's own calibration). Points "
-                   "use the segment classes: green REAL below 40%, amber UNCERTAIN 40–60%, red FAKE 60% or more. "
-                   "Flagged segments below still use the 50% line. The file verdict uses the speech region's "
+                   "are green when REAL is the more probable class and red when FAKE is (above 50%). "
+                   "The file verdict uses the speech region's "
                    "windows, so a file can be SYNTHETIC without any single region crossing 50%, or REAL with a few "
                    "flagged regions.")
     segments_panel(x, res)
@@ -988,7 +987,7 @@ def _estimate(dur: float) -> tuple[int, int]:
     # measured on the project laptop's CPU: ~0.65 s (cool) to ~3.4 s (hot, throttled) per second of
     # audio up to 1 min; longer files grow more slowly (the local timeline is capped at 120 windows)
     eff = dur if dur <= 60 else 60 + 0.4 * (dur - 60)
-    on_gpu = device().startswith("cuda") and gpu_available()
+    on_gpu = device() != "cpu" and gpu_available()
     f_lo, f_hi = (0.06, 0.35) if on_gpu else (0.45, 2.5)      # E7a alone: ~70% of the old ensemble time
     return max(5, 5 * round(f_lo * eff / 5)), max(15, 5 * round(f_hi * eff / 5))
 

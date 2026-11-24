@@ -42,10 +42,11 @@ def _model_picker(det) -> str | None:
                     f"{html.escape(models[run])}</div><div style='color:#8b98ad;font-size:.75rem;margin-top:2px'>"
                     "Sole detection model · WavLM-Base+ features + CNN-BiLSTM with attention</div></div>",
                     unsafe_allow_html=True)
-        if det.gpu_available():
-            use_gpu = st.toggle("Use the GPU", value=det.default_device().startswith("cuda"), key="use_gpu",
-                                help="About 5–10× faster than the CPU. Turn off if another GPU job is running.")
-            st.session_state["device"] = "cuda" if use_gpu else "cpu"
+        gpu = det.gpu_device()                       # "cuda" (NVIDIA) or "mps" (Apple silicon Mac)
+        if gpu:
+            use_gpu = st.toggle("Use the GPU", value=det.default_device() != "cpu", key="use_gpu",
+                                help="Much faster than the CPU. Turn off if another GPU job is running.")
+            st.session_state["device"] = gpu if use_gpu else "cpu"
         else:
             st.session_state["device"] = "cpu"
         st.caption(f"Running on: **{det.device_label()}**")
@@ -119,7 +120,8 @@ def overview() -> None:
     vh = asv["reliability"]["by_confidence"].get("very high (≥90% / ≤10%)") if asv else None
     row([stat(_pct(asv["overall"]["accuracy_pct"]) if asv else "81.4%", "Accuracy, unseen attacks",
               "71,237 clips · ASVspoof 2019 LA eval, E7a", ico="shield-check"),
-         stat("10.7%", "EER on internet audio", "In-the-Wild, WavLM model alone (was 36–72%)", CYAN, "waves"),
+         stat(_pct(asv["overall"]["fake_called_real_pct"]) if asv else "–", "Fakes called REAL",
+              "ASVspoof 2019 LA eval, E7a", CYAN, "waves"),
          stat(_pct(vh["accuracy_pct"]) if vh else "99.1%", "Right at very high confidence",
               "held-out ASVspoof eval, P ≥ 90% or ≤ 10%", GREEN, "gauge"),
          stat(_pct(asv["overall"]["real_called_fake_pct"]) if asv else "11.2%", "Real recordings called SYNTHETIC",
@@ -290,73 +292,146 @@ def history() -> None:
 # ---------------------------------------------------------------------------------------
 # Research
 # ---------------------------------------------------------------------------------------
-SET_COLS = {"eval": "ASVspoof eval", "itw": "In-the-Wild", "dv": "DEEP-VOICE (recording)",
-            "deg_eval": "degraded eval"}
+METHOD_COLOR = {"App verdict (E7a)": "#3987e5", "New model: whole clip": "#c98500",
+                "New model: any FAKE segment": "#9085e9"}     # validated: CVD-safe and >= 3:1 on the dark panel
+METHOD_NOTE = {"App verdict (E7a)": "the verdict the app shows today (whole-clip model, SYNTHETIC at 50%)",
+               "New model: whole clip": "the segment model's own whole-clip output",
+               "New model: any FAKE segment": "a clip is FAKE if the segment model marks any part of it FAKE"}
+SHOWN_SETS = ("ASVspoof eval",)          # held-out test sets shown on the website (In-the-Wild removed)
+AXIS = dict(labelColor="#8b98ad", titleColor="#8b98ad", gridColor="#1f2a3c", domainColor="#2b3a52",
+            tickColor="#2b3a52", labelFont="Inter", titleFont="Inter")
 
 
-def _p3_frame() -> pd.DataFrame | None:
-    p3 = data.phase3()
-    if not p3:
-        return None
-    rows = []
-    for k, v in p3.items():
-        if k.startswith("_"):
-            continue
-        for col, name in SET_COLS.items():
-            vals = v.get(col) or []
-            if vals:
-                rows.append({"model": v["label"], "test set": name, "EER %": sum(vals) / len(vals), "seeds": len(vals)})
-    return pd.DataFrame(rows)
+def _grouped_bars(df: pd.DataFrame, x: str, y: str, title_y: str, y_max: float | None, tips: list, height: int = 300,
+                  label: str | None = None, x_sort=None):
+    """Grouped bars: one group per x category, one bar per method (fixed method colours), hover tooltip."""
+    import altair as alt
+
+    methods = list(METHOD_COLOR)
+    enc_x = alt.X(f"{x}:N", title=None, sort=x_sort, axis=alt.Axis(labelAngle=0, labelLimit=220, **AXIS))
+    enc_y = alt.Y(f"{y}:Q", title=title_y, scale=alt.Scale(domain=[0, y_max]) if y_max else alt.Undefined,
+                  axis=alt.Axis(values=[0, 20, 40, 60, 80, 100] if y_max == 110 else alt.Undefined, **AXIS))
+    base = alt.Chart(df).encode(x=enc_x, xOffset=alt.XOffset("method:N", sort=methods))
+    colour = alt.Color("method:N", sort=methods, scale=alt.Scale(domain=methods, range=list(METHOD_COLOR.values())),
+                       legend=alt.Legend(orient="bottom", title=None, labelColor="#c4cdd9", labelFont="Inter",
+                                         labelFontSize=12, symbolType="square", symbolSize=110, labelLimit=0,
+                                         columns=3, columnPadding=32, symbolOffset=0, offset=14))
+    bars = base.mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, stroke="#111827", strokeWidth=2).encode(
+        y=enc_y, color=colour, tooltip=tips)
+    layers = [bars]
+    if label:
+        layers.append(base.mark_text(dy=-7, fontSize=11, font="Inter", color="#c4cdd9").encode(y=enc_y, text=f"{label}:N"))
+    return alt.layer(*layers).properties(height=height)
+
+
+def _from_counts(fp: int, tn: int, tp: int, fn: int) -> dict:
+    truth = [False] * (fp + tn) + [True] * (tp + fn)
+    pred = [True] * fp + [False] * tn + [True] * tp + [False] * fn
+    return data.confusion_metrics(truth, pred)
 
 
 def results() -> None:
     import altair as alt
 
     hero("Research", "Results",
-         "Equal error rate (EER, lower is better) of every model on the three held-out test sets. Models, "
-         "thresholds and calibration were chosen on ASVspoof dev data only.", "chart")
-    df = _p3_frame()
-    t1, t2, t3, t4, t6, t5 = st.tabs(["Main comparison", "Retired ensemble", "Robustness", "Calibration",
-                                      "Frequency bands", "Speed"])
-    with t1:
-        if df is not None and len(df):
-            ch = alt.Chart(df).mark_bar().encode(
-                y=alt.Y("model:N", title=None, sort=alt.EncodingSortField("EER %", op="min"),
-                        axis=alt.Axis(labelLimit=340)),
-                x=alt.X("EER %:Q", title="EER (%)"),
-                color=alt.Color("test set:N", scale=alt.Scale(range=["#22d3ee", "#34d399", "#fbbf24", "#64748b"]),
-                                legend=alt.Legend(orient="bottom", title=None)),
-                yOffset="test set:N",
-                tooltip=["model", "test set", alt.Tooltip("EER %:Q", format=".2f"), "seeds"]).properties(height=520)
-            st.altair_chart(ch, width="stretch")
-        _md_file("experiments/tables/phase3.md")
-        with st.expander("Phase 2 tables: features, shortcuts, augmentation (3 seeds each)"):
-            _md_file("experiments/tables/phase2.md")
-    with t2:
-        theme.note("Research record only. The three-model ensemble (E7a + VoiceGuard improved + VoiceGuard v2) "
-                   "was retired on 2026-11-23; the app and the API now run E7a alone.", "info")
-        st.markdown("")
-        _md_file("experiments/ensemble_binary/ensemble.md")
-    with t3:
-        st.markdown("EER on ASVspoof audio degraded by codecs, noise and the telephone band.")
-        for f in ("experiments/tables/robustness_eval.png", "experiments/tables/robustness_dev.png"):
-            if data.exists(f):
-                st.image(str(data.path(f)), width="stretch")
-    with t4:
-        runs = sorted(p.stem for p in data.path("experiments/reliability").glob("*.png"))
-        if runs:
-            r = st.selectbox("Model", runs, index=runs.index("e7a_wavlm_crnn_s42") if "e7a_wavlm_crnn_s42" in runs
-                             else 0)
-            st.image(str(data.path(f"experiments/reliability/{r}.png")), width="stretch")
-            _md_file(f"experiments/reliability/{r}.md")
-    with t5:
-        _md_file("experiments/efficiency/efficiency.md")
-    with t6:
-        if data.exists("experiments/band_analysis/band_analysis.png"):
-            st.image(str(data.path("experiments/band_analysis/band_analysis.png")), width="stretch")
-            _md_file("experiments/band_analysis/band_analysis.md")
-        else:
-            st.info("Run `python scripts/band_analysis.py` to add the per-attack frequency-band analysis.")
+         "How well VoiceGuard tells real from fake speech on recordings it never saw during training: 100 real and "
+         "100 fake clips from the ASVspoof 2019 evaluation set.", "chart")
+    rows = data.sample_test()
+    if not rows:
+        st.info("The sample test results (experiments/sample_test_100/results.json) are not on this machine.")
+        return
+    truth = [r["truth"] == "fake" for r in rows]
+    m = {name: data.confusion_metrics(truth, [bool(r[k]) for r in rows]) for k, name in data.SAMPLE_METHODS.items()}
+    n_real, n_fake = sum(not t for t in truth), sum(truth)
+    spk = len({r["speaker"] for r in rows if r["truth"] == "real"})
+    systems = sorted({r["system"] for r in rows if r["truth"] == "fake"})
+    app, new = m["App verdict (E7a)"], m["New model: whole clip"]
+
+    row([stat(f"{app['accuracy']:.1f}%", "App verdict accuracy", "E7a, the verdict the app shows", ico="shield-check"),
+         stat(f"{new['accuracy']:.1f}%", "New model accuracy", "segment model, whole-clip output", ico="gauge"),
+         stat(f"{app['real_called_fake_per100']:.0f} / {new['real_called_fake_per100']:.0f}",
+              "Real clips called FAKE, per 100", "app verdict / new model", GREEN, "check"),
+         stat(f"{app['fake_called_real_per100']:.0f} / {new['fake_called_real_per100']:.0f}",
+              "Fake clips called REAL, per 100", "app verdict / new model", RED, "alert")])
+    st.markdown("")
+    theme.note(f"<b>Test set:</b> {n_real} real recordings from {spk} speakers and {n_fake} fake recordings from "
+               f"{len(systems)} fake-speech systems ({systems[0]} to {systems[-1]}), all from the ASVspoof 2019 "
+               "evaluation set, which no model here was trained on. FAKE is the class being detected. "
+               "With 100 clips per class one mistake moves a rate by 1 point.", "info")
+
+    section("Accuracy, F1, precision and recall", "Higher is better. Precision: of the clips called FAKE, how many were "
+            "fake. Recall: of the fake clips, how many were caught.", "chart")
+    names = ["Accuracy", "F1 score", "Precision", "Recall"]
+    df = pd.DataFrame([{"metric": k, "method": name, "value": round(v[key], 1), "label": f"{v[key]:.1f}"}
+                       for name, v in m.items() for k, key in zip(names, ("accuracy", "f1", "precision", "recall"))])
+    st.altair_chart(_grouped_bars(df, "metric", "value", "%", 110,
+                                  ["method", "metric", alt.Tooltip("value:Q", title="%", format=".1f")], label="label",
+                                  x_sort=names),
+                    width="stretch")
+
+    section("Mistakes per 100 recordings", "Lower is better. Left: real recordings wrongly called FAKE. Right: fake "
+            "recordings missed and called REAL.", "alert")
+    kinds = ["Real clips called FAKE", "Fake clips called REAL"]
+    df = pd.DataFrame([{"kind": kind, "method": name, "per100": round(v[key], 1),
+                        "count": f"{v[cnt]} of {v[tot]}", "label": str(v[cnt])}
+                       for name, v in m.items()
+                       for kind, key, cnt, tot in ((kinds[0], "real_called_fake_per100", "fp", "n_real"),
+                                                   (kinds[1], "fake_called_real_per100", "fn", "n_fake"))])
+    st.altair_chart(_grouped_bars(df, "kind", "per100", "per 100 recordings", None,
+                                  ["method", "kind", alt.Tooltip("count:N", title="mistakes"),
+                                   alt.Tooltip("per100:Q", title="per 100", format=".1f")], label="label", x_sort=kinds),
+                    width="stretch")
+
+    section("Which fakes are missed", "Fake clips called REAL, by the fake-speech system that made them (7 to 9 clips "
+            "each). A10 is a neural text-to-speech system that every model here finds hard.", "search")
+    per_sys = []
+    for k, name in data.SAMPLE_METHODS.items():
+        for sysid in systems:
+            fk = [r for r in rows if r["truth"] == "fake" and r["system"] == sysid]
+            miss = sum(not r[k] for r in fk)
+            per_sys.append({"system": sysid, "method": name, "missed": miss, "of": f"{miss} of {len(fk)}",
+                            "label": str(miss) if miss else ""})
+    st.altair_chart(_grouped_bars(pd.DataFrame(per_sys), "system", "missed", "fake clips missed", 10,
+                                  ["method", "system", alt.Tooltip("of:N", title="missed")], height=260,
+                                  label="label", x_sort=systems),
+                    width="stretch")
+
+    section("All numbers", "Counts behind the charts (FAKE = positive class).", "table")
+    st.dataframe(pd.DataFrame([{"method": name, "what it is": METHOD_NOTE[name],
+                                "accuracy %": round(v["accuracy"], 1), "F1 %": round(v["f1"], 1),
+                                "precision %": round(v["precision"], 1), "recall %": round(v["recall"], 1),
+                                "fakes caught": v["tp"], "real called FAKE": v["fp"], "fakes missed": v["fn"],
+                                "real correct": v["tn"]} for name, v in m.items()]),
+                 hide_index=True, width="stretch",
+                 column_config={"what it is": st.column_config.TextColumn(width="large")})
+
+    section("On the large held-out tests", "The same measures on tens of thousands of clips; these are the reliable "
+            "long-run figures.", "layers")
+    big = []
+    ea = data.error_analysis()
+    if ea:
+        for name, d in ea["sets"].items():
+            if name not in SHOWN_SETS:
+                continue
+            o = d["overall"]
+            fp = round(o["real_called_fake_pct"] / 100 * o["n_real"])
+            fn = round(o["fake_called_real_pct"] / 100 * o["n_fake"])
+            big.append({"model": "App verdict (E7a)", "test set": name, "clips": o["n"],
+                        **_from_counts(fp, o["n_real"] - fp, o["n_fake"] - fn, fn)})
+    tt = data.temporal_test()
+    if tt:
+        c = tt["t1"]["clip_confusion"]
+        big.append({"model": "New model: whole clip", "test set": "PartialSpoof eval (sample)", "clips": tt["utterances"],
+                    **_from_counts(c["fp_real_called_fake"], c["tn_real"], c["tp_fake"], c["fn_fake_called_real"])})
+    if big:
+        st.dataframe(pd.DataFrame([{"model": b["model"], "test set": b["test set"], "clips": b["clips"],
+                                    "accuracy %": round(b["accuracy"], 1), "F1 %": round(b["f1"], 1),
+                                    "real called FAKE per 100": round(b["real_called_fake_per100"], 1),
+                                    "fakes called REAL per 100": round(b["fake_called_real_per100"], 1)} for b in big]),
+                     hide_index=True, width="stretch")
+        st.caption("ASVspoof eval: studio speech, fake-speech systems unseen in training. PartialSpoof eval: the "
+                   "new model's own test set, built from the same studio recordings, so it is not directly "
+                   "comparable.")
 
 
 def errors() -> None:
@@ -370,8 +445,14 @@ def errors() -> None:
         return
     st.markdown("Where the app's model, WavLM + CNN-BiLSTM-Att (E7a), goes wrong on held-out data at its "
                 "REAL/SYNTHETIC line of 50%. Built from its stored per-clip scores by `scripts/error_analysis.py`.")
-    names = list(ea["sets"])
-    name = st.segmented_control("Test set", names, default=names[0], key="ea_set") or names[0]
+    names = [n for n in ea["sets"] if n in SHOWN_SETS]
+    if not names:
+        st.info("No held-out test set to show.")
+        return
+    name = (st.segmented_control("Test set", names, default=names[0], key="ea_set") or names[0]) if len(names) > 1         else names[0]
+    if len(names) == 1:
+        st.caption(f"Test set: {name} (ASVspoof 2019 LA evaluation: studio speech, fake-speech systems A07–A19 never "
+                   "seen in training).")
     d = ea["sets"][name]
     o = d["overall"]
     row([stat(f"{o['n']:,}", "clips" if "windows" not in name else "4-s windows"),
@@ -392,14 +473,14 @@ def errors() -> None:
 
     if "by_attack" in d:
         st.markdown("#### Per attack (ASVspoof A07–A19)")
-        att = pd.DataFrame([{"attack": a, "fakes called REAL %": v["fake_called_real_pct"],
-                             "EER %": v["merged_eer_pct"], "n": v["n"]} for a, v in d["by_attack"].items()])
+        att = pd.DataFrame([{"attack": a, "fakes called REAL %": v["fake_called_real_pct"], "n": v["n"]}
+                            for a, v in d["by_attack"].items()])
         st.altair_chart(alt.Chart(att).mark_bar(color=RED).encode(
             x=alt.X("attack:N", title=None), y=alt.Y("fakes called REAL %:Q", scale=alt.Scale(domain=[0, 100])),
             tooltip=list(att.columns)).properties(height=240), width="stretch")
         st.dataframe(att, hide_index=True, width="stretch")
-        st.caption("EER ranks the model's scores against all bona fide eval recordings; 'fakes called REAL' uses the "
-                   "app's 50% line. A10 is hard for every model in this project.")
+        st.caption("'Fakes called REAL' uses the app's 50% line; n is the number of fake recordings from that attack. "
+                   "A10 is hard for every model in this project.")
     st.markdown("#### By clip duration")
     st.dataframe(pd.DataFrame([{"duration": k, **v} for k, v in d["by_duration"].items()]), hide_index=True,
                  width="stretch")

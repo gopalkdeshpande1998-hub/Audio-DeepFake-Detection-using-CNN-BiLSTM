@@ -12,16 +12,18 @@ def steps(ps, step=0.5):
             for i, p in enumerate(ps)]
 
 
-def test_mixed_recording_gives_real_fake_and_uncertain_blocks():
+def test_mixed_recording_gives_binary_blocks_even_near_50_percent():
     ps = [0.02, 0.03, 0.05, 0.04, 0.97, 0.95, 0.5, 0.52, 0.1, 0.08]       # 5 s at 0.5-s steps
     sb = segment_blocks(steps(ps), 5.0, 0.5, 4.0, True)
     assert sb["available"] and sb["block_s"] == 1.0
-    assert [b["label"] for b in sb["blocks"]] == ["REAL", "REAL", "FAKE", "UNCERTAIN", "REAL"]
+    assert [b["label"] for b in sb["blocks"]] == ["REAL", "REAL", "FAKE", "FAKE", "REAL"]      # 51% -> FAKE
     assert [(b["start_s"], b["end_s"]) for b in sb["blocks"]][2] == (2.0, 3.0)
     fake = sb["blocks"][2]
     assert fake["confidence"] == pytest.approx(fake["p_fake"]) and 0.95 < fake["p_fake"] < 0.97
-    assert sb["counts"] == {"REAL": 3, "FAKE": 1, "UNCERTAIN": 1, "NO SPEECH": 0}
-    assert sb["pct_of_speech"]["FAKE"] == pytest.approx(20.0)
+    assert sb["counts"] == {"REAL": 3, "FAKE": 2, "NO SPEECH": 0}
+    assert sb["pct_of_speech"]["FAKE"] == pytest.approx(40.0)
+    low = sb["blocks"][3]                                          # 51% fake: low confidence, still FAKE
+    assert low["confidence"] == pytest.approx(low["p_fake"]) and 0.5 < low["p_fake"] < 0.52
 
 
 def test_unscored_steps_are_no_speech_and_excluded_from_shares():
@@ -43,9 +45,9 @@ def test_long_recording_keeps_block_count_bounded_and_short_tail_folded():
     assert sb["blocks"][-1]["end_s"] == pytest.approx(600.2)
 
 
-@pytest.mark.parametrize("p,lab", [(None, "NO SPEECH"), (0.39, "REAL"), (0.4, "UNCERTAIN"), (0.59, "UNCERTAIN"),
-                                   (0.6, "FAKE")])
-def test_block_label_bands(p, lab):
+@pytest.mark.parametrize("p,lab", [(None, "NO SPEECH"), (0.49, "REAL"), (0.5, "REAL"), (0.51, "FAKE"), (0.01, "REAL"),
+                                   (0.99, "FAKE")])
+def test_block_label_is_argmax_and_ties_are_real(p, lab):
     assert block_label(p) == lab
 
 
